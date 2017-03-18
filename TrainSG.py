@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 from keras_frcnn.Data.DataGenerator import DataGenerator
+from keras_frcnn.Lib.Zoo import ModelZoo
 
 __author__ = 'roeih'
 
@@ -73,22 +74,18 @@ if __name__ == '__main__':
     data_gen_train = DataGenerator(data=train_imgs, hierarchy_mapping=hierarchy_mapping, classes_count=classes_count,
                                    config=config, backend=K.image_dim_ordering(), mode='train', batch_size=1)
 
-    input_shape_img = (None, None, 3)
+    if K.image_dim_ordering() == 'th':
+        input_shape_img = (3, None, None)
+    else:
+        input_shape_img = (None, None, 3)
+
+    net = ModelZoo()
     img_input = Input(shape=input_shape_img)
     roi_input = Input(shape=(config.num_rois, 4))
-
-    # define the base network (resnet here, can be VGG, Inception, etc)
-    shared_layers = nn.nn_base(img_input, trainable=True)
-
     # define the RPN, built on the base layers
     num_anchors = len(config.anchor_box_scales) * len(config.anchor_box_ratios)
-    rpn = nn.rpn(shared_layers, num_anchors)
-
-    # the classifier is build on top of the base layers + the ROI pooling layer + extra layers
-    classifier = nn.classifier(shared_layers, roi_input, config.num_rois, nb_classes=len(classes_count), trainable=True)
-
-    # define the full model
-    model = Model([img_input, roi_input], rpn + classifier)
+    model = net.resnet50(img_input, roi_input, num_anchors, num_rois=config.num_rois, nb_classes=len(classes_count),
+                         trainable=True)
 
     try:
         print('loading weights from {}'.format(config.base_net_weights))
