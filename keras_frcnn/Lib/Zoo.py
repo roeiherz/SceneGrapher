@@ -1,10 +1,11 @@
 import cv2
 import numpy
 import tensorflow as tf
-
+from keras import backend as K
 from keras.models import Sequential
-from keras.layers import ZeroPadding2D, Convolution2D, MaxPooling2D, Flatten, Dense, Dropout, Lambda, BatchNormalization, \
-    Activation, Merge
+from keras.layers import ZeroPadding2D, Convolution2D, MaxPooling2D, Flatten, Dense, Dropout, Lambda, \
+    BatchNormalization, \
+    Activation, Merge, merge
 from keras.optimizers import SGD
 
 from DesignPatterns.Singleton import Singleton
@@ -13,7 +14,6 @@ CHANNEL_AXIS = 3
 
 
 class ModelZoo(object):
-
     __metaclass__ = Singleton
 
     def billinear(self, output_size):
@@ -40,7 +40,7 @@ class ModelZoo(object):
     def vgg19(self, convolution_only=False):
         _model = Sequential()
 
-        _model.add(ZeroPadding2D((1, 1), input_shape=(None,None,3)))
+        _model.add(ZeroPadding2D((1, 1), input_shape=(None, None, 3)))
         _model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_1'))
         _model.add(ZeroPadding2D((1, 1)))
         _model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_2'))
@@ -192,12 +192,54 @@ class ModelZoo(object):
         _model_method = getattr(self, model_name)
         return _model_method()
 
+    def resnet(self):
+        """
+        This class
+        :return:
+        """
+        def identity_block(input_tensor, kernel_size, filters, stage, block, trainable=True):
+            """
+
+            :param input_tensor: input tensor
+            :param kernel_size: defualt 3, the kernel size of middle conv layer at main path
+            :param filters: list of integers, the nb_filters of 3 conv layer at main path
+            :param stage: integer, current stage label, used for generating layer names
+            :param block: 'a','b'..., current block label, used for generating layer names
+            :param trainable:
+            :return:
+            """
+
+            nb_filter1, nb_filter2, nb_filter3 = filters
+            if K.image_dim_ordering() == 'tf':
+                bn_axis = 3
+            else:
+                bn_axis = 1
+            conv_name_base = 'res' + str(stage) + block + '_branch'
+            bn_name_base = 'bn' + str(stage) + block + '_branch'
+
+            x = Convolution2D(nb_filter1, 1, 1, name=conv_name_base + '2a', trainable=trainable)(input_tensor)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2a')(x)
+            x = Activation('relu')(x)
+
+            x = Convolution2D(nb_filter2, kernel_size, kernel_size, border_mode='same', name=conv_name_base + '2b',
+                              trainable=trainable)(x)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2b')(x)
+            x = Activation('relu')(x)
+
+            x = Convolution2D(nb_filter3, 1, 1, name=conv_name_base + '2c', trainable=trainable)(x)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2c')(x)
+
+            x = merge([x, input_tensor], mode='sum')
+            x = Activation('relu')(x)
+            return x
+
+
 if __name__ == "__main__":
     im = cv2.resize(cv2.imread('cat.jpg'), (224, 224)).astype(numpy.float32)
-    im[:,:,0] -= 103.939
-    im[:,:,1] -= 116.779
-    im[:,:,2] -= 123.68
-    im = im.transpose((2,0,1))
+    im[:, :, 0] -= 103.939
+    im[:, :, 1] -= 116.779
+    im[:, :, 2] -= 123.68
+    im = im.transpose((2, 0, 1))
     im = numpy.expand_dims(im, axis=0)
     my_net = ModelZoo()
     # Test pretrained model

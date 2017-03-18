@@ -8,7 +8,7 @@ class Config:
     This class represents Config file
     """
     def __init__(self):
-        # setting for data augmentation
+        # setting for Data augmentation
         self.use_horizontal_flips = True
         self.use_vertical_flips = False
         self.scale_augment = False

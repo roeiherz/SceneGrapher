@@ -2,7 +2,7 @@ import os
 import xml.etree.ElementTree as ET
 import cv2
 
-from keras_frcnn.data.DataSet import DataSet
+from keras_frcnn.Data.DataSet import DataSet
 
 __author__ = 'roeih'
 
@@ -17,7 +17,7 @@ class PascalVoc(DataSet):
 
     def get_data(self, input_path, pascal_data=['VOC2007', 'VOC2012']):
         """
-        This function will store PascalVoc data
+        This function will store PascalVoc Data
         :param pascal_data:
         :param input_path: path for input
         :return:

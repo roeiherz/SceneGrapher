@@ -6,7 +6,7 @@ __author__ = 'roeih'
 
 class DataAugmention(object):
     """
-    This class is a data augmentation
+    This class is a Data augmentation
     """
 
     def __init__(self, img, img_data, config):
@@ -16,7 +16,7 @@ class DataAugmention(object):
 
     def augment(self):
         """
-        This function augment the data according to the config file
+        This function augment the Data according to the config file
         :return:
         """
         img_data_aug = np.copy.deepcopy(self._img_data)

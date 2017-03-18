@@ -7,7 +7,7 @@ __author__ = 'roeih'
 def convert_img_bgr_to_rgb(img_data):
     """
     This function convert image from BGR to RGB
-    :param img_data: image data
+    :param img_data: image Data
     :return: RGB img
     """
     assert 'filepath' in img_data

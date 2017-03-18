@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from keras_frcnn.data.DataGenerator import DataGenerator
+from keras_frcnn.Data.DataGenerator import DataGenerator
 
 __author__ = 'roeih'
 
@@ -14,7 +14,7 @@ from keras_frcnn.Config import Config
 # from keras_frcnn import resnet as nn
 from keras.optimizers import Adam, SGD
 from keras.layers import Input
-from keras_frcnn.data.PascalVoc import PascalVoc
+from keras_frcnn.Data.PascalVoc import PascalVoc
 from keras.callbacks import ModelCheckpoint
 from keras.models import Model
 from keras.callbacks import EarlyStopping, ModelCheckpoint
@@ -22,7 +22,7 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint
 # from keras_frcnn import data_generators
 from keras import backend as K
 
-SAVE_PATH = "/home/roeih/SceneGrapher/keras_frcnn/pickle"
+SAVE_PATH = "/home/roeih/SceneGrapher/keras_frcnn/Pickle"
 
 
 def create_data(load=False):
@@ -32,7 +32,7 @@ def create_data(load=False):
     :return: train_imgs, val_imgs, class_mapping.p, classes_count
     """
 
-    # When loading pickle
+    # When loading Pickle
     if load:
         class_mapping = cPickle.load(open(os.path.join(SAVE_PATH, "class_mapping.p"), "rb"))
         classes_count = cPickle.load(open(os.path.join(SAVE_PATH, "classes_count.p"), "rb"))
@@ -54,7 +54,7 @@ def create_data(load=False):
         json.dump(class_mapping, class_data_json)
     pprint.pprint(classes_count)
 
-    # Shuffle the data
+    # Shuffle the Data
     random.shuffle(all_imgs)
 
     train_imgs = [s for s in all_imgs if s['imageset'] == 'trainval']
@@ -74,9 +74,7 @@ if __name__ == '__main__':
                                    config=config, backend=K.image_dim_ordering(), mode='train', batch_size=1)
 
     input_shape_img = (None, None, 3)
-
     img_input = Input(shape=input_shape_img)
-
     roi_input = Input(shape=(config.num_rois, 4))
 
     # define the base network (resnet here, can be VGG, Inception, etc)

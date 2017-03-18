@@ -1,15 +1,14 @@
 from __future__ import print_function
 
+import cv2
+import numpy
 from keras.layers import Convolution2D, GlobalAveragePooling2D, Dense
-from Zoo import ModelZoo
+
+from keras_frcnn.Lib.Zoo import ModelZoo
 from tfFasterRcnn.lib.datasets.Imdb import Imdb
 from tfFasterRcnn.lib.datasets.factory import get_imdb
-import tensorflow as tf
-from tfFasterRcnn.lib.model.train_val import get_training_roidb
-import cv2
 from tfFasterRcnn.lib.model.config import cfg_from_file, cfg
-from tfFasterRcnn.lib.nets.vgg16 import vgg16
-import numpy
+from tfFasterRcnn.lib.model.train_val import get_training_roidb
 
 __author__ = 'roeih'
 
@@ -18,10 +17,10 @@ TEST_IMDB = "voc_2007_test"
 ITERS = 400000
 CFG_FILE = "vgg16.yml"
 NET = "vgg16"
-WEIGHT = "data/imagenet_weights/vgg16.ckpt"
+WEIGHT = "Data/imagenet_weights/vgg16.ckpt"
 
 
-# --weight data/imagenet_weights/vgg16.ckpt --imdb voc_2007_trainval --imdbval voc_2007_test  --iters 400000 --cfg ../experiments/cfgs/vgg16.yml --net vgg16
+# --weight Data/imagenet_weights/vgg16.ckpt --imdb voc_2007_trainval --imdbval voc_2007_test  --iters 400000 --cfg ../experiments/cfgs/vgg16.yml --net vgg16
 
 def combined_roidb(imdb_names):
     """
@@ -97,5 +96,5 @@ if __name__ == '__main__':
 
     print('debug')
 
-    # --weight data/imagenet_weights/vgg16.ckpt --imdb voc_2007_trainval --imdbval voc_2007_test  --iters 400000 --cfg ../experiments/cfgs/vgg16.yml --net vgg16
-    # --weight data/imagenet_weights/res101.ckpt --imdb coco_2014_train+coco_2014_valminusminival --imdbval voc_2007_test  --iters 400000 --cfg ../experiments/cfgs/res101.yml --net res101
+    # --weight Data/imagenet_weights/vgg16.ckpt --imdb voc_2007_trainval --imdbval voc_2007_test  --iters 400000 --cfg ../experiments/cfgs/vgg16.yml --net vgg16
+    # --weight Data/imagenet_weights/res101.ckpt --imdb coco_2014_train+coco_2014_valminusminival --imdbval voc_2007_test  --iters 400000 --cfg ../experiments/cfgs/res101.yml --net res101

@@ -2,9 +2,9 @@ import cv2
 import numpy as np
 from keras.utils import np_utils
 import random
-from keras_frcnn.data.DataAugmention import DataAugmention
-from keras_frcnn.utils.BOXES import iou
-from keras_frcnn.utils.utils import convert_img_bgr_to_rgb
+from keras_frcnn.Data.DataAugmention import DataAugmention
+from keras_frcnn.Utils.BOXES import iou
+from keras_frcnn.Utils.utils import convert_img_bgr_to_rgb
 
 __author__ = 'roeih'
 
@@ -17,7 +17,7 @@ class DataGenerator(object):
     def __init__(self, data, hierarchy_mapping, classes_count, config, backend, mode, batch_size=1):
         """
         Initialize Data Generator
-        :param data: dictionary of data for each
+        :param data: dictionary of Data for each
         :param hierarchy_mapping:
         :param classes_count:
         :param config:
@@ -45,7 +45,7 @@ class DataGenerator(object):
         labels = []
 
         if self._current_index + self._batch_size > self._size:
-            print('data ended, starting from the beginning')
+            print('Data ended, starting from the beginning')
             self._current_index = 0
 
         for img_data in self._data[self._current_index:self._current_index + self._batch_size]:
