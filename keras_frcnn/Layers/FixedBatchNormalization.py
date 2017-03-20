@@ -6,10 +6,20 @@ __author__ = 'roeih'
 
 
 class FixedBatchNormalization(Layer):
-
     def __init__(self, epsilon=1e-3, axis=-1,
                  weights=None, beta_init='zero', gamma_init='one',
                  gamma_regularizer=None, beta_regularizer=None, **kwargs):
+        """
+        This layer implements BN layer
+        :param epsilon:
+        :param axis:
+        :param weights:
+        :param beta_init:
+        :param gamma_init:
+        :param gamma_regularizer:
+        :param beta_regularizer:
+        :param kwargs:
+        """
         self.supports_masking = True
         self.beta_init = initializers.get(beta_init)
         self.gamma_init = initializers.get(gamma_init)
@@ -21,6 +31,11 @@ class FixedBatchNormalization(Layer):
         super(FixedBatchNormalization, self).__init__(**kwargs)
 
     def build(self, input_shape):
+        """
+        This function implements the build keras layer function - no weight trainable is adding
+        :param input_shape: list of input shape
+        :return:
+        """
         self.input_spec = [InputSpec(shape=input_shape)]
         shape = (input_shape[self.axis],)
 
@@ -43,10 +58,15 @@ class FixedBatchNormalization(Layer):
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
             del self.initial_weights
-        self.built = True
+        super(FixedBatchNormalization, self).build(input_shape)
 
     def call(self, x, mask=None):
-
+        """
+        This function implements the output call keras layer function
+        :param x:
+        :param mask:
+        :return:
+        """
         assert self.built, 'Layer must be built before being called'
         input_shape = K.int_shape(x)
 

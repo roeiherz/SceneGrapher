@@ -11,12 +11,16 @@ from keras.layers import ZeroPadding2D, Convolution2D, MaxPooling2D, Flatten, De
 from keras.optimizers import SGD
 from DesignPatterns.Singleton import Singleton
 from keras_frcnn.Layers.FixedBatchNormalization import FixedBatchNormalization
+from keras_frcnn.Layers.RoiPoolingConv import RoiPoolingConv
 
 CHANNEL_AXIS = 3
 
 
 class ModelZoo(object):
     __metaclass__ = Singleton
+
+    # Class Field
+    POOLING_REGIONS = 7
 
     def billinear(self, output_size):
         _model = Sequential()
@@ -194,53 +198,16 @@ class ModelZoo(object):
         _model_method = getattr(self, model_name)
         return _model_method()
 
-    def resnet50(self, img_input, roi_input, num_anchors, num_rois, nb_classes, trainable=True):
+    def resnet50_classifier(self, base_layers, input_rois, num_rois, num_classes=21, trainable=False):
         """
-        This function defines resnet50 base+rpn+classifier as in faster-rcnn
-        :param img_input: image Input used to instantiate a Keras tensor
+        This function creates the classifier
+        :param base_layers: base layers (conv layers one to five)
+        :param input_rois: rois as a keras Input
+        :param num_rois: number of rois which defines in the config
+        :param num_classes: number of classes
         :param trainable: "freeze" a layer - exclude it from training
-        :return: full model
+        :return: classifier
         """
-
-        def identity_block(input_tensor, kernel_size, filters, stage, block, trainable=True):
-            """
-            This function creates resnet block with identity shortcut (no conv)
-            This blocks sums between   conv 1x1 -> BN -> ReLU ->
-                           conv 3x3 -> BN -> ReLU ->
-                           conv 1x1 -> BN -> ReLU ->
-            and shortcut is identity (f(x)=x)
-            :param input_tensor: input tensor
-            :param kernel_size: defualt 3, the kernel size of middle conv layer at main path
-            :param filters: list of integers, the nb_filters of 3 conv layer at main path
-            :param stage: integer, current stage label, used for generating layer names
-            :param block: 'a','b'..., current block label, used for generating layer names
-            :param trainable:
-            :return:
-            """
-
-            nb_filter1, nb_filter2, nb_filter3 = filters
-            if K.image_dim_ordering() == 'tf':
-                bn_axis = 3
-            else:
-                bn_axis = 1
-            conv_name_base = 'res' + str(stage) + block + '_branch'
-            bn_name_base = 'bn' + str(stage) + block + '_branch'
-
-            x = Convolution2D(nb_filter1, 1, 1, name=conv_name_base + '2a', trainable=trainable)(input_tensor)
-            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2a')(x)
-            x = Activation('relu')(x)
-
-            x = Convolution2D(nb_filter2, kernel_size, kernel_size, border_mode='same', name=conv_name_base + '2b',
-                              trainable=trainable)(x)
-            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2b')(x)
-            x = Activation('relu')(x)
-
-            x = Convolution2D(nb_filter3, 1, 1, name=conv_name_base + '2c', trainable=trainable)(x)
-            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2c')(x)
-
-            x = merge([x, input_tensor], mode='sum')
-            x = Activation('relu')(x)
-            return x
 
         def identity_block_td(input_tensor, kernel_size, filters, stage, block, trainable=True):
             """
@@ -285,55 +252,6 @@ class ModelZoo(object):
             x = merge([x, input_tensor], mode='sum')
             x = Activation('relu')(x)
 
-            return x
-
-        def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2), trainable=True):
-            """
-            This function creates resnet block with conv as shortcut
-            This blocks sums between   conv 1x1 -> BN -> ReLU ->
-                                       conv 3x3 -> BN -> ReLU ->
-                                       conv 1x1 -> BN -> ReLU ->
-                        and shortcut conv 1x1 -> BN
-            :param input_tensor: input tensor
-            :param kernel_size: kernel size. default is 3 which is the middle conv in the block
-            :param filters: list of integers which contains the nof_filters of 3 conv layer
-            :param stage: integer, current stage label, used for generating layer names
-            :param block: 'a','b'..., current block label, used for generating layer names
-            :param strides: stride
-            :param trainable: "freeze" a layer - exclude it from training
-            # Note that from stage 3, the first conv layer at main path is with strides=(2,2)
-            # And the shortcut should have strides=(2,2) as well
-            :return:
-            """
-
-            nb_filter1, nb_filter2, nb_filter3 = filters
-            if K.image_dim_ordering() == 'tf':
-                bn_axis = 3
-            else:
-                bn_axis = 1
-
-            conv_name_base = 'res' + str(stage) + block + '_branch'
-            bn_name_base = 'bn' + str(stage) + block + '_branch'
-
-            x = Convolution2D(nb_filter1, (1, 1), strides=strides, name=conv_name_base + '2a', trainable=trainable)(
-                input_tensor)
-            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2a')(x)
-            x = Activation('relu')(x)
-
-            x = Convolution2D(nb_filter2, (kernel_size, kernel_size), padding='same', name=conv_name_base + '2b',
-                              trainable=trainable)(x)
-            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2b')(x)
-            x = Activation('relu')(x)
-
-            x = Convolution2D(nb_filter3, (1, 1), name=conv_name_base + '2c', trainable=trainable)(x)
-            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2c')(x)
-
-            shortcut = Convolution2D(nb_filter3, (1, 1), strides=strides, name=conv_name_base + '1',
-                                     trainable=trainable)(input_tensor)
-            shortcut = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '1')(shortcut)
-
-            x = merge([x, shortcut], mode='sum')
-            x = Activation('relu')(x)
             return x
 
         def conv_block_td(input_tensor, kernel_size, filters, stage, block, strides=(2, 2), trainable=True):
@@ -390,58 +308,6 @@ class ModelZoo(object):
             x = Activation('relu')(x)
             return x
 
-        def base(input_tensor=None, trainable=False):
-            """
-            This function define the base network (resnet here, can be VGG, Inception, etc)
-            :param input_tensor: input tensor
-            :param trainable: "freeze" a layer - exclude it from training
-            :return:
-            """
-
-            # Determine proper input shape
-            if K.image_dim_ordering() == 'th':
-                input_shape = (3, None, None)
-            else:
-                input_shape = (None, None, 3)
-
-            if input_tensor is None:
-                img_input = Input(shape=input_shape)
-            else:
-                if not K.is_keras_tensor(input_tensor):
-                    img_input = Input(tensor=input_tensor, shape=input_shape)
-                else:
-                    img_input = input_tensor
-
-            if K.image_dim_ordering() == 'tf':
-                bn_axis = 3
-            else:
-                bn_axis = 1
-
-            x = ZeroPadding2D((3, 3))(img_input)
-
-            x = Convolution2D(64, (7, 7), strides=(2, 2), name='conv1', trainable=trainable)(x)
-            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name='bn_conv1')(x)
-            x = Activation('relu')(x)
-            x = MaxPooling2D((3, 3), strides=(2, 2))(x)
-
-            x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1), trainable=trainable)
-            x = identity_block(x, 3, [64, 64, 256], stage=2, block='b', trainable=trainable)
-            x = identity_block(x, 3, [64, 64, 256], stage=2, block='c', trainable=trainable)
-
-            x = conv_block(x, 3, [128, 128, 512], stage=3, block='a', trainable=trainable)
-            x = identity_block(x, 3, [128, 128, 512], stage=3, block='b', trainable=trainable)
-            x = identity_block(x, 3, [128, 128, 512], stage=3, block='c', trainable=trainable)
-            x = identity_block(x, 3, [128, 128, 512], stage=3, block='d', trainable=trainable)
-
-            x = conv_block(x, 3, [256, 256, 1024], stage=4, block='a', trainable=trainable)
-            x = identity_block(x, 3, [256, 256, 1024], stage=4, block='b', trainable=trainable)
-            x = identity_block(x, 3, [256, 256, 1024], stage=4, block='c', trainable=trainable)
-            x = identity_block(x, 3, [256, 256, 1024], stage=4, block='d', trainable=trainable)
-            x = identity_block(x, 3, [256, 256, 1024], stage=4, block='e', trainable=trainable)
-            x = identity_block(x, 3, [256, 256, 1024], stage=4, block='f', trainable=trainable)
-
-            return x
-
         def classifier_layers(base, trainable=False):
             """
 
@@ -457,52 +323,205 @@ class ModelZoo(object):
 
             return x
 
-        def classifier(base_layers, input_rois, num_rois, num_classes=21, trainable=False):
+        out_roi_pool = RoiPoolingConv(self.POOLING_REGIONS, num_rois)([base_layers, input_rois])
+        out = classifier_layers(out_roi_pool, trainable=trainable)
+        out = TimeDistributed(Flatten(), name='td_flatten')(out)
+        out_class = TimeDistributed(Dense(num_classes, activation='softmax', kernel_initializer='zero'),
+                                    name='dense_class_{}'.format(num_classes))(out)
+        # note: no regression target for bg class
+        out_regr = TimeDistributed(Dense(4 * (num_classes - 1), activation='linear', kernel_initializer='zero'),
+                                   name='dense_regress_{}'.format(num_classes))(out)
+
+        return [out_class, out_regr]
+
+    def resnet50_base(self, input_tensor, trainable=True):
+        """
+        This function defines resnet50 base+rpn+classifier as in faster-rcnn
+        :param num_rois: number of ROIs
+        :param num_anchors: number of anchors: anchor_box_scale * anchor_box_ratio
+        :param roi_input: rois as a keras Input
+        :param img_input: image Input used to instantiate a keras tensor
+        :param trainable: "freeze" a layer - exclude it from training
+        :return: full model
+        """
+
+        def identity_block(input_tensor, kernel_size, filters, stage, block, trainable=True):
             """
-            This function creates the classifier
-            :param base_layers: base layers (conv layers one to five)
-            :param input_rois: rois as a keras Input
-            :param num_rois: number of rois which defines in the config
-            :param num_classes: number of classes
-            :param trainable: "freeze" a layer - exclude it from training
+            This function creates resnet block with identity shortcut (no conv)
+            This blocks sums between   conv 1x1 -> BN -> ReLU ->
+                           conv 3x3 -> BN -> ReLU ->
+                           conv 1x1 -> BN -> ReLU ->
+            and shortcut is identity (f(x)=x)
+            :param input_tensor: input tensor
+            :param kernel_size: defualt 3, the kernel size of middle conv layer at main path
+            :param filters: list of integers, the nb_filters of 3 conv layer at main path
+            :param stage: integer, current stage label, used for generating layer names
+            :param block: 'a','b'..., current block label, used for generating layer names
+            :param trainable:
             :return:
             """
 
-            pooling_regions = 7
-            out_roi_pool = RoiPoolingConv(pooling_regions, num_rois)([base_layers, input_rois])
-            out = classifier_layers(out_roi_pool, trainable=trainable)
-            out = TimeDistributed(Flatten(), name='td_flatten')(out)
-            out_class = TimeDistributed(Dense(num_classes, activation='softmax', kernel_initializer='zero'),
-                                        name='dense_class_{}'.format(num_classes))(out)
-            # note: no regression target for bg class
-            out_regr = TimeDistributed(Dense(4 * (num_classes - 1), activation='linear', kernel_initializer='zero'),
-                                       name='dense_regress_{}'.format(num_classes))(out)
+            nb_filter1, nb_filter2, nb_filter3 = filters
+            if K.image_dim_ordering() == 'tf':
+                bn_axis = 3
+            else:
+                bn_axis = 1
+            conv_name_base = 'res' + str(stage) + block + '_branch'
+            bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-            return [out_class, out_regr]
+            x = Convolution2D(nb_filter1, 1, 1, name=conv_name_base + '2a', trainable=trainable)(input_tensor)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2a')(x)
+            x = Activation('relu')(x)
 
-        def rpn(base_layers, num_anchors):
+            x = Convolution2D(nb_filter2, kernel_size, kernel_size, border_mode='same', name=conv_name_base + '2b',
+                              trainable=trainable)(x)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2b')(x)
+            x = Activation('relu')(x)
+
+            x = Convolution2D(nb_filter3, 1, 1, name=conv_name_base + '2c', trainable=trainable)(x)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2c')(x)
+
+            x = merge([x, input_tensor], mode='sum')
+            x = Activation('relu')(x)
+            return x
+
+        def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2), trainable=True):
             """
-            This function creates the region proposal network
-            :param base_layers: the base layer (conv layers one to five)
-            :param num_anchors: number of anchors: anchor_box_scale * anchor_box_ratio
-            :return: classification and regression layers
+            This function creates resnet block with conv as shortcut
+            This blocks sums between   conv 1x1 -> BN -> ReLU ->
+                                       conv 3x3 -> BN -> ReLU ->
+                                       conv 1x1 -> BN -> ReLU ->
+                        and shortcut conv 1x1 -> BN
+            :param input_tensor: input tensor
+            :param kernel_size: kernel size. default is 3 which is the middle conv in the block
+            :param filters: list of integers which contains the nof_filters of 3 conv layer
+            :param stage: integer, current stage label, used for generating layer names
+            :param block: 'a','b'..., current block label, used for generating layer names
+            :param strides: stride
+            :param trainable: "freeze" a layer - exclude it from training
+            # Note that from stage 3, the first conv layer at main path is with strides=(2,2)
+            # And the shortcut should have strides=(2,2) as well
+            :return:
             """
 
-            x = Convolution2D(512, (3, 3), padding='same', activation='relu', kernel_initializer='normal',
-                              name='rpn_conv1')(base_layers)
-            x_class = Convolution2D(num_anchors, (1, 1), activation='sigmoid', kernel_initializer='uniform',
-                                    name='rpn_out_class')(x)
-            x_regr = Convolution2D(num_anchors * 4, (1, 1), activation='linear', kernel_initializer='normal',
-                                   name='rpn_out_regress')(x)
+            nb_filter1, nb_filter2, nb_filter3 = filters
+            if K.image_dim_ordering() == 'tf':
+                bn_axis = 3
+            else:
+                bn_axis = 1
 
-            return [x_class, x_regr]
+            conv_name_base = 'res' + str(stage) + block + '_branch'
+            bn_name_base = 'bn' + str(stage) + block + '_branch'
 
+            x = Convolution2D(nb_filter1, (1, 1), strides=strides, name=conv_name_base + '2a', trainable=trainable)(
+                input_tensor)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2a')(x)
+            x = Activation('relu')(x)
+
+            x = Convolution2D(nb_filter2, (kernel_size, kernel_size), padding='same', name=conv_name_base + '2b',
+                              trainable=trainable)(x)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2b')(x)
+            x = Activation('relu')(x)
+
+            x = Convolution2D(nb_filter3, (1, 1), name=conv_name_base + '2c', trainable=trainable)(x)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2c')(x)
+
+            shortcut = Convolution2D(nb_filter3, (1, 1), strides=strides, name=conv_name_base + '1',
+                                     trainable=trainable)(input_tensor)
+            shortcut = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '1')(shortcut)
+
+            x = merge([x, shortcut], mode='sum')
+            x = Activation('relu')(x)
+            return x
+
+        # Determine proper input shape
+        if K.image_dim_ordering() == 'th':
+            input_shape = (3, None, None)
+        else:
+            input_shape = (None, None, 3)
+
+        if input_tensor is None:
+            img_input = Input(shape=input_shape)
+        else:
+            if not K.is_keras_tensor(input_tensor):
+                img_input = Input(tensor=input_tensor, shape=input_shape)
+            else:
+                img_input = input_tensor
+
+        if K.image_dim_ordering() == 'tf':
+            bn_axis = 3
+        else:
+            bn_axis = 1
+
+        x = ZeroPadding2D((3, 3))(img_input)
+
+        x = Convolution2D(64, (7, 7), strides=(2, 2), name='conv1', trainable=trainable)(x)
+        x = FixedBatchNormalization(trainable=False, axis=bn_axis, name='bn_conv1')(x)
+        x = Activation('relu')(x)
+        x = MaxPooling2D((3, 3), strides=(2, 2))(x)
+
+        x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1), trainable=trainable)
+        x = identity_block(x, 3, [64, 64, 256], stage=2, block='b', trainable=trainable)
+        x = identity_block(x, 3, [64, 64, 256], stage=2, block='c', trainable=trainable)
+
+        x = conv_block(x, 3, [128, 128, 512], stage=3, block='a', trainable=trainable)
+        x = identity_block(x, 3, [128, 128, 512], stage=3, block='b', trainable=trainable)
+        x = identity_block(x, 3, [128, 128, 512], stage=3, block='c', trainable=trainable)
+        x = identity_block(x, 3, [128, 128, 512], stage=3, block='d', trainable=trainable)
+
+        x = conv_block(x, 3, [256, 256, 1024], stage=4, block='a', trainable=trainable)
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='b', trainable=trainable)
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='c', trainable=trainable)
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='d', trainable=trainable)
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='e', trainable=trainable)
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='f', trainable=trainable)
+
+        return x
+
+    def rpn(self, base_layers, num_anchors):
+        """
+        This function creates the region proposal network
+        :param base_layers: the base layer (conv layers one to five)
+        :param num_anchors: number of anchors: anchor_box_scale * anchor_box_ratio
+        :return: classification and regression layers
+        """
+
+        x = Convolution2D(512, (3, 3), padding='same', activation='relu', kernel_initializer='normal',
+                          name='rpn_conv1')(base_layers)
+        x_class = Convolution2D(num_anchors, (1, 1), activation='sigmoid', kernel_initializer='uniform',
+                                name='rpn_out_class')(x)
+        x_regr = Convolution2D(num_anchors * 4, (1, 1), activation='linear', kernel_initializer='normal',
+                               name='rpn_out_regress')(x)
+
+        return [x_class, x_regr]
+
+        # # define the base network (resnet here, can be VGG, Inception, etc)
+        # base_layers = base(img_input, trainable=True)
+        # # define the RPN, built on the base layers
+        # rpn_layers = rpn(base_layers, num_anchors)
+        # # the classifier is build on top of the base layers + the ROI pooling layer + extra layers
+        # classifier = classifier(base_layers, roi_input, num_rois, num_classes=nb_classes, trainable=trainable)
+        # # define the full model
+        # model = Model([img_input, roi_input], rpn_layers + classifier)
+        # return model
+
+    def resnet_faster_rcnn(self, img_input, roi_input, num_anchors, num_rois, nb_classes, trainable=True):
+        """
+        This function defines resnet50 base+rpn+classifier as in faster-rcnn
+        :param num_rois: number of ROIs
+        :param num_anchors: number of anchors: anchor_box_scale * anchor_box_ratio
+        :param roi_input: rois as a keras Input
+        :param img_input: image Input used to instantiate a Keras tensor
+        :param trainable: "freeze" a layer - exclude it from training
+        :return: full model
+        """
         # define the base network (resnet here, can be VGG, Inception, etc)
-        base_layers = base(img_input, trainable=True)
+        base_layers = self.resnet50_base(img_input, trainable=trainable)
         # define the RPN, built on the base layers
-        rpn_layers = rpn(base_layers, num_anchors)
+        rpn_layers = self.rpn(base_layers, num_anchors)
         # the classifier is build on top of the base layers + the ROI pooling layer + extra layers
-        classifier = classifier(base_layers, roi_input, num_rois, num_classes=nb_classes, trainable=trainable)
+        classifier = self.resnet50_classifier(base_layers, roi_input, num_rois, num_classes=nb_classes,
+                                              trainable=trainable)
         # define the full model
         model = Model([img_input, roi_input], rpn_layers + classifier)
         return model

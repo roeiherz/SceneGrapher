@@ -84,8 +84,9 @@ if __name__ == '__main__':
     roi_input = Input(shape=(config.num_rois, 4))
     # define the RPN, built on the base layers
     num_anchors = len(config.anchor_box_scales) * len(config.anchor_box_ratios)
-    model = net.resnet50(img_input, roi_input, num_anchors, num_rois=config.num_rois, nb_classes=len(classes_count),
-                         trainable=True)
+    model = net.resnet_faster_rcnn(img_input, roi_input, num_anchors, num_rois=config.num_rois,
+                                   nb_classes=len(classes_count),
+                                   trainable=True)
 
     try:
         print('loading weights from {}'.format(config.base_net_weights))
