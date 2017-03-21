@@ -1,5 +1,6 @@
 from __future__ import print_function
 from keras_frcnn.Lib.DataGenerator import DataGenerator
+from keras_frcnn.Lib.Loss import rpn_loss_cls, rpn_loss_regr, class_loss_cls, class_loss_regr
 from keras_frcnn.Lib.Zoo import ModelZoo
 
 __author__ = 'roeih'
@@ -97,8 +98,8 @@ if __name__ == '__main__':
 
     optimizer = Adam(1e-6)
     model.compile(optimizer=optimizer,
-                  loss=[losses.rpn_loss_cls(num_anchors), losses.rpn_loss_regr(num_anchors), losses.class_loss_cls,
-                        losses.class_loss_regr(config.num_rois, len(classes_count) - 1)])
+                  loss=[rpn_loss_cls(num_anchors), rpn_loss_regr(num_anchors), class_loss_cls,
+                        class_loss_regr(config.num_rois, len(classes_count) - 1)])
 
     callbacks = [EarlyStopping(monitor='val_loss', patience=20, verbose=0),
                  ModelCheckpoint(config.model_path, monitor='val_loss', save_best_only=True, verbose=0)]
