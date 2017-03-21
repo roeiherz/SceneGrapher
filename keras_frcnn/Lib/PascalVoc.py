@@ -1,8 +1,9 @@
 import os
 import xml.etree.ElementTree as ET
+
 import cv2
 
-from keras_frcnn.Data.DataSet import DataSet
+from keras_frcnn.Lib.DataSet import DataSet
 
 __author__ = 'roeih'
 

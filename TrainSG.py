@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 from keras_frcnn.Data.DataGenerator import DataGenerator
+
 from keras_frcnn.Lib.Zoo import ModelZoo
 
 __author__ = 'roeih'
@@ -8,16 +9,13 @@ __author__ = 'roeih'
 import random
 import pprint
 import os
-import sys
 import cPickle
 import json
 from keras_frcnn.Config import Config
 # from keras_frcnn import resnet as nn
-from keras.optimizers import Adam, SGD
+from keras.optimizers import Adam
 from keras.layers import Input
-from keras_frcnn.Data.PascalVoc import PascalVoc
-from keras.callbacks import ModelCheckpoint
-from keras.models import Model
+from keras_frcnn.Lib.PascalVoc import PascalVoc
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 # from keras_frcnn import losses
 # from keras_frcnn import data_generators
