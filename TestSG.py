@@ -1,21 +1,17 @@
 __author__ = 'roeih'
 
-import random
-import xml.etree.ElementTree as ET
-import math
-import pprint
-import pdb
-import cv2
 import json
-import numpy as np
+import os
 import sys
-from keras_frcnn import Config
+
+import cv2
 import keras_frcnn.resnet as nn
-from keras import backend as K
+import numpy as np
 from keras.layers import Input
 from keras.models import Model
+
 from keras_frcnn import roi_helpers
-import os
+from keras_frcnn.Lib import Config
 
 sys.setrecursionlimit(40000)
 C = Config.Config()

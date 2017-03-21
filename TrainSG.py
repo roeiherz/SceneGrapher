@@ -1,7 +1,5 @@
 from __future__ import print_function
-
-from keras_frcnn.Data.DataGenerator import DataGenerator
-
+from keras_frcnn.Lib.DataGenerator import DataGenerator
 from keras_frcnn.Lib.Zoo import ModelZoo
 
 __author__ = 'roeih'
@@ -11,17 +9,19 @@ import pprint
 import os
 import cPickle
 import json
-from keras_frcnn.Config import Config
-# from keras_frcnn import resnet as nn
+from keras_frcnn.Lib.Config import Config
 from keras.optimizers import Adam
 from keras.layers import Input
 from keras_frcnn.Lib.PascalVoc import PascalVoc
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-# from keras_frcnn import losses
-# from keras_frcnn import data_generators
 from keras import backend as K
 
 SAVE_PATH = "/home/roeih/SceneGrapher/keras_frcnn/Pickle"
+NUM_EPOCHS = 50
+# len(train_imgs)
+TRAIN_SAMPLES_PER_EPOCH = 2000
+# len(val_imgs)
+NUM_VAL_SAMPLES = 500
 
 
 def create_data(load=False):
@@ -100,15 +100,10 @@ if __name__ == '__main__':
                   loss=[losses.rpn_loss_cls(num_anchors), losses.rpn_loss_regr(num_anchors), losses.class_loss_cls,
                         losses.class_loss_regr(config.num_rois, len(classes_count) - 1)])
 
-    nb_epochs = 50
-
     callbacks = [EarlyStopping(monitor='val_loss', patience=20, verbose=0),
                  ModelCheckpoint(config.model_path, monitor='val_loss', save_best_only=True, verbose=0)]
-    train_samples_per_epoch = 2000  # len(train_imgs)
-    nb_val_samples = 500  # len(val_imgs),
 
     print('Starting training')
-
-    model.fit_generator(data_gen_train, samples_per_epoch=train_samples_per_epoch, nb_epoch=nb_epochs,
-                        validation_data=data_gen_val, nb_val_samples=nb_val_samples, callbacks=callbacks, max_q_size=10,
-                        nb_worker=1)
+    model.fit_generator(data_gen_train, samples_per_epoch=TRAIN_SAMPLES_PER_EPOCH, nb_epoch=NUM_EPOCHS,
+                        validation_data=data_gen_val, nb_val_samples=NUM_VAL_SAMPLES, callbacks=callbacks,
+                        max_q_size=10, nb_worker=1)
