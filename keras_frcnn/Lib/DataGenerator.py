@@ -1,7 +1,5 @@
 import random
-
 import numpy as np
-
 from keras_frcnn.Lib.DataAugmention import DataAugmention
 from keras_frcnn.Utils.BOXES import iou
 from keras_frcnn.Utils.utils import convert_img_bgr_to_rgb
@@ -17,13 +15,13 @@ class DataGenerator(object):
     def __init__(self, data, hierarchy_mapping, classes_count, config, backend, mode, batch_size=1):
         """
         Initialize Data Generator
-        :param data: dictionary of Data for each
-        :param hierarchy_mapping:
-        :param classes_count:
-        :param config:
-        :param backend:
-        :param mode:
-        :param batch_size:
+        :param data: dictionary of Data
+        :param hierarchy_mapping: hierarchy mapping
+        :param classes_count: A dict that contains {class: number of objects}
+        :param config: the class config which contains different parameters
+        :param backend: tensorflow or theano
+        :param mode: 'train' or 'test'
+        :param batch_size: the batch size
         """
         self._data = data
         self._hierarchy_mapping = hierarchy_mapping

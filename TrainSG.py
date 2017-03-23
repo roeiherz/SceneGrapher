@@ -17,7 +17,7 @@ from keras_frcnn.Lib.PascalVoc import PascalVoc
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras import backend as K
 
-SAVE_PATH = "/home/roeih/SceneGrapher/keras_frcnn/Pickle"
+SAVE_PATH = "/home/roeih/SceneGrapher/keras_frcnn/Data"
 NUM_EPOCHS = 50
 # len(train_imgs)
 TRAIN_SAMPLES_PER_EPOCH = 2000
@@ -72,6 +72,8 @@ if __name__ == '__main__':
     train_imgs, val_imgs, hierarchy_mapping, classes_count = create_data(load=True)
     data_gen_train = DataGenerator(data=train_imgs, hierarchy_mapping=hierarchy_mapping, classes_count=classes_count,
                                    config=config, backend=K.image_dim_ordering(), mode='train', batch_size=1)
+    data_gen_val = DataGenerator(data=val_imgs, hierarchy_mapping=hierarchy_mapping, classes_count=classes_count,
+                                 config=config, backend=K.image_dim_ordering(), mode='test', batch_size=1)
 
     if K.image_dim_ordering() == 'th':
         input_shape_img = (3, None, None)
@@ -90,7 +92,8 @@ if __name__ == '__main__':
     try:
         print('loading weights from {}'.format(config.base_net_weights))
         model.load_weights(config.base_net_weights, by_name=True)
-    except:
+    except Exception as e:
+        print(e)
         print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
