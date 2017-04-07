@@ -17,7 +17,7 @@ from keras_frcnn.Lib.PascalVoc import PascalVoc
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras import backend as K
 
-SAVE_PATH = "/home/roeih/SceneGrapher/keras_frcnn/Data"
+SAVE_PATH = "keras_frcnn/Data"
 NUM_EPOCHS = 50
 # len(train_imgs)
 TRAIN_SAMPLES_PER_EPOCH = 2000

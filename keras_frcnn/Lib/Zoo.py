@@ -526,6 +526,11 @@ class ModelZoo(object):
         model = Model([img_input, roi_input], rpn_layers + classifier)
         return model
 
+    def lang_module(self, input_shape, output_shape):
+        _model = Sequential()
+        _model.add(Dense(output_shape, input_shape))
+
+        return _model
 
 if __name__ == "__main__":
     im = cv2.resize(cv2.imread('cat.jpg'), (224, 224)).astype(numpy.float32)
