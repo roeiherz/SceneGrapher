@@ -44,6 +44,7 @@ def create_data(load=False):
     pascal_voc = PascalVoc()
     all_imgs, classes_count, class_mapping = pascal_voc.get_data("/home/roeih/PascalVoc/VOCdevkit",
                                                                  pascal_data=['VOC2007'])
+
     # Add background class
     if 'bg' not in classes_count:
         classes_count['bg'] = 0
