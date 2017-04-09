@@ -2,7 +2,7 @@ import random
 import numpy as np
 from keras_frcnn.Lib.DataAugmention import DataAugmention
 from keras_frcnn.Utils.BOXES import iou
-from keras_frcnn.Utils.utils import convert_img_bgr_to_rgb
+from keras_frcnn.Utils.Utils import convert_img_bgr_to_rgb
 
 __author__ = 'roeih'
 

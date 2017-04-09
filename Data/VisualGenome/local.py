@@ -312,4 +312,3 @@ if __name__ == '__main__':
     qas = GetAllQAs()
     tt = GetSceneGraph(1)
     print("We got an image")
-

@@ -19,7 +19,7 @@ class DataAugmention(object):
         This function augment the Data according to the config file
         :return:
         """
-        img_data_aug = np.copy.deepcopy(self._img_data)
+        img_data_aug = np.copy(self._img_data)
         img = self._img_data
         rows, cols = img.shape[:2]
 
