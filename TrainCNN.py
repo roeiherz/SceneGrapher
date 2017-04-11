@@ -107,7 +107,6 @@ def create_data_visual_genome(image_data):
         return classes_count, hierarchy_mapping, entities
 
     # Create classes_count, hierarchy_mapping and entities
-    ind = 1
     entities = []
     print("Start creating pickle for VisualGenome Data")
     for img_id in img_ids:
@@ -137,12 +136,12 @@ def create_data_visual_genome(image_data):
                     hierarchy_mapping[label] = obj_id
 
             # Printing Alerting
-            if ind % 1000 == 0:
-                print("This is iteration number: {}".format(ind))
-            ind += 1
+            # if ind % 1000 == 0:
+            #     print("This is iteration number: {}".format(ind))
+            print("This is iteration number: {}".format(img_id))
 
         except e as Exception:
-            print("Problem with {0} in index: {1}".format(e, ind))
+            print("Problem with {0} in index: {1}".format(e, img_id))
 
     # Save classes_count file
     classes_count_file = file(os.path.join(VisualGenome_PICKLES_PATH, CLASSES_COUNT_FILE), 'rb')
