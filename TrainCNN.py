@@ -31,7 +31,7 @@ CLASS_MAPPING_FILE = "class_mapping.p"
 ENTITIES_FILE = "entities.p"
 PascalVoc_PICKLES_PATH = "keras_frcnn/Data/PascalVoc"
 VisualGenome_PICKLES_PATH = "keras_frcnn/Data/VisualGenome"
-# Delete it
+# todo: Delete it
 VisualGenome_PICKLES_PATH = "keras_frcnn/Data/"
 
 NUM_EPOCHS = 50

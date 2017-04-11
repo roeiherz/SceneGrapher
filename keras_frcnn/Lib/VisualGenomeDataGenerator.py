@@ -56,8 +56,10 @@ class VisualGenomeDataGenerator(object):
                 print("Coulden't get the image")
                 continue
 
-            mask = get_mask_from_object(object)
+            # todo: Need to implement
+            self._get_patch()
 
+            # todo: Need to change the augmentation for PascalVoc and VisualGenome
             if self._mode == 'train':
                 # Augment only in training
                 data_augment = DataAugmention(img, img_data, self._config)
