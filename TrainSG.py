@@ -1,5 +1,5 @@
 from __future__ import print_function
-from keras_frcnn.Lib.DataGenerator import DataGenerator
+from keras_frcnn.Lib.PascalVocDataGenerator import PascalVocDataGenerator
 from keras_frcnn.Lib.Loss import rpn_loss_cls, rpn_loss_regr, class_loss_cls, class_loss_regr
 from keras_frcnn.Lib.Zoo import ModelZoo
 
@@ -71,10 +71,10 @@ if __name__ == '__main__':
     config = Config()
 
     train_imgs, val_imgs, hierarchy_mapping, classes_count = create_data(load=True)
-    data_gen_train = DataGenerator(data=train_imgs, hierarchy_mapping=hierarchy_mapping, classes_count=classes_count,
-                                   config=config, backend=K.image_dim_ordering(), mode='train', batch_size=1)
-    data_gen_val = DataGenerator(data=val_imgs, hierarchy_mapping=hierarchy_mapping, classes_count=classes_count,
-                                 config=config, backend=K.image_dim_ordering(), mode='test', batch_size=1)
+    data_gen_train = PascalVocDataGenerator(data=train_imgs, hierarchy_mapping=hierarchy_mapping, classes_count=classes_count,
+                                            config=config, backend=K.image_dim_ordering(), mode='train', batch_size=1)
+    data_gen_val = PascalVocDataGenerator(data=val_imgs, hierarchy_mapping=hierarchy_mapping, classes_count=classes_count,
+                                          config=config, backend=K.image_dim_ordering(), mode='test', batch_size=1)
 
     if K.image_dim_ordering() == 'th':
         input_shape_img = (3, None, None)

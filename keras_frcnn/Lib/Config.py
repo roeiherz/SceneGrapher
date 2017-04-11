@@ -14,6 +14,7 @@ class Config:
         self.scale_augment = False
         self.random_rotate = False
         self.random_rotate_scale = 180.
+        self.dataset = "VisualGenome"
 
         # anchor box scales
         self.anchor_box_scales = [128, 256, 512]

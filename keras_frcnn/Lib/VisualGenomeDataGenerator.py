@@ -2,14 +2,16 @@ import random
 import numpy as np
 from keras_frcnn.Lib.DataAugmention import DataAugmention
 from keras_frcnn.Utils.BOXES import iou
-from keras_frcnn.Utils.Utils import convert_img_bgr_to_rgb
+from keras_frcnn.Utils.Utils import convert_img_bgr_to_rgb, VG_DATA_PATH
+import cv2
+import os
 
 __author__ = 'roeih'
 
 
-class DataGenerator(object):
+class VisualGenomeDataGenerator(object):
     """
-    This class represents Data Generator
+    This class represents Visual Genome Data Generator
     """
 
     def __init__(self, data, hierarchy_mapping, classes_count, config, backend, mode, batch_size=1):
@@ -48,11 +50,17 @@ class DataGenerator(object):
 
         for img_data in self._data[self._current_index:self._current_index + self._batch_size]:
 
-            x_img = convert_img_bgr_to_rgb(img_data)
+            img = self._get_img(img_data)
+
+            if img is None:
+                print("Coulden't get the image")
+                continue
+
+            mask = get_mask_from_object(object)
 
             if self._mode == 'train':
                 # Augment only in training
-                data_augment = DataAugmention(x_img, img_data, self._config)
+                data_augment = DataAugmention(img, img_data, self._config)
                 img_data_aug, x_img = data_augment.augment()
 
             (width, height) = (img_data_aug['width'], img_data_aug['height'])
@@ -389,3 +397,25 @@ class DataGenerator(object):
         y_class_regr = np.expand_dims(y_class_regr, axis=0)
         x_rois = np.expand_dims(x_rois, axis=0)
         return x_rois, y_rpn_cls, y_rpn_regr, y_class_num, y_class_regr
+
+    def _get_img(self, img_data):
+        """
+        This function read image from pascal-voc dataset
+        :param img_data: image data is an entity class which contains objects, attributes, relationships and image
+        :return: the image
+        """
+        try:
+            image = img_data.image
+            path_lst = image.url.split('/')
+            img_path = os.path.join(VG_DATA_PATH, path_lst[-2], path_lst[-1])
+
+            if not os.path.isfile(img_path):
+                print("Error")
+
+            img = self._get_img(img_path)
+
+        except Exception as e:
+            print(str(e))
+            return None
+
+        return img

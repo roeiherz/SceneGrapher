@@ -6,21 +6,17 @@ import os
 __author__ = 'roeih'
 
 FILE_EXISTS_ERROR = (17, 'File exists')
+VG_DATA_PATH = "Data/VisualGenome/data"
+VG_PATCH_PATH = "Data/VisualGenome/Patches"
+VG_PICKLES_FOLDER_PATH = "Data/VisualGenome/pickles"
 
 
-def convert_img_bgr_to_rgb(img_data):
+def convert_img_bgr_to_rgb(img):
     """
     This function convert image from BGR to RGB
     :param img_data: image Data
     :return: RGB img
     """
-    assert 'filepath' in img_data
-    assert 'bboxes' in img_data
-    assert 'width' in img_data
-    assert 'height' in img_data
-
-    # img_data_aug = np.copy.deepcopy(img_data)
-    img = cv2.imread(img_data['filepath'])
     # BGR -> RGB
     img = img[:, :, (2, 1, 0)]
 

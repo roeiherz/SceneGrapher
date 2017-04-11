@@ -3,7 +3,7 @@ import abc
 __author__ = 'roeih'
 
 
-class DataSet(object):
+class DataSetGenerator(object):
     """
     this class represents an abstract DataSet
     """

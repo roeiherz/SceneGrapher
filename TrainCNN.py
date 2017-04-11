@@ -1,8 +1,9 @@
 from __future__ import print_function
 
 from Data.VisualGenome.local import GetAllImageData, GetAllRegionDescriptions, GetSceneGraph, GetAllQAs
-from keras_frcnn.Lib.DataGenerator import DataGenerator
+from keras_frcnn.Lib.PascalVocDataGenerator import PascalVocDataGenerator
 from keras_frcnn.Lib.Loss import rpn_loss_cls, rpn_loss_regr, class_loss_cls, class_loss_regr
+from keras_frcnn.Lib.VisualGenomeDataGenerator import VisualGenomeDataGenerator
 from keras_frcnn.Lib.Zoo import ModelZoo
 from keras.applications.resnet50 import ResNet50
 import random
@@ -19,7 +20,7 @@ from keras import backend as K
 from keras.models import Model
 import cv2
 
-from keras_frcnn.Utils.Utils import get_mask_from_object, create_folder, tryCreatePatch
+from keras_frcnn.Utils.Utils import get_mask_from_object, create_folder, tryCreatePatch, VG_PATCH_PATH
 
 __author__ = 'roeih'
 
@@ -30,8 +31,8 @@ CLASS_MAPPING_FILE = "class_mapping.p"
 ENTITIES_FILE = "entities.p"
 PascalVoc_PICKLES_PATH = "keras_frcnn/Data/PascalVoc"
 VisualGenome_PICKLES_PATH = "keras_frcnn/Data/VisualGenome"
-PATCH_PATH = "Data/VisualGenome/Patches"
-PICKLES_FOLDER_PATH = "Data/VisualGenome/pickles"
+# Delete it
+VisualGenome_PICKLES_PATH = "keras_frcnn/Data/"
 
 NUM_EPOCHS = 50
 # len(train_imgs)
@@ -90,7 +91,7 @@ def create_data_visual_genome(image_data):
     """
 
     img_ids = [img.id for img in image_data]
-    create_folder(PATCH_PATH)
+    create_folder(VG_PATCH_PATH)
     classes_count = {}
     # Map between label to images
     hierarchy_mapping = {}
@@ -108,7 +109,7 @@ def create_data_visual_genome(image_data):
 
     # Create classes_count, hierarchy_mapping and entities
     entities = []
-    print("Start creating pickle for VisualGenome Data")
+    print("Start creating pickle for VisualGenome Data with changes")
     for img_id in img_ids:
         try:
             entity = GetSceneGraph(img_id, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/",
@@ -140,25 +141,25 @@ def create_data_visual_genome(image_data):
             #     print("This is iteration number: {}".format(ind))
             print("This is iteration number: {}".format(img_id))
 
-        except e as Exception:
+        except Exception as e:
             print("Problem with {0} in index: {1}".format(e, img_id))
 
     # Save classes_count file
-    classes_count_file = file(os.path.join(VisualGenome_PICKLES_PATH, CLASSES_COUNT_FILE), 'rb')
+    classes_count_file = file(os.path.join(VisualGenome_PICKLES_PATH, CLASSES_COUNT_FILE), 'wb')
     # Pickle products
     cPickle.dump(classes_count, classes_count_file, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
     classes_count_file.close()
 
     # Save hierarchy_mapping file
-    hierarchy_mapping_file = file(os.path.join(VisualGenome_PICKLES_PATH, CLASSES_COUNT_FILE), 'rb')
+    hierarchy_mapping_file = file(os.path.join(VisualGenome_PICKLES_PATH, CLASS_MAPPING_FILE), 'wb')
     # Pickle products
     cPickle.dump(hierarchy_mapping, hierarchy_mapping_file, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
     hierarchy_mapping_file.close()
 
     # Save entities list
-    entities_file = file(os.path.join(VisualGenome_PICKLES_PATH, ENTITIES_FILE), 'rb')
+    entities_file = file(os.path.join(VisualGenome_PICKLES_PATH, ENTITIES_FILE), 'wb')
     # Pickle products
     cPickle.dump(entities, entities_file, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
@@ -187,10 +188,12 @@ if __name__ == '__main__':
     config = Config()
 
     train_imgs, val_imgs, hierarchy_mapping1, classes_count1 = create_data_pascal_voc(load=True)
-    data_gen_train = DataGenerator(data=train_imgs, hierarchy_mapping=hierarchy_mapping1, classes_count=classes_count1,
-                                   config=config, backend=K.image_dim_ordering(), mode='train', batch_size=1)
-    data_gen_val = DataGenerator(data=val_imgs, hierarchy_mapping=hierarchy_mapping1, classes_count=classes_count1,
-                                 config=config, backend=K.image_dim_ordering(), mode='test', batch_size=1)
+    data_gen_train = PascalVocDataGenerator(data=train_imgs, hierarchy_mapping=hierarchy_mapping1,
+                                            classes_count=classes_count1,
+                                            config=config, backend=K.image_dim_ordering(), mode='train', batch_size=1)
+    data_gen_val = PascalVocDataGenerator(data=val_imgs, hierarchy_mapping=hierarchy_mapping1,
+                                          classes_count=classes_count1,
+                                          config=config, backend=K.image_dim_ordering(), mode='test', batch_size=1)
 
     print("test")
     DATA_PATH = "Data/VisualGenome/data/"
@@ -202,7 +205,13 @@ if __name__ == '__main__':
     classes_count, hierarchy_mapping, entities = create_data_visual_genome(image_data)
 
     print("end test")
-    aba
+
+    data_gen_trainVG = VisualGenomeDataGenerator(data=entities, hierarchy_mapping=hierarchy_mapping,
+                                                 classes_count=classes_count,
+                                                 config=config, backend=K.image_dim_ordering(), mode='train',
+                                                 batch_size=10)
+    data_gen_trainVG.next()
+
     image_data = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "images_data.p"), "rb"))
     qas = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "qas.p"), "rb"))
     region_interest = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "region_interest.p"), "rb"))

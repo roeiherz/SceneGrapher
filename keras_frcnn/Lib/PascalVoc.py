@@ -3,12 +3,12 @@ import xml.etree.ElementTree as ET
 
 import cv2
 
-from keras_frcnn.Lib.DataSet import DataSet
+from keras_frcnn.Lib.DataSetGenerator import DataSetGenerator
 
 __author__ = 'roeih'
 
 
-class PascalVoc(DataSet):
+class PascalVoc(DataSetGenerator):
     """
     This class represents PascalVoc wrapper
     """

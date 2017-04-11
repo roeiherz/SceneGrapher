@@ -13,6 +13,15 @@ class DataAugmention(object):
         self._img = img
         self._config = config
         self._img_data = img_data
+        # self._img_data = self._get_img_data_for_VG(img_data) if self._config.dataset == "VisualGenome" else img_data
+
+    def _get_img_data_for_VG(self, img_data):
+        """
+        
+        :param img_data: 
+        :return: 
+        """
+
 
     def augment(self):
         """
@@ -20,7 +29,7 @@ class DataAugmention(object):
         :return:
         """
         img_data_aug = np.copy(self._img_data)
-        img = self._img_data
+        img = self._img
         rows, cols = img.shape[:2]
 
         if self._config.use_horizontal_flips and np.random.randint(0, 2) == 0:
