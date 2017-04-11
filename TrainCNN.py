@@ -136,9 +136,10 @@ def create_data_visual_genome(image_data):
                 if label not in hierarchy_mapping:
                     hierarchy_mapping[label] = obj_id
 
-                # Printing Alerting
-                if ind % 1000 == 0:
-                    print("This is iteration number: {}".format(ind))
+            # Printing Alerting
+            if ind % 1000 == 0:
+                print("This is iteration number: {}".format(ind))
+            ind += 1
 
         except e as Exception:
             print("Problem with {0} in index: {1}".format(e, ind))
