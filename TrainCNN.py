@@ -23,8 +23,15 @@ from keras_frcnn.Utils.Utils import get_mask_from_object, create_folder, tryCrea
 
 __author__ = 'roeih'
 
-SAVE_PATH = "keras_frcnn/Data"
+VAL_IMGS_P = "val_imgs.p"
+TRAIN_IMGS_P = "train_imgs.p"
+CLASSES_COUNT_FILE = "classes_count.p"
+CLASS_MAPPING_FILE = "class_mapping.p"
+ENTITIES_FILE = "entities.p"
+PascalVoc_PICKLES_PATH = "keras_frcnn/Data/PascalVoc"
+VisualGenome_PICKLES_PATH = "keras_frcnn/Data/VisualGenome"
 PATCH_PATH = "Data/VisualGenome/Patches"
+PICKLES_FOLDER_PATH = "Data/VisualGenome/pickles"
 
 NUM_EPOCHS = 50
 # len(train_imgs)
@@ -42,10 +49,10 @@ def create_data_pascal_voc(load=False):
 
     # When loading Pickle
     if load:
-        class_mapping = cPickle.load(open(os.path.join(SAVE_PATH, "class_mapping.p"), "rb"))
-        classes_count = cPickle.load(open(os.path.join(SAVE_PATH, "classes_count.p"), "rb"))
-        train_imgs = cPickle.load(open(os.path.join(SAVE_PATH, "train_imgs.p"), "rb"))
-        val_imgs = cPickle.load(open(os.path.join(SAVE_PATH, "val_imgs.p"), "rb"))
+        class_mapping = cPickle.load(open(os.path.join(PascalVoc_PICKLES_PATH, CLASS_MAPPING_FILE), "rb"))
+        classes_count = cPickle.load(open(os.path.join(PascalVoc_PICKLES_PATH, CLASSES_COUNT_FILE), "rb"))
+        train_imgs = cPickle.load(open(os.path.join(PascalVoc_PICKLES_PATH, TRAIN_IMGS_P), "rb"))
+        val_imgs = cPickle.load(open(os.path.join(PascalVoc_PICKLES_PATH, VAL_IMGS_P), "rb"))
         print('loading pickles')
         return train_imgs, val_imgs, class_mapping, classes_count
 
@@ -73,11 +80,13 @@ def create_data_pascal_voc(load=False):
     return train_imgs, val_imgs, class_mapping, classes_count
 
 
-def create_data_visual_genome():
+def create_data_visual_genome(image_data):
     """
-    This function load pickles
-    :param load: load field
-    :return: train_imgs, val_imgs, class_mapping.p, classes_count
+    This function creates or load pickles.
+    hierarchy_mapping: dict with mapping between a class label and his object_id
+    classes_count: dict with mapping between a class label and the number of his instances in the visual genome data
+    :param image_data: image data
+    :return: classes_count, hierarchy_mapping, entities
     """
 
     img_ids = [img.id for img in image_data]
@@ -86,40 +95,90 @@ def create_data_visual_genome():
     # Map between label to images
     hierarchy_mapping = {}
 
-    # Get classes_count and hierarchy_mapping for mapping
+    classes_count_path = os.path.join(VisualGenome_PICKLES_PATH, CLASSES_COUNT_FILE)
+    classes_mapping_path = os.path.join(VisualGenome_PICKLES_PATH, CLASS_MAPPING_FILE)
+    entities_path = os.path.join(VisualGenome_PICKLES_PATH, ENTITIES_FILE)
+
+    # Check if pickles are already created
+    if os.path.isfile(classes_count_path) and os.path.isfile(classes_mapping_path) and os.path.isfile(entities_path):
+        classes_count = cPickle.load(file(classes_count_path, 'rb'))
+        hierarchy_mapping = cPickle.load(file(classes_mapping_path, 'rb'))
+        entities = cPickle.load(file(entities_path, 'rb'))
+        return classes_count, hierarchy_mapping, entities
+
+    # Create classes_count, hierarchy_mapping and entities
+    ind = 1
+    entities = []
+    print("Start creating pickle for VisualGenome Data")
     for img_id in img_ids:
-        entity = GetSceneGraph(img_id, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/",
-                               synsetFile=DATA_PATH + "synsets.json")
-        objects = entity.objects
-        for object in objects:
-            obj_id = object.id
-            if len(object.names) > 1:
-                print("Two labels per object in img_id:{0}, object_id:{1}".format(img_id, obj_id))
+        try:
+            entity = GetSceneGraph(img_id, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/",
+                                   synsetFile=DATA_PATH + "synsets.json")
+            entities.append(entity)
+            objects = entity.objects
+            for object in objects:
+                obj_id = object.id
+                # if len(object.names) > 1:
+                #     print("Two labels per object in img_id:{0}, object_id:{1}, labels:{2}".format(img_id, obj_id,
+                #                                                                                   object.names))
 
-            label = object.names[0]
+                label = object.names[0]
 
-            # Update the dict
-            if label in classes_count:
-                # Check if label is already in dict
-                classes_count[label] +=  1
-            else:
-                # Init label in dict
-                classes_count[label] = 1
-            print("debug")
+                # Update the classes_count dict
+                if label in classes_count:
+                    # Check if label is already in dict
+                    classes_count[label] += 1
+                else:
+                    # Init label in dict
+                    classes_count[label] = 1
 
-    for img_id in img_ids:
-        img = cv2.imread(DATA_PATH + "/VG_100K_2/{}.jpg".format(img_id))
-        entity = GetSceneGraph(img_id, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/",
-                               synsetFile=DATA_PATH + "synsets.json")
-        objects = entity.objects
-        for object in objects:
-            obj_id = object.id
-            mask = get_mask_from_object(object)
-            patch_name = os.path.join(PATCH_PATH, "{0}_{1}.jpg".format(img_id, obj_id))
-            print('mask')
-            tryCreatePatch(img, mask, patch_name)
+                # Update hierarchy_mapping dict
+                if label not in hierarchy_mapping:
+                    hierarchy_mapping[label] = obj_id
 
-        print("debug")
+                # Printing Alerting
+                if ind % 1000 == 0:
+                    print("This is iteration number: {}".format(ind))
+
+        except e as Exception:
+            print("Problem with {0} in index: {1}".format(e, ind))
+
+    # Save classes_count file
+    classes_count_file = file(os.path.join(VisualGenome_PICKLES_PATH, CLASSES_COUNT_FILE), 'rb')
+    # Pickle products
+    cPickle.dump(classes_count, classes_count_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    classes_count_file.close()
+
+    # Save hierarchy_mapping file
+    hierarchy_mapping_file = file(os.path.join(VisualGenome_PICKLES_PATH, CLASSES_COUNT_FILE), 'rb')
+    # Pickle products
+    cPickle.dump(hierarchy_mapping, hierarchy_mapping_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    hierarchy_mapping_file.close()
+
+    # Save entities list
+    entities_file = file(os.path.join(VisualGenome_PICKLES_PATH, ENTITIES_FILE), 'rb')
+    # Pickle products
+    cPickle.dump(entities, entities_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    entities_file.close()
+
+    return classes_count, hierarchy_mapping, entities
+    # My future generator
+    # for img_id in img_ids:
+    #     img = cv2.imread(DATA_PATH + "/VG_100K_2/{}.jpg".format(img_id))
+    #     entity = GetSceneGraph(img_id, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/",
+    #                            synsetFile=DATA_PATH + "synsets.json")
+    #     objects = entity.objects
+    #     for object in objects:
+    #         obj_id = object.id
+    #         mask = get_mask_from_object(object)
+    #         patch_name = os.path.join(PATCH_PATH, "{0}_{1}.jpg".format(img_id, obj_id))
+    #         print('mask')
+    #         tryCreatePatch(img, mask, patch_name)
+    #
+    #     print("debug")
 
 
 if __name__ == '__main__':
@@ -127,10 +186,10 @@ if __name__ == '__main__':
     # Load class config
     config = Config()
 
-    train_imgs, val_imgs, hierarchy_mapping, classes_count = create_data_pascal_voc(load=True)
-    data_gen_train = DataGenerator(data=train_imgs, hierarchy_mapping=hierarchy_mapping, classes_count=classes_count,
+    train_imgs, val_imgs, hierarchy_mapping1, classes_count1 = create_data_pascal_voc(load=True)
+    data_gen_train = DataGenerator(data=train_imgs, hierarchy_mapping=hierarchy_mapping1, classes_count=classes_count1,
                                    config=config, backend=K.image_dim_ordering(), mode='train', batch_size=1)
-    data_gen_val = DataGenerator(data=val_imgs, hierarchy_mapping=hierarchy_mapping, classes_count=classes_count,
+    data_gen_val = DataGenerator(data=val_imgs, hierarchy_mapping=hierarchy_mapping1, classes_count=classes_count1,
                                  config=config, backend=K.image_dim_ordering(), mode='test', batch_size=1)
 
     print("test")
@@ -138,12 +197,12 @@ if __name__ == '__main__':
     image_data = GetAllImageData(dataDir=DATA_PATH)
     # region_interest = GetAllRegionDescriptions(dataDir=DATA_PATH)
     # qas = GetAllQAs(dataDir=DATA_PATH)
-    tt = GetSceneGraph(1, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/", synsetFile=DATA_PATH + "synsets.json")
+    # tt = GetSceneGraph(1, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/", synsetFile=DATA_PATH + "synsets.json")
 
-    create_data_visual_genome()
+    classes_count, hierarchy_mapping, entities = create_data_visual_genome(image_data)
 
     print("end test")
-
+    aba
     image_data = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "images_data.p"), "rb"))
     qas = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "qas.p"), "rb"))
     region_interest = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "region_interest.p"), "rb"))
