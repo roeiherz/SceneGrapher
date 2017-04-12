@@ -13,6 +13,7 @@ class WordEmbd(object):
     GLOVE_FILE_NAME = 'glove.6B.50d.txt'
     EMBED_PICKLE_FILE = 'glove50.p'
     VOCAB_PICKLE_FILE = 'glove50_vocab.p'
+    WORD_INDEX_PICKLE_FILE = 'glove50_word_index.p'
 
     def __init__(self):
         ## init fields
@@ -23,6 +24,8 @@ class WordEmbd(object):
         self.vector_dim = None
         # matrix of vocab_size X vector_dim
         self.embed = None
+        # word to word_index
+        self.word_index = None
 
         ## load Glove
         self.loadWordEmbd()
@@ -35,19 +38,22 @@ class WordEmbd(object):
         :return: vacobulary and embeddings
         """
         vocab = []
+        word_index = {}
         embd = []
         file = open(filename, 'rb')
+        index = 0
         for line in file.readlines():
             row = line.strip().split(' ')
             vocab.append(row[0])
             embd.append(row[1:])
+            word_index[row[0]] = index
+            index += 1
         print('Loaded GloVe!')
         file.close()
-        return vocab, embd
+        return vocab, embd, word_index
 
     def loadWordEmbd(self):
-
-        if os.path.isfile(WordEmbd.EMBED_PICKLE_FILE) and os.path.isfile(WordEmbd.VOCAB_PICKLE_FILE):
+        if os.path.isfile(WordEmbd.EMBED_PICKLE_FILE) and os.path.isfile(WordEmbd.VOCAB_PICKLE_FILE) and os.path.isfile(WordEmbd.WORD_INDEX_PICKLE_FILE):
             embed_file = file(WordEmbd.EMBED_PICKLE_FILE, "rb")
             self.embed = cPickle.load(embed_file)
             embed_file.close()
@@ -56,28 +62,64 @@ class WordEmbd(object):
             self.vocab = cPickle.load(vocab_file)
             vocab_file.close()
 
+            word_index_file = file(WordEmbd.WORD_INDEX_PICKLE_FILE, "rb")
+            self.word_index = cPickle.load(word_index_file)
+            word_index_file.close()
+
             self.vocab_size = self.embed.shape[0]
             self.vector_dim = self.embed.shape[1]
 
         else:
             # load data
-            vocab, embd = self.loadGlove(WordEmbd.GLOVE_FILE_NAME)
+            print "Load Data"
+            vocab, embd, word_index = self.loadGlove(WordEmbd.GLOVE_FILE_NAME)
             self.vocab_size = len(vocab)
             self.vector_dim = len(embd[0])
 
-            #convert to numpy matrix
+            # load to class fields
             self.embed = np.asarray(embd)
             self.vocab = vocab
+            self.word_index = word_index
 
             #Save picke files
+            print "Save Embed Words"
             embed_file = file(WordEmbd.EMBED_PICKLE_FILE, "wb")
             cPickle.dump(self.embed, embed_file, 0)
             embed_file.close()
 
+            print "Save Vocab"
             vocab_file = file(WordEmbd.VOCAB_PICKLE_FILE, "wb")
             cPickle.dump(self.vocab, vocab_file, 0)
             vocab_file.close()
 
+            print "Save Word Index"
+            word_index_file = file(WordEmbd.WORD_INDEX_PICKLE_FILE, "wb")
+            cPickle.dump(self.word_index, word_index_file, 0)
+            word_index_file.close()
+
+    def word2vec(self, word):
+        """
+        Convet words to embedded vector representation. Supprt both single word and list of words
+        :param word: word or list of words
+        :return: embedded vector or embedded matrix
+        """
+        if isinstance(word, list):
+            indices =  [self.word_index[word] for elem in word]
+        else:
+            indices =  self.word_index[word]
+        return self.embed[indices].astype("float32")
+
+    def embed_vec_dim(self):
+        return self.vector_dim
+
+    def cosine_distance(self, embed_word_a, embed_word_b):
+        """
+        Calc the cosine distance between to embedded words
+        :param embed_word_a:
+        :param embed_word_b:
+        :return:
+        """
+        raise NameError("TBD")
 
 if __name__ == "__main__":
     embed = WordEmbd()
