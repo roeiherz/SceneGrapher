@@ -2,7 +2,7 @@ from __future__ import print_function
 
 from Data.VisualGenome.local import GetAllImageData, GetAllRegionDescriptions, GetSceneGraph, GetAllQAs
 from keras_frcnn.Lib.PascalVocDataGenerator import PascalVocDataGenerator
-from keras_frcnn.Lib.Loss import rpn_loss_cls, rpn_loss_regr, class_loss_cls, class_loss_regr
+# from keras_frcnn.Lib.Loss import rpn_loss_cls, rpn_loss_regr, class_loss_cls, class_loss_regr
 from keras_frcnn.Lib.VisualGenomeDataGenerator import VisualGenomeDataGenerator
 from keras_frcnn.Lib.Zoo import ModelZoo
 from keras.applications.resnet50 import ResNet50
@@ -31,8 +31,6 @@ CLASS_MAPPING_FILE = "class_mapping.p"
 ENTITIES_FILE = "entities.p"
 PascalVoc_PICKLES_PATH = "keras_frcnn/Data/PascalVoc"
 VisualGenome_PICKLES_PATH = "keras_frcnn/Data/VisualGenome"
-# todo: Delete it
-VisualGenome_PICKLES_PATH = "keras_frcnn/Data/"
 
 NUM_EPOCHS = 50
 # len(train_imgs)
@@ -45,7 +43,7 @@ def create_data_pascal_voc(load=False):
     """
     This function load pickles
     :param load: load field
-    :return: train_imgs, val_imgs, class_mapping.p, classes_count
+    :return: train_imgs, val_imgs, class_mapping_test.p, classes_count
     """
 
     # When loading Pickle
@@ -109,6 +107,8 @@ def create_data_visual_genome(image_data):
 
     # Create classes_count, hierarchy_mapping and entities
     entities = []
+    # index for saving
+    ind = 1
     print("Start creating pickle for VisualGenome Data with changes")
     for img_id in img_ids:
         try:
@@ -137,34 +137,17 @@ def create_data_visual_genome(image_data):
                     hierarchy_mapping[label] = obj_id
 
             # Printing Alerting
-            # if ind % 1000 == 0:
-            #     print("This is iteration number: {}".format(ind))
+            if ind % 5 == 0:
+                save_pickles(classes_count, entities, hierarchy_mapping, iter=str(ind))
+                # print("This is iteration number: {}".format(ind))
+            # Updating index
+            ind += 1
             print("This is iteration number: {}".format(img_id))
 
         except Exception as e:
             print("Problem with {0} in index: {1}".format(e, img_id))
 
-    # Save classes_count file
-    classes_count_file = file(os.path.join(VisualGenome_PICKLES_PATH, CLASSES_COUNT_FILE), 'wb')
-    # Pickle products
-    cPickle.dump(classes_count, classes_count_file, protocol=cPickle.HIGHEST_PROTOCOL)
-    # Close the file
-    classes_count_file.close()
-
-    # Save hierarchy_mapping file
-    hierarchy_mapping_file = file(os.path.join(VisualGenome_PICKLES_PATH, CLASS_MAPPING_FILE), 'wb')
-    # Pickle products
-    cPickle.dump(hierarchy_mapping, hierarchy_mapping_file, protocol=cPickle.HIGHEST_PROTOCOL)
-    # Close the file
-    hierarchy_mapping_file.close()
-
-    # Save entities list
-    entities_file = file(os.path.join(VisualGenome_PICKLES_PATH, ENTITIES_FILE), 'wb')
-    # Pickle products
-    cPickle.dump(entities, entities_file, protocol=cPickle.HIGHEST_PROTOCOL)
-    # Close the file
-    entities_file.close()
-
+    save_pickles(classes_count, entities, hierarchy_mapping, iter='final')
     return classes_count, hierarchy_mapping, entities
     # My future generator
     # for img_id in img_ids:
@@ -180,6 +163,34 @@ def create_data_visual_genome(image_data):
     #         tryCreatePatch(img, mask, patch_name)
     #
     #     print("debug")
+
+
+def save_pickles(classes_count, entities, hierarchy_mapping, iter=''):
+    """
+    This function save the pickles each iter
+    :param classes_count: dict the classes count
+    :param entities: dict with the entities
+    :param hierarchy_mapping: dict with hierarchy mapping
+    :param iter: string iteration number
+    """
+    # Save classes_count file
+    classes_count_file = file(os.path.join(VisualGenome_PICKLES_PATH, iter + '_' + CLASSES_COUNT_FILE), 'wb')
+    # Pickle products
+    cPickle.dump(classes_count, classes_count_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    classes_count_file.close()
+    # Save hierarchy_mapping file
+    hierarchy_mapping_file = file(os.path.join(VisualGenome_PICKLES_PATH, iter + '_' + CLASS_MAPPING_FILE), 'wb')
+    # Pickle products
+    cPickle.dump(hierarchy_mapping, hierarchy_mapping_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    hierarchy_mapping_file.close()
+    # Save entities list
+    entities_file = file(os.path.join(VisualGenome_PICKLES_PATH, iter + '_' + ENTITIES_FILE), 'wb')
+    # Pickle products
+    cPickle.dump(entities, entities_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    entities_file.close()
 
 
 if __name__ == '__main__':
@@ -203,7 +214,7 @@ if __name__ == '__main__':
     # tt = GetSceneGraph(1, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/", synsetFile=DATA_PATH + "synsets.json")
 
     classes_count, hierarchy_mapping, entities = create_data_visual_genome(image_data)
-
+    exit()
     print("end test")
 
     data_gen_trainVG = VisualGenomeDataGenerator(data=entities, hierarchy_mapping=hierarchy_mapping,
