@@ -140,6 +140,8 @@ def create_data_visual_genome(image_data):
             if ind % 5 == 0:
                 save_pickles(classes_count, entities, hierarchy_mapping, iter=str(ind))
                 # print("This is iteration number: {}".format(ind))
+            if ind % 10 == 0:
+                aa
             # Updating index
             ind += 1
             print("This is iteration number: {}".format(img_id))
