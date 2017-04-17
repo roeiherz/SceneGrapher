@@ -35,8 +35,8 @@ def save_params(iter, params):
         pickle.dump(random.getstate(), f)
 
 
-def sgd(f, x0, step=0.1, iterations=1000, anneal_every = 100,
-        print_every=10):
+def sgd(f, x0, step=0.001, iterations=1000, anneal_every = 1000,
+        print_every=10, useSaved=True):
     """ Stochastic Gradient Descent
 
     Implement the stochastic gradient descent method in this function.
@@ -54,18 +54,33 @@ def sgd(f, x0, step=0.1, iterations=1000, anneal_every = 100,
     Return:
     x -- the parameter value after SGD finishes
     """
+    if useSaved:
+        start_iter, oldx, state = load_saved_params()
+        if start_iter > 0:
+            x0 = oldx
+            step *= 0.5 ** (start_iter / anneal_every)
+
+        if state:
+            random.setstate(state)
+    else:
+        start_iter = 0
 
     x = x0
 
+    expcost = None
 
-    for iter in range(iterations):
+    for iter in range(start_iter, iterations + 1):
 
         cost, grad = f(x)
 
         x -= step * grad
 
         if iter % print_every == 0:
-            print "iter %d: cost %f" % (iter, cost)
+            if not expcost:
+                expcost = cost
+            else:
+                expcost = .95 * expcost + .05 * cost
+            print "iter %d: expcost %f  -  cost %f" % (iter, expcost, cost)
 
         if iter % SAVE_PARAMS_EVERY == 0:
             save_params(iter, x)

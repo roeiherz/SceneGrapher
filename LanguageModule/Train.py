@@ -2,20 +2,25 @@ from WordEmbd import WordEmbd
 from LangModule import LangModule
 import sgd
 import numpy as np
+from data import *
+from gradcheck import gradcheck_naive
 
 def train():
     """
-
-    :return:
+    Basic function to train language module.
+    TBD: improve
+    :return: trained langauge module
     """
     #embedded words module
     embed = WordEmbd()
 
-    #create LangModule
-    lang = LangModule(70, embed.vector_dim)
 
     #get data - TBD
-    data = [Data("a", "b", 0, 5), Data("c", "d", 1, 3)]
+    R1, R2, nof_predicates = prepare_data(1000)
+    data = [R1, R2]
+
+    # create LangModule
+    lang = LangModule(nof_predicates, embed.vector_dim)
 
     #get weights
     weights = lang.get_weights()
@@ -24,9 +29,17 @@ def train():
     sgd.sgd(lambda x: lang_module_sgd_wrapper(x, data, lang),
             weights)
 
-def lang_module_sgd_wrapper(x, data, lang):
+    return lang
 
-    batch_size = 100
+def lang_module_sgd_wrapper(x, data, lang):
+    """
+    Wrapper for SGD training
+    :param x: module parameters
+    :param data: list of two objects of Data
+    :param lang: the langauge module
+    :return: cost and gradient of batch
+    """
+    batch_size = 1
     cost = 0.0
     grad = np.zeros(x.shape)
 
@@ -39,15 +52,39 @@ def lang_module_sgd_wrapper(x, data, lang):
     return cost, grad
 
 def get_random_data(data):
+    """
+    Randomly select batch from the data
+    TBD..
+    :param data: list of two objects of Data
+    :return: list of two objects of Data (batch size)
+    """
     return data
 
 
-class Data(object):
-    def __init__(self, worda, wordb, predicate, instances):
-        self.worda = worda
-        self.wordb = wordb
-        self.predicate = predicate
-        self.instances = np.ones((1)) * instances
+
+def sanity_check():
+    """
+    Set up fake data and parameters for the neural network, and test using
+    gradcheck.
+    """
+    print "Running sanity check..."
+
+    # embedded words module
+    embed = WordEmbd()
+
+    # get data - TBD
+    R1, R2, nof_predicates = prepare_data(10)
+    data = [R1, R2]
+
+    # create LangModule
+    lang = LangModule(nof_predicates, embed.vector_dim)
+
+    # get weights
+    params = lang.get_weights()
+
+    gradcheck_naive(lambda x:
+                    lang.cost_and_gradient(x, data[0], data[1]), params)
 
 if __name__ == "__main__":
     train()
+    #sanity_check()

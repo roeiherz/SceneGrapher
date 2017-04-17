@@ -6,6 +6,9 @@ import cPickle
 
 
 class WordEmbd(object):
+    """
+    Word to vector embeddin, using GLOVE
+    """
     __metaclass__ = Singleton
 
     # fields
@@ -53,7 +56,12 @@ class WordEmbd(object):
         return vocab, embd, word_index
 
     def loadWordEmbd(self):
+        """
+        Load / prepare Word embedding module
+        :return:
+        """
         if os.path.isfile(WordEmbd.EMBED_PICKLE_FILE) and os.path.isfile(WordEmbd.VOCAB_PICKLE_FILE) and os.path.isfile(WordEmbd.WORD_INDEX_PICKLE_FILE):
+            #if already saved to pickle files, load it
             embed_file = file(WordEmbd.EMBED_PICKLE_FILE, "rb")
             self.embed = cPickle.load(embed_file)
             embed_file.close()
@@ -70,6 +78,7 @@ class WordEmbd(object):
             self.vector_dim = self.embed.shape[1]
 
         else:
+            # if pickle files, does not exist - prepare module.
             # load data
             print "Load Data"
             vocab, embd, word_index = self.loadGlove(WordEmbd.GLOVE_FILE_NAME)
@@ -103,8 +112,13 @@ class WordEmbd(object):
         :param word: word or list of words
         :return: embedded vector or embedded matrix
         """
-        if isinstance(word, list):
-            indices =  [self.word_index[word] for elem in word]
+        if isinstance(word, np.ndarray):
+            indices = []
+            for elem in word:
+                if self.word_index.has_key(elem):
+                    indices.append(self.word_index[elem])
+                else:
+                    indices.append(self.word_index["unknown"])
         else:
             indices =  self.word_index[word]
         return self.embed[indices].astype("float32")
