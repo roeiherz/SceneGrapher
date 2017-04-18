@@ -1,5 +1,5 @@
 from __future__ import print_function
-
+import operator
 from Data.VisualGenome.local import GetAllImageData, GetAllRegionDescriptions, GetSceneGraph, GetAllQAs
 from keras_frcnn.Lib.PascalVocDataGenerator import PascalVocDataGenerator
 # from keras_frcnn.Lib.Loss import rpn_loss_cls, rpn_loss_regr, class_loss_cls, class_loss_regr
@@ -11,16 +11,30 @@ import pprint
 import os
 import cPickle
 import json
+import numpy as np
 from keras_frcnn.Lib.Config import Config
 from keras.optimizers import Adam
 from keras.layers import Input, AveragePooling2D, Flatten, Dense
 from keras_frcnn.Lib.PascalVoc import PascalVoc
-from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
 from keras import backend as K
 from keras.models import Model
 import cv2
+import random
+import matplotlib.pyplot as plt
+from keras_frcnn.Utils.Utils import get_mask_from_object, create_folder, try_create_patch, VG_PATCH_PATH
 
-from keras_frcnn.Utils.Utils import get_mask_from_object, create_folder, tryCreatePatch, VG_PATCH_PATH
+NOF_LABELS = 150
+TRAINING_PERCENT = 0.75
+VALIDATION_PERCENT = 0.05
+TESTING_PERCENT = 0.2
+
+# If the allocation of training, validation and testing does not adds up to one
+used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
+if not used_percent == 1:
+    error_msg = 'Data used percent (train + test + validation) is {0} and should be 1'.format(used_percent)
+    print(error_msg)
+    raise Exception(error_msg)
 
 __author__ = 'roeih'
 
@@ -28,9 +42,11 @@ VAL_IMGS_P = "val_imgs.p"
 TRAIN_IMGS_P = "train_imgs.p"
 CLASSES_COUNT_FILE = "classes_count.p"
 CLASS_MAPPING_FILE = "class_mapping.p"
+HIERARCHY_MAPPING = "hierarchy_mapping.p"
 ENTITIES_FILE = "entities.p"
 PascalVoc_PICKLES_PATH = "keras_frcnn/Data/PascalVoc"
 VisualGenome_PICKLES_PATH = "keras_frcnn/Data/VisualGenome"
+DATA_PATH = "Data/VisualGenome/data/"
 
 NUM_EPOCHS = 50
 # len(train_imgs)
@@ -102,7 +118,8 @@ def create_data_visual_genome(image_data):
     if os.path.isfile(classes_count_path) and os.path.isfile(classes_mapping_path) and os.path.isfile(entities_path):
         classes_count = cPickle.load(file(classes_count_path, 'rb'))
         hierarchy_mapping = cPickle.load(file(classes_mapping_path, 'rb'))
-        entities = cPickle.load(file(entities_path, 'rb'))
+        entities = []
+        # entities = cPickle.load(file(entities_path, 'rb'))
         return classes_count, hierarchy_mapping, entities
 
     # Create classes_count, hierarchy_mapping and entities
@@ -175,22 +192,121 @@ def save_pickles(classes_count, entities, hierarchy_mapping, iter=''):
     """
     # Save classes_count file
     classes_count_file = file(os.path.join(VisualGenome_PICKLES_PATH, iter + '_' + CLASSES_COUNT_FILE), 'wb')
-    # Pickle products
+    # Pickle classes_count
     cPickle.dump(classes_count, classes_count_file, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
     classes_count_file.close()
     # Save hierarchy_mapping file
     hierarchy_mapping_file = file(os.path.join(VisualGenome_PICKLES_PATH, iter + '_' + CLASS_MAPPING_FILE), 'wb')
-    # Pickle products
+    # Pickle hierarchy_mapping
     cPickle.dump(hierarchy_mapping, hierarchy_mapping_file, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
     hierarchy_mapping_file.close()
     # Save entities list
     entities_file = file(os.path.join(VisualGenome_PICKLES_PATH, iter + '_' + ENTITIES_FILE), 'wb')
-    # Pickle products
+    # Pickle entities
     cPickle.dump(entities, entities_file, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
     entities_file.close()
+
+
+def load_pickles(classes_mapping_path, classes_count_path, entities_path, ):
+    """
+    This function save the pickles each iter
+    :param classes_count_path: classes_count file name
+    :param entities_path: entities file name
+    :param classes_mapping_path: hierarchy_mapping file name
+    :return classes_count, hierarchy_mapping and entities
+    """
+    classes_count = cPickle.load(file(classes_count_path, 'rb'))
+    hierarchy_mapping = cPickle.load(file(classes_mapping_path, 'rb'))
+    entities = cPickle.load(file(entities_path, 'rb'))
+    return classes_count, hierarchy_mapping, entities
+
+
+def get_sorted_data(classes_count_file_name="80000_classes_count.p",
+                    hierarchy_mapping_file_name="80000_class_mapping.p", entititis_file_name="80000_entities.p"):
+    """
+    This function his sorted the hierarchy_mapping and classes_count by the number of labels
+    :param entititis_file_name: the full entities of *all* the dataset
+    :param classes_count_file_name: classes count of *all* the dataset
+    :param hierarchy_mapping_file_name: hierarchy_mapping of *all* the dataset
+    :return:  a dict of classes_count (mapping between the class and its instances), a dict of hierarchy_mapping
+    (mapping between the class and its object id), entities
+    """
+
+    classes_count_path = os.path.join(VisualGenome_PICKLES_PATH, classes_count_file_name)
+    # Load the frequency of labels
+    classes_count = cPickle.load(file(classes_count_path, 'rb'))
+    # Sort classes_count by value
+    sorted_classes_count = sorted(classes_count.items(), key=operator.itemgetter(1), reverse=True)
+    # Get the most frequent 150 labels
+    top_sorted_class = sorted_classes_count[:NOF_LABELS]
+    classes_mapping_path = os.path.join(VisualGenome_PICKLES_PATH, hierarchy_mapping_file_name)
+    # Load the full hierarchy_mapping
+    hierarchy_mapping_full = cPickle.load(file(classes_mapping_path, 'rb'))
+
+    # Create a new hierarchy_mapping for top labels
+    hierarchy_mapping = {}
+    top_sorted_class_keys = [classes[0] for classes in top_sorted_class]
+    for key in hierarchy_mapping_full:
+        if key in top_sorted_class_keys:
+            hierarchy_mapping[key] = hierarchy_mapping_full[key]
+    classes_count_path = os.path.join(VisualGenome_PICKLES_PATH, CLASSES_COUNT_FILE)
+    classes_mapping_path = os.path.join(VisualGenome_PICKLES_PATH, HIERARCHY_MAPPING)
+    entities_path = os.path.join(VisualGenome_PICKLES_PATH, entititis_file_name)
+
+    # Check if pickles are already created
+    if os.path.isfile(classes_count_path) and os.path.isfile(classes_mapping_path) and os.path.isfile(entities_path):
+        print(
+            'Files are already exist {0}, {1} and {2}'.format(classes_count_path, classes_mapping_path, entities_path))
+        classes_count = cPickle.load(file(classes_count_path, 'rb'))
+        hierarchy_mapping = cPickle.load(file(classes_mapping_path, 'rb'))
+        entities = np.array(cPickle.load(file(entities_path, 'rb')))
+        return classes_count, hierarchy_mapping, entities
+
+        # Save hierarchy_mapping file for only the top labels
+    hierarchy_mapping_file = file(classes_mapping_path, 'wb')
+    # Pickle hierarchy_mapping
+    cPickle.dump(hierarchy_mapping, hierarchy_mapping_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    hierarchy_mapping_file.close()
+    # Save classes_count file for only the top labels
+    classes_count_file = file(classes_count_path, 'wb')
+    # Pickle hierarchy_mapping
+    cPickle.dump(dict(top_sorted_class), classes_count_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    classes_count_file.close()
+    # Load entities pickle
+    entities = np.array(cPickle.load(file(entities_path, 'rb')))
+    return classes_count, hierarchy_mapping, entities
+
+
+def preprocessing_data(entities):
+    """
+    This function splits the data for train and test dataset
+    :param entities:
+    :return: list of entities of train and test data
+    """
+    number_of_samples = len(entities)
+    train_size = int(number_of_samples * TRAINING_PERCENT)
+    test_size = int(number_of_samples * TESTING_PERCENT)
+    validation_size = number_of_samples - (train_size + test_size)
+
+    if not train_size + test_size + validation_size == number_of_samples:
+        error_msg = 'Data size of (train + test + validation) is {0} and should be number of labels: {1}'.format(
+            train_size + test_size + validation_size, number_of_samples)
+        print(error_msg)
+        raise Exception(error_msg)
+
+    # Create a numpy array of indices of the data
+    indices = np.arange(len(entities))
+    # Shuffle the indices of the data
+    random.shuffle(indices)
+    train_imgs = entities[indices[:train_size]]
+    test_imgs = entities[indices[train_size:train_size + test_size]]
+    val_imgs = entities[indices[train_size + test_size:]]
+    return train_imgs, test_imgs, val_imgs
 
 
 if __name__ == '__main__':
@@ -198,7 +314,18 @@ if __name__ == '__main__':
     # Load class config
     config = Config()
 
+    # Get Visual Genome Data
+    classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
+                                                                 hierarchy_mapping_file_name="final_class_mapping.p",
+                                                                 entititis_file_name="entities_example.p")
+    train_imgs, test_imgs, val_imgs = preprocessing_data(entities)
+
+    number_of_classes = len(classes_count)
+
+    # Get PascalVoc data
     train_imgs, val_imgs, hierarchy_mapping1, classes_count1 = create_data_pascal_voc(load=True)
+
+    # Create a data generator for PascalVoc
     data_gen_train = PascalVocDataGenerator(data=train_imgs, hierarchy_mapping=hierarchy_mapping1,
                                             classes_count=classes_count1,
                                             config=config, backend=K.image_dim_ordering(), mode='train', batch_size=1)
@@ -206,26 +333,30 @@ if __name__ == '__main__':
                                           classes_count=classes_count1,
                                           config=config, backend=K.image_dim_ordering(), mode='test', batch_size=1)
 
-    print("test")
-    DATA_PATH = "Data/VisualGenome/data/"
-    image_data = GetAllImageData(dataDir=DATA_PATH)
+    #
+    # image_data = GetAllImageData(dataDir=DATA_PATH)
     # region_interest = GetAllRegionDescriptions(dataDir=DATA_PATH)
     # qas = GetAllQAs(dataDir=DATA_PATH)
     # tt = GetSceneGraph(1, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/", synsetFile=DATA_PATH + "synsets.json")
 
-    classes_count, hierarchy_mapping, entities = create_data_visual_genome(image_data)
-    exit()
+    # classes_count, hierarchy_mapping, entities = create_data_visual_genome(image_data)
+    # exit()
+
+    print("test")
+    # Create a data generator for Visual Genome
+    data_gen_train_vg = VisualGenomeDataGenerator(data=train_imgs, hierarchy_mapping=hierarchy_mapping,
+                                                  classes_count=classes_count,
+                                                  config=config, backend=K.image_dim_ordering(), mode='train',
+                                                  batch_size=10)
+    data_gen_test_vg = VisualGenomeDataGenerator(data=test_imgs, hierarchy_mapping=hierarchy_mapping,
+                                                 classes_count=classes_count, config=config,
+                                                 backend=K.image_dim_ordering(), mode='test', batch_size=5)
+    # data_gen_train_vg.next()
     print("end test")
 
-    data_gen_trainVG = VisualGenomeDataGenerator(data=entities, hierarchy_mapping=hierarchy_mapping,
-                                                 classes_count=classes_count,
-                                                 config=config, backend=K.image_dim_ordering(), mode='train',
-                                                 batch_size=10)
-    data_gen_trainVG.next()
-
-    image_data = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "images_data.p"), "rb"))
-    qas = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "qas.p"), "rb"))
-    region_interest = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "region_interest.p"), "rb"))
+    # image_data = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "images_data.p"), "rb"))
+    # qas = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "qas.p"), "rb"))
+    # region_interest = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "region_interest.p"), "rb"))
     print('loading pickles')
 
     if K.image_dim_ordering() == 'th':
@@ -237,7 +368,7 @@ if __name__ == '__main__':
     # model_resnet50 = ResNet50(weights='imagenet', include_top=False)
     # model_resnet50.summary()
 
-    img_input = Input(shape=(200, 200, 3), name="image_input")
+    img_input = Input(shape=(config.crop_width, config.crop_height, 3), name="image_input")
 
     net = ModelZoo()
     # Without Top
@@ -246,7 +377,7 @@ if __name__ == '__main__':
     model_resnet50 = AveragePooling2D((7, 7), name='avg_pool')(model_resnet50)
     # Add the fully-connected layers
     model_resnet50 = Flatten(name='flatten')(model_resnet50)
-    output_resnet50 = Dense(classes, activation='softmax', name='fc')(model_resnet50)
+    output_resnet50 = Dense(number_of_classes, activation='softmax', name='fc')(model_resnet50)
 
     # Define the model
     model = Model(input=img_input, output=output_resnet50)
@@ -270,12 +401,30 @@ if __name__ == '__main__':
                   loss='categorical_crossentropy')
 
     callbacks = [EarlyStopping(monitor='val_loss', patience=20, verbose=0),
-                 ModelCheckpoint(config.model_path, monitor='val_loss', save_best_only=True, verbose=0)]
+                 ModelCheckpoint(config.model_path, monitor='val_loss', save_best_only=True, verbose=0),
+                 TensorBoard(log_dir="logs/", write_graph=False, write_images=True)]
 
     print('Starting training')
-    model.fit_generator(data_gen_train, samples_per_epoch=TRAIN_SAMPLES_PER_EPOCH, nb_epoch=NUM_EPOCHS,
-                        validation_data=data_gen_val, nb_val_samples=NUM_VAL_SAMPLES, callbacks=callbacks,
-                        max_q_size=10, nb_worker=1)
+    history = model.fit_generator(data_gen_train, samples_per_epoch=TRAIN_SAMPLES_PER_EPOCH, nb_epoch=NUM_EPOCHS,
+                                  validation_data=data_gen_val, nb_val_samples=NUM_VAL_SAMPLES, callbacks=callbacks,
+                                  max_q_size=10, nb_worker=1)
+
+    # summarize history for accuracy
+    plt.plot(history.history['acc'])
+    plt.plot(history.history['val_acc'])
+    plt.title('model accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
+    # summarize history for loss
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
 
 # from keras.preprocessing import image
 # from keras.applications.vgg16 import preprocess_input
