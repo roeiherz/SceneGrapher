@@ -1,11 +1,26 @@
 import random
 import numpy as np
-from keras_frcnn.Lib.DataAugmention import DataAugmention
+from keras_frcnn.Lib.DataAugmention import augment_pascal_voc
 from keras_frcnn.Utils.BOXES import iou
 from keras_frcnn.Utils.Utils import convert_img_bgr_to_rgb
 import cv2
 
 __author__ = 'roeih'
+
+# def myGenerator():
+#     (X_train, y_train), (X_test, y_test) = mnist.load_data()
+#     y_train = np_utils.to_categorical(y_train,10)
+#     X_train = X_train.reshape(X_train.shape[0], 1, img_rows, img_cols)
+#     X_test = X_test.reshape(X_test.shape[0], 1, img_rows, img_cols)
+#     X_train = X_train.astype('float32')
+#     X_test = X_test.astype('float32')
+#     X_train /= 255
+#     X_test /= 255
+#     while 1:
+#         for i in range(1875): # 1875 * 32 = 60000 -> # of training samples
+#             if i%125==0:
+#                 print "i = " + str(i)
+#             yield X_train[i*32:(i+1)*32], y_train[i*32:(i+1)*32]
 
 
 class PascalVocDataGenerator(object):
@@ -51,10 +66,9 @@ class PascalVocDataGenerator(object):
             img = self._get_img(img_data)
             x_img = convert_img_bgr_to_rgb(img)
 
-            if self._mode == 'train':
+            if self._mode == 'train' and self._config.jitter:
                 # Augment only in training
-                data_augment = DataAugmention(x_img, img_data, self._config)
-                img_data_aug, x_img = data_augment.augment()
+                img_data_aug, x_img = augment_pascal_voc(img, img_data, self._config)
 
             (width, height) = (img_data_aug['width'], img_data_aug['height'])
             (rows, cols, _) = x_img.shape
