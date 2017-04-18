@@ -23,7 +23,25 @@ def convert_img_bgr_to_rgb(img):
     return img
 
 
-def resizeImageZeroPad(image, image_width, image_height):
+def get_img_resize(image, image_width, image_height, type='pad'):
+    if type == 'crop':
+        msg = 'crop padding method is not supported'
+        print(msg)
+        raise AttributeError(msg)
+        # return resizeImageCrop(image, image_width, image_height, crop=True)
+    elif type == 'pad':
+        # Not implemented
+        return None
+    elif type == 'zero_pad':
+        return resize_image_zero_pad(image, image_width, image_height)
+    elif type == 'avg_pad':
+        # Not implemented
+        return None
+    else:
+        return cv2.resize(image, (image_width, image_height))
+
+
+def resize_image_zero_pad(image, image_width, image_height):
     """
     This function implements resize image with zero padding
     :param image: image
@@ -39,16 +57,16 @@ def resizeImageZeroPad(image, image_width, image_height):
     # resize image for padding - keep the original sample AR
     # return: image with: one dimension=image_width/image_height
     # and one dimension < image_width/image_height which we have to pad
-    image = resizeImageForPadding(image, image_width, image_height)
+    image = resize_image_for_padding(image, image_width, image_height)
     if image_height > image.shape[0]:
-        image = zeroPadImage(image, image_height - image.shape[0], axis=1)
+        image = zero_pad_image(image, image_height - image.shape[0], axis=1)
     elif image_width > image.shape[1]:
-        image = zeroPadImage(image, image_width - image.shape[1], axis=0)
+        image = zero_pad_image(image, image_width - image.shape[1], axis=0)
 
     return image
 
 
-def resizeImageForPadding(image, image_width, image_height):
+def resize_image_for_padding(image, image_width, image_height):
     if image is None:
         msg = 'Image cannot be None'
         print(msg)
@@ -71,7 +89,7 @@ def resizeImageForPadding(image, image_width, image_height):
     return image
 
 
-def zeroPadImage(image, size, axis=0):
+def zero_pad_image(image, size, axis=0):
     if axis:
         rows_to_pad_bottom = int(math.ceil(size / 2.))
         rows_to_pad_top = int(math.floor(size / 2.))
@@ -90,7 +108,7 @@ def zeroPadImage(image, size, axis=0):
     return image
 
 
-def tryCreatePatch(image, mask, patch_path):
+def try_create_patch(image, mask, patch_path):
     try:
         # Cropping the patch from the image.
         patch = image[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
