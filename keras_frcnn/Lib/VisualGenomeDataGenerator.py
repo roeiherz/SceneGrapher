@@ -1,8 +1,9 @@
 import random
 import numpy as np
-from keras_frcnn.Lib.DataAugmention import DataAugmention
+from keras_frcnn.Lib.DataAugmention import augment_visual_genome
 from keras_frcnn.Utils.BOXES import iou
-from keras_frcnn.Utils.Utils import convert_img_bgr_to_rgb, VG_DATA_PATH
+from keras_frcnn.Utils.Utils import convert_img_bgr_to_rgb, VG_DATA_PATH, get_mask_from_object, resize_image_zero_pad, \
+    get_img_resize
 import cv2
 import os
 
@@ -27,6 +28,8 @@ class VisualGenomeDataGenerator(object):
         """
         self._data = data
         self._hierarchy_mapping = hierarchy_mapping
+        # The most frequent labels in the dataSet for VisualGenome
+        self._correct_labels = self._hierarchy_mapping.keys()
         self._classes_count = classes_count
         self._config = config
         self._backend = backend
@@ -56,47 +59,51 @@ class VisualGenomeDataGenerator(object):
                 print("Coulden't get the image")
                 continue
 
-            # todo: Need to implement
-            self._get_patch()
+            objects = img_data.objects
+            for object in objects:
 
-            # todo: Need to change the augmentation for PascalVoc and VisualGenome
-            if self._mode == 'train':
-                # Augment only in training
-                data_augment = DataAugmention(img, img_data, self._config)
-                img_data_aug, x_img = data_augment.augment()
+                # Get the lable of object
+                label = object.names[0]
 
-            (width, height) = (img_data_aug['width'], img_data_aug['height'])
-            (rows, cols, _) = x_img.shape
+                # Check if it is a correct label
+                if not label in self._correct_labels:
+                    continue
 
-            assert cols == width
-            assert rows == height
+                # Get the mask: a dict with {x1,x2,y1,y2}
+                mask = get_mask_from_object(object)
 
-            # get image dimensions for resizing
-            (resized_width, resized_height) = self._get_new_img_size(width, height, self._config.im_size)
+                # Cropping the patch from the image.
+                patch = img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
 
-            # resize the image so that smalles side is length = 600px
-            # x_img = cv2.resize(x_img, (resized_width, resized_height), interpolation=cv2.INTER_CUBIC)
+                # Resize the image according the padding method
+                resized_img = get_img_resize(patch, self._config.crop_width, self._config.crop_height,
+                                             type=self._config.padding_method)
 
-            x_rois, y_rpn_cls, y_rpn_regr, y_class_num, y_class_regr = self._predict(img_data_aug, width, height,
-                                                                                     resized_width, resized_height)
+                if self._mode == 'train' and self._config.jitter:
+                    # Augment only in training
+                    # todo: create a regular jitter for each patch increase the number of patches by some constant
+                    resized_img = augment_visual_genome(resized_img, object, self._config, mask)
 
-            # Zero-center by mean pixel
-            x_img = x_img.astype(np.float32)
-            x_img[:, :, 0] -= 103.939
-            x_img[:, :, 1] -= 116.779
-            x_img[:, :, 2] -= 123.68
+                # Zero-center by mean pixel
+                resized_img = resized_img.astype(np.float32)
+                resized_img[:, :, 0] -= 103.939
+                resized_img[:, :, 1] -= 116.779
+                resized_img[:, :, 2] -= 123.68
 
-            x_img = np.transpose(x_img, (2, 0, 1))
-            x_img = np.expand_dims(x_img, axis=0)
+                data.append(resized_img)
+                labels.append(label)
 
-            if self._backend == 'tf':
-                x_img = np.transpose(x_img, (0, 2, 3, 1))
-                y_rpn_cls = np.transpose(y_rpn_cls, (0, 2, 3, 1))
-                y_rpn_regr = np.transpose(y_rpn_regr, (0, 2, 3, 1))
+            # x_rois, y_rpn_cls, y_rpn_regr, y_class_num, y_class_regr = self._predict(img_data_aug, width, height,
+            #                                                                          resized_width, resized_height)
+            #
+            # if self._backend == 'tf':
+            #     x_img = np.transpose(x_img, (0, 2, 3, 1))
+            #     y_rpn_cls = np.transpose(y_rpn_cls, (0, 2, 3, 1))
+            #     y_rpn_regr = np.transpose(y_rpn_regr, (0, 2, 3, 1))
 
-            data.append([np.copy(x_img), np.copy(x_rois)])
-            labels.append([np.copy(y_rpn_cls), np.copy(self._config.std_scaling * y_rpn_regr),
-                           np.copy(y_class_num), np.copy(self._config.std_scaling * y_class_regr)])
+            # data.append([np.copy(x_img), np.copy(x_rois)])
+            # labels.append([np.copy(y_rpn_cls), np.copy(self._config.std_scaling * y_rpn_regr),
+            #                np.copy(y_class_num), np.copy(self._config.std_scaling * y_class_regr)])
 
             self._current_index += self._batch_size
 
@@ -402,7 +409,7 @@ class VisualGenomeDataGenerator(object):
 
     def _get_img(self, img_data):
         """
-        This function read image from pascal-voc dataset
+        This function read image from VisualGenome dataset as url and returns the image from local hard-driver
         :param img_data: image data is an entity class which contains objects, attributes, relationships and image
         :return: the image
         """
@@ -412,9 +419,9 @@ class VisualGenomeDataGenerator(object):
             img_path = os.path.join(VG_DATA_PATH, path_lst[-2], path_lst[-1])
 
             if not os.path.isfile(img_path):
-                print("Error")
+                print("Error. Image path was not found")
 
-            img = self._get_img(img_path)
+            img = cv2.imread(img_path)
 
         except Exception as e:
             print(str(e))
