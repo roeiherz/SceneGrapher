@@ -41,7 +41,10 @@ __author__ = 'roeih'
 VAL_IMGS_P = "val_imgs.p"
 TRAIN_IMGS_P = "train_imgs.p"
 CLASSES_COUNT_FILE = "classes_count.p"
-CLASS_MAPPING_FILE = "class_mapping.p"
+CLASSES_MAPPING_FILE = "class_mapping.p"
+RELATIONS_COUNT_FILE = "relations_count.p"
+RELATIONS_MAPPING_FILE = "relations_mapping.p"
+PREDICATES_COUNT_FILE = "predicates_count.p"
 HIERARCHY_MAPPING = "hierarchy_mapping.p"
 ENTITIES_FILE = "entities.p"
 PascalVoc_PICKLES_PATH = "keras_frcnn/Data/PascalVoc"
@@ -64,7 +67,7 @@ def create_data_pascal_voc(load=False):
 
     # When loading Pickle
     if load:
-        class_mapping = cPickle.load(open(os.path.join(PascalVoc_PICKLES_PATH, CLASS_MAPPING_FILE), "rb"))
+        class_mapping = cPickle.load(open(os.path.join(PascalVoc_PICKLES_PATH, CLASSES_MAPPING_FILE), "rb"))
         classes_count = cPickle.load(open(os.path.join(PascalVoc_PICKLES_PATH, CLASSES_COUNT_FILE), "rb"))
         train_imgs = cPickle.load(open(os.path.join(PascalVoc_PICKLES_PATH, TRAIN_IMGS_P), "rb"))
         val_imgs = cPickle.load(open(os.path.join(PascalVoc_PICKLES_PATH, VAL_IMGS_P), "rb"))
@@ -111,7 +114,7 @@ def create_data_visual_genome(image_data):
     hierarchy_mapping = {}
 
     classes_count_path = os.path.join(VisualGenome_PICKLES_PATH, CLASSES_COUNT_FILE)
-    classes_mapping_path = os.path.join(VisualGenome_PICKLES_PATH, CLASS_MAPPING_FILE)
+    classes_mapping_path = os.path.join(VisualGenome_PICKLES_PATH, CLASSES_MAPPING_FILE)
     entities_path = os.path.join(VisualGenome_PICKLES_PATH, ENTITIES_FILE)
 
     # Check if pickles are already created
@@ -197,7 +200,7 @@ def save_pickles(classes_count, entities, hierarchy_mapping, iter=''):
     # Close the file
     classes_count_file.close()
     # Save hierarchy_mapping file
-    hierarchy_mapping_file = file(os.path.join(VisualGenome_PICKLES_PATH, iter + '_' + CLASS_MAPPING_FILE), 'wb')
+    hierarchy_mapping_file = file(os.path.join(VisualGenome_PICKLES_PATH, iter + '_' + CLASSES_MAPPING_FILE), 'wb')
     # Pickle hierarchy_mapping
     cPickle.dump(hierarchy_mapping, hierarchy_mapping_file, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
