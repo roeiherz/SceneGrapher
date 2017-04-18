@@ -64,19 +64,13 @@ def augment_visual_genome(patch, object, config, mask):
     :return:
     """
     rows, cols = patch.shape[:2]
-
-    # new_patches = []
-    # new_labels = []
+    new_patch = patch
 
     if config.use_horizontal_flips and np.random.randint(0, 2) == 0:
         new_patch = cv2.flip(patch, 1)
-        # new_patches.append(new_patch)
-        # new_labels.append(object.names[0])
 
     if config.use_vertical_flips and np.random.randint(0, 2) == 0:
         new_patch = cv2.flip(patch, 0)
-        # new_patches.append(new_patch)
-        # new_labels.append(object.names[0])
 
     if config.random_rotate:
         M = cv2.getRotationMatrix2D((cols / 2, rows / 2),
