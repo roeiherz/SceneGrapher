@@ -9,11 +9,14 @@ class Config:
     """
     def __init__(self):
         # setting for Data augmentation
-        self.use_horizontal_flips = True
+
+        # todo: create a jitter class for future use
+        self.jitter = False
+        self.use_horizontal_flips = False
         self.use_vertical_flips = False
         self.scale_augment = False
         self.random_rotate = False
-        self.random_rotate_scale = 180.
+        self.random_rotate_scale = 180
         self.dataset = "VisualGenome"
 
         # anchor box scales
@@ -24,6 +27,13 @@ class Config:
 
         # size to resize the smallest side of the image
         self.im_size = 600
+
+        # size to resize
+        self.image_width = 800
+        self.image_height = 600
+        self.crop_width = 100
+        self.crop_height = 300
+        self.padding_method = "zero_pad"
 
         # number of ROIs at once
         self.num_rois = 2
