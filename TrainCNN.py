@@ -46,7 +46,7 @@ RELATIONS_COUNT_FILE = "relations_count.p"
 RELATIONS_MAPPING_FILE = "relations_mapping.p"
 PREDICATES_COUNT_FILE = "predicates_count.p"
 HIERARCHY_MAPPING = "hierarchy_mapping.p"
-ENTITIES_FILE = "entities.p"
+ENTITIES_FILE = "final_entities.p"
 PascalVoc_PICKLES_PATH = "keras_frcnn/Data/PascalVoc"
 VisualGenome_PICKLES_PATH = "keras_frcnn/Data/VisualGenome"
 DATA_PATH = "Data/VisualGenome/data/"
@@ -377,7 +377,7 @@ if __name__ == '__main__':
     # Without Top
     model_resnet50 = net.resnet50_base(img_input, trainable=True)
     # Add AVG Pooling Layer
-    model_resnet50 = AveragePooling2D((7, 7), name='avg_pool')(model_resnet50)
+    # model_resnet50 = AveragePooling2D((7, 7), name='avg_pool')(model_resnet50)
     # Add the fully-connected layers
     model_resnet50 = Flatten(name='flatten')(model_resnet50)
     output_resnet50 = Dense(number_of_classes, activation='softmax', name='fc')(model_resnet50)
@@ -393,11 +393,11 @@ if __name__ == '__main__':
         print('loading weights from {}'.format(config.base_net_weights))
         model.load_weights(config.base_net_weights, by_name=True)
     except Exception as e:
-        print(e)
         print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
         ))
+        raise Exception(e)
 
     optimizer = Adam(1e-6)
     model.compile(optimizer=optimizer,

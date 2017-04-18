@@ -87,9 +87,9 @@ def create_data():
             if ind % 10000 == 0:
                 save_pickles(classes_count=predicates_count, classes_count_name=PREDICATES_COUNT_FILE, iter=str(ind))
                 # print("This is iteration number: {}".format(ind))
+                print("This is iteration number: {}".format(ind))
             # Updating index
             ind += 1
-            print("This is iteration number: {}".format(entity))
 
         except Exception as e:
             print("Problem with {0} in index: {1}".format(e, entity))
