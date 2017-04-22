@@ -10,6 +10,72 @@ import os
 __author__ = 'roeih'
 
 
+def VisualGenomeDataGenerator_func(data, hierarchy_mapping, classes_count, config, backend, mode, batch_size=1):
+    """
+    This function is a generator
+    :param data: dictionary of Data
+    :param hierarchy_mapping: hierarchy mapping
+    :param classes_count: A dict that contains {class: number of objects}
+    :param config: the class config which contains different parameters
+    :param backend: tensorflow or theano
+    :param mode: 'train' or 'test'
+    :param batch_size: the batch size
+    """
+
+    while True:
+        for object in data:
+
+            img = get_img(object.url)
+
+            # Get the lable of object
+            label = object.names[0]
+
+            # Get the mask: a dict with {x1,x2,y1,y2}
+            mask = get_mask_from_object(object)
+
+            # Cropping the patch from the image.
+            patch = img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
+
+            # Resize the image according the padding method
+            resized_img = get_img_resize(patch, config.crop_width, config.crop_height,
+                                         type=config.padding_method)
+
+            if mode == 'train' and config.jitter:
+                # Augment only in training
+                # todo: create a regular jitter for each patch increase the number of patches by some constant
+                resized_img = augment_visual_genome(resized_img, object, config, mask)
+
+            # Zero-center by mean pixel
+            resized_img = resized_img.astype(np.float32)
+            resized_img[:, :, 0] -= 103.939
+            resized_img[:, :, 1] -= 116.779
+            resized_img[:, :, 2] -= 123.68
+
+            yield [resized_img], [label]
+
+
+def get_img(url):
+        """
+        This function read image from VisualGenome dataset as url and returns the image from local hard-driver
+        :param url: url of the image
+        :return: the image
+        """
+        try:
+            path_lst = url.split('/')
+            img_path = os.path.join(VG_DATA_PATH, path_lst[-2], path_lst[-1])
+
+            if not os.path.isfile(img_path):
+                print("Error. Image path was not found")
+
+            img = cv2.imread(img_path)
+
+        except Exception as e:
+            print(str(e))
+            return None
+
+        return img
+
+
 class VisualGenomeDataGenerator(object):
     """
     This class represents Visual Genome Data Generator
@@ -48,50 +114,39 @@ class VisualGenomeDataGenerator(object):
         labels = []
 
         if self._current_index + self._batch_size > self._size:
-            print('Data ended, starting from the beginning')
+            print('New batch started')
             self._current_index = 0
 
-        for img_data in self._data[self._current_index:self._current_index + self._batch_size]:
+        for object in self._data[self._current_index:self._current_index + self._batch_size]:
 
-            img = self._get_img(img_data)
+            img = self._get_img(object.url)
 
-            if img is None:
-                print("Coulden't get the image")
-                continue
+            # Get the lable of object
+            label = object.names[0]
 
-            objects = img_data.objects
-            for object in objects:
+            # Get the mask: a dict with {x1,x2,y1,y2}
+            mask = get_mask_from_object(object)
 
-                # Get the lable of object
-                label = object.names[0]
+            # Cropping the patch from the image.
+            patch = img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
 
-                # Check if it is a correct label
-                if not label in self._correct_labels:
-                    continue
+            # Resize the image according the padding method
+            resized_img = get_img_resize(patch, self._config.crop_width, self._config.crop_height,
+                                         type=self._config.padding_method)
 
-                # Get the mask: a dict with {x1,x2,y1,y2}
-                mask = get_mask_from_object(object)
+            if self._mode == 'train' and self._config.jitter:
+                # Augment only in training
+                # todo: create a regular jitter for each patch increase the number of patches by some constant
+                resized_img = augment_visual_genome(resized_img, object, self._config, mask)
 
-                # Cropping the patch from the image.
-                patch = img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
+            # Zero-center by mean pixel
+            resized_img = resized_img.astype(np.float32)
+            resized_img[:, :, 0] -= 103.939
+            resized_img[:, :, 1] -= 116.779
+            resized_img[:, :, 2] -= 123.68
 
-                # Resize the image according the padding method
-                resized_img = get_img_resize(patch, self._config.crop_width, self._config.crop_height,
-                                             type=self._config.padding_method)
-
-                if self._mode == 'train' and self._config.jitter:
-                    # Augment only in training
-                    # todo: create a regular jitter for each patch increase the number of patches by some constant
-                    resized_img = augment_visual_genome(resized_img, object, self._config, mask)
-
-                # Zero-center by mean pixel
-                resized_img = resized_img.astype(np.float32)
-                resized_img[:, :, 0] -= 103.939
-                resized_img[:, :, 1] -= 116.779
-                resized_img[:, :, 2] -= 123.68
-
-                data.append(resized_img)
-                labels.append(label)
+            data.append(resized_img)
+            labels.append(label)
 
             # x_rois, y_rpn_cls, y_rpn_regr, y_class_num, y_class_regr = self._predict(img_data_aug, width, height,
             #                                                                          resized_width, resized_height)
@@ -107,7 +162,76 @@ class VisualGenomeDataGenerator(object):
 
             self._current_index += self._batch_size
 
-        return data, labels
+        return np.array(data), np.array(labels)
+
+
+    # old next funcion
+    # def next(self):
+    #
+    #     data = []
+    #     labels = []
+    #
+    #     if self._current_index + self._batch_size > self._size:
+    #         print('Data ended, starting from the beginning')
+    #         self._current_index = 0
+    #
+    #     for img_data in self._data[self._current_index:self._current_index + self._batch_size]:
+    #
+    #         img = self._get_img(img_data.image.url)
+    #
+    #         if img is None:
+    #             print("Coulden't get the image")
+    #             continue
+    #
+    #         objects = img_data.objects
+    #         for object in objects:
+    #
+    #             # Get the lable of object
+    #             label = object.names[0]
+    #
+    #             # Check if it is a correct label
+    #             if not label in self._correct_labels:
+    #                 continue
+    #
+    #             # Get the mask: a dict with {x1,x2,y1,y2}
+    #             mask = get_mask_from_object(object)
+    #
+    #             # Cropping the patch from the image.
+    #             patch = img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
+    #
+    #             # Resize the image according the padding method
+    #             resized_img = get_img_resize(patch, self._config.crop_width, self._config.crop_height,
+    #                                          type=self._config.padding_method)
+    #
+    #             if self._mode == 'train' and self._config.jitter:
+    #                 # Augment only in training
+    #                 # todo: create a regular jitter for each patch increase the number of patches by some constant
+    #                 resized_img = augment_visual_genome(resized_img, object, self._config, mask)
+    #
+    #             # Zero-center by mean pixel
+    #             resized_img = resized_img.astype(np.float32)
+    #             resized_img[:, :, 0] -= 103.939
+    #             resized_img[:, :, 1] -= 116.779
+    #             resized_img[:, :, 2] -= 123.68
+    #
+    #             data.append(resized_img)
+    #             labels.append(label)
+    #
+    #         # x_rois, y_rpn_cls, y_rpn_regr, y_class_num, y_class_regr = self._predict(img_data_aug, width, height,
+    #         #                                                                          resized_width, resized_height)
+    #         #
+    #         # if self._backend == 'tf':
+    #         #     x_img = np.transpose(x_img, (0, 2, 3, 1))
+    #         #     y_rpn_cls = np.transpose(y_rpn_cls, (0, 2, 3, 1))
+    #         #     y_rpn_regr = np.transpose(y_rpn_regr, (0, 2, 3, 1))
+    #
+    #         # data.append([np.copy(x_img), np.copy(x_rois)])
+    #         # labels.append([np.copy(y_rpn_cls), np.copy(self._config.std_scaling * y_rpn_regr),
+    #         #                np.copy(y_class_num), np.copy(self._config.std_scaling * y_class_regr)])
+    #
+    #         self._current_index += self._batch_size
+    #
+    #     return data, labels
 
     def __len__(self):
         return 2
@@ -407,15 +531,14 @@ class VisualGenomeDataGenerator(object):
         x_rois = np.expand_dims(x_rois, axis=0)
         return x_rois, y_rpn_cls, y_rpn_regr, y_class_num, y_class_regr
 
-    def _get_img(self, img_data):
+    def _get_img(self, url):
         """
         This function read image from VisualGenome dataset as url and returns the image from local hard-driver
-        :param img_data: image data is an entity class which contains objects, attributes, relationships and image
+        :param url: url of the image
         :return: the image
         """
         try:
-            image = img_data.image
-            path_lst = image.url.split('/')
+            path_lst = url.split('/')
             img_path = os.path.join(VG_DATA_PATH, path_lst[-2], path_lst[-1])
 
             if not os.path.isfile(img_path):
