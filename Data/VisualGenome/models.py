@@ -230,3 +230,35 @@ class Synset:
 
     def __repr__(self):
         return str(self)
+
+
+class ObjectMapping(object):
+    """
+    This class inherits Object and adds a url field for mapping between an object and the img url
+    Objects Mapping.
+      id         int
+      x          int
+      y          int
+      width      int
+      height     int
+      names      string array
+      synsets    Synset array
+      url        hyperlink string
+    """
+
+    def __init__(self, id, x, y, width, height, names, synsets, url):
+        self.url = url
+        self.id = id
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.names = names
+        self.synsets = synsets
+
+    def __str__(self):
+        name = self.names[0] if len(self.names) != 0 else 'None'
+        return '%s' % (name)
+
+    def __repr__(self):
+        return str(self)
