@@ -7,11 +7,12 @@ from keras.models import Model
 from keras.models import Sequential
 from keras.layers import ZeroPadding2D, Convolution2D, MaxPooling2D, Flatten, Dense, Dropout, Lambda, \
     BatchNormalization, \
-    Activation, Merge, merge, AveragePooling2D, TimeDistributed
+    Activation, Merge, merge, AveragePooling2D, TimeDistributed, Conv2D
 from keras.optimizers import SGD
 from DesignPatterns.Singleton import Singleton
 from keras_frcnn.Layers.FixedBatchNormalization import FixedBatchNormalization
 from keras_frcnn.Layers.RoiPoolingConv import RoiPoolingConv
+from keras.layers import add
 
 CHANNEL_AXIS = 3
 
@@ -47,45 +48,45 @@ class ModelZoo(object):
         _model = Sequential()
 
         _model.add(ZeroPadding2D((1, 1), input_shape=(None, None, 3)))
-        _model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_1'))
+        _model.add(Conv2D(64, (3, 3), activation='relu', name='conv1_1'))
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(64, 3, 3, activation='relu', name='conv1_2'))
+        _model.add(Conv2D(64, (3, 3), activation='relu', name='conv1_2'))
         _model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(128, 3, 3, activation='relu', name='conv2_1'))
+        _model.add(Conv2D(128, (3, 3), activation='relu', name='conv2_1'))
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(128, 3, 3, activation='relu', name='conv2_2'))
+        _model.add(Conv2D(128, (3, 3), activation='relu', name='conv2_2'))
         _model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_1'))
+        _model.add(Conv2D(256, (3, 3), activation='relu', name='conv3_1'))
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_2'))
+        _model.add(Conv2D(256, (3, 3), activation='relu', name='conv3_2'))
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_3'))
+        _model.add(Conv2D(256, (3, 3), activation='relu', name='conv3_3'))
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(256, 3, 3, activation='relu', name='conv3_4'))
+        _model.add(Conv2D(256, (3, 3), activation='relu', name='conv3_4'))
         _model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_1'))
+        _model.add(Conv2D(512, (3, 3), activation='relu', name='conv4_1'))
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_2'))
+        _model.add(Conv2D(512, (3, 3), activation='relu', name='conv4_2'))
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_3'))
+        _model.add(Conv2D(512, (3, 3), activation='relu', name='conv4_3'))
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(512, 3, 3, activation='relu', name='conv4_4'))
+        _model.add(Conv2D(512, (3, 3), activation='relu', name='conv4_4'))
         _model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_1'))
+        _model.add(Conv2D(512, (3, 3), activation='relu', name='conv5_1'))
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_2'))
+        _model.add(Conv2D(512, (3, 3), activation='relu', name='conv5_2'))
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_3'))
+        _model.add(Conv2D(512, (3, 3), activation='relu', name='conv5_3'))
         _model.add(ZeroPadding2D((1, 1)))
-        _model.add(Convolution2D(512, 3, 3, activation='relu', name='conv5_4'))
+        _model.add(Conv2D(512, (3, 3), activation='relu', name='conv5_4'))
         _model.add(MaxPooling2D((2, 2), strides=(2, 2)))
 
         if not convolution_only:
@@ -180,10 +181,10 @@ class ModelZoo(object):
 
         _model = Sequential()
         _model.add(ZeroPadding2D((1, 1), input_shape=input_shape))
-        _model.add(Convolution2D(32, 9, 9, subsample=(3, 3), activation='relu'))
+        _model.add(Conv2D(32, (9, 9), subsample=(3, 3), activation='relu'))
         _model.add(BatchNormalization())
         _model.add(MaxPooling2D((5, 5), strides=(1, 1)))
-        _model.add(Convolution2D(32, 1, 1, activation='relu', border_mode='same'))
+        _model.add(Conv2D(32, (1, 1), activation='relu', border_mode='same'))
         _model.add(BatchNormalization())
 
         if not convolution_only:
@@ -234,22 +235,22 @@ class ModelZoo(object):
             conv_name_base = 'res' + str(stage) + block + '_branch'
             bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-            x = TimeDistributed(Convolution2D(nb_filter1, (1, 1), trainable=trainable, kernel_initializer='normal'),
+            x = TimeDistributed(Conv2D(nb_filter1, (1, 1), trainable=trainable, kernel_initializer='normal'),
                                 name=conv_name_base + '2a')(input_tensor)
             x = TimeDistributed(FixedBatchNormalization(trainable=False, axis=bn_axis), name=bn_name_base + '2a')(x)
             x = Activation('relu')(x)
 
             x = TimeDistributed(
-                Convolution2D(nb_filter2, (kernel_size, kernel_size), trainable=trainable, kernel_initializer='normal',
-                              padding='same'), name=conv_name_base + '2b')(x)
+                Conv2D(nb_filter2, (kernel_size, kernel_size), trainable=trainable, kernel_initializer='normal',
+                       padding='same'), name=conv_name_base + '2b')(x)
             x = TimeDistributed(FixedBatchNormalization(trainable=False, axis=bn_axis), name=bn_name_base + '2b')(x)
             x = Activation('relu')(x)
 
-            x = TimeDistributed(Convolution2D(nb_filter3, (1, 1), trainable=trainable, kernel_initializer='normal'),
+            x = TimeDistributed(Conv2D(nb_filter3, (1, 1), trainable=trainable, kernel_initializer='normal'),
                                 name=conv_name_base + '2c')(x)
             x = TimeDistributed(FixedBatchNormalization(trainable=False, axis=bn_axis), name=bn_name_base + '2c')(x)
 
-            x = merge([x, input_tensor], mode='sum')
+            x = add([x, input_tensor])
             x = Activation('relu')(x)
 
             return x
@@ -283,23 +284,23 @@ class ModelZoo(object):
             bn_name_base = 'bn' + str(stage) + block + '_branch'
 
             x = TimeDistributed(
-                Convolution2D(nb_filter1, (1, 1), strides=strides, trainable=trainable, kernel_initializer='normal'),
+                Conv2D(nb_filter1, (1, 1), strides=strides, trainable=trainable, kernel_initializer='normal'),
                 name=conv_name_base + '2a')(input_tensor)
             x = TimeDistributed(FixedBatchNormalization(trainable=False, axis=bn_axis), name=bn_name_base + '2a')(x)
             x = Activation('relu')(x)
 
             x = TimeDistributed(
-                Convolution2D(nb_filter2, (kernel_size, kernel_size), padding='same', trainable=trainable,
-                              kernel_initializer='normal'), name=conv_name_base + '2b')(x)
+                Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same', trainable=trainable,
+                       kernel_initializer='normal'), name=conv_name_base + '2b')(x)
             x = TimeDistributed(FixedBatchNormalization(trainable=False, axis=bn_axis), name=bn_name_base + '2b')(x)
             x = Activation('relu')(x)
 
-            x = TimeDistributed(Convolution2D(nb_filter3, (1, 1), kernel_initializer='normal'),
+            x = TimeDistributed(Conv2D(nb_filter3, (1, 1), kernel_initializer='normal'),
                                 name=conv_name_base + '2c', trainable=trainable)(x)
             x = TimeDistributed(FixedBatchNormalization(trainable=False, axis=bn_axis), name=bn_name_base + '2c')(x)
 
             shortcut = TimeDistributed(
-                Convolution2D(nb_filter3, (1, 1), strides=strides, trainable=trainable, kernel_initializer='normal'),
+                Conv2D(nb_filter3, (1, 1), strides=strides, trainable=trainable, kernel_initializer='normal'),
                 name=conv_name_base + '1')(input_tensor)
             shortcut = TimeDistributed(FixedBatchNormalization(trainable=False, axis=bn_axis), name=bn_name_base + '1')(
                 shortcut)
@@ -369,19 +370,19 @@ class ModelZoo(object):
             conv_name_base = 'res' + str(stage) + block + '_branch'
             bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-            x = Convolution2D(nb_filter1, 1, 1, name=conv_name_base + '2a', trainable=trainable)(input_tensor)
+            x = Conv2D(nb_filter1, (1, 1), name=conv_name_base + '2a', trainable=trainable)(input_tensor)
             x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2a')(x)
             x = Activation('relu')(x)
 
-            x = Convolution2D(nb_filter2, kernel_size, kernel_size, border_mode='same', name=conv_name_base + '2b',
-                              trainable=trainable)(x)
+            x = Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same', name=conv_name_base + '2b',
+                       trainable=trainable)(x)
             x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2b')(x)
             x = Activation('relu')(x)
 
-            x = Convolution2D(nb_filter3, 1, 1, name=conv_name_base + '2c', trainable=trainable)(x)
+            x = Conv2D(nb_filter3, (1, 1), name=conv_name_base + '2c', trainable=trainable)(x)
             x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2c')(x)
 
-            x = merge([x, input_tensor], mode='sum')
+            x = add([x, input_tensor])
             x = Activation('relu')(x)
             return x
 
@@ -413,24 +414,24 @@ class ModelZoo(object):
             conv_name_base = 'res' + str(stage) + block + '_branch'
             bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-            x = Convolution2D(nb_filter1, (1, 1), strides=strides, name=conv_name_base + '2a', trainable=trainable)(
+            x = Conv2D(nb_filter1, (1, 1), strides=strides, name=conv_name_base + '2a', trainable=trainable)(
                 input_tensor)
             x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2a')(x)
             x = Activation('relu')(x)
 
-            x = Convolution2D(nb_filter2, (kernel_size, kernel_size), padding='same', name=conv_name_base + '2b',
-                              trainable=trainable)(x)
+            x = Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same', name=conv_name_base + '2b',
+                       trainable=trainable)(x)
             x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2b')(x)
             x = Activation('relu')(x)
 
-            x = Convolution2D(nb_filter3, (1, 1), name=conv_name_base + '2c', trainable=trainable)(x)
+            x = Conv2D(nb_filter3, (1, 1), name=conv_name_base + '2c', trainable=trainable)(x)
             x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2c')(x)
 
-            shortcut = Convolution2D(nb_filter3, (1, 1), strides=strides, name=conv_name_base + '1',
-                                     trainable=trainable)(input_tensor)
+            shortcut = Conv2D(nb_filter3, (1, 1), strides=strides, name=conv_name_base + '1',
+                              trainable=trainable)(input_tensor)
             shortcut = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '1')(shortcut)
 
-            x = merge([x, shortcut], mode='sum')
+            x = add([x, shortcut])
             x = Activation('relu')(x)
             return x
 
@@ -455,7 +456,7 @@ class ModelZoo(object):
 
         x = ZeroPadding2D((3, 3))(img_input)
 
-        x = Convolution2D(64, (7, 7), strides=(2, 2), name='conv1', trainable=trainable)(x)
+        x = Conv2D(64, (7, 7), strides=(2, 2), name='conv1', trainable=trainable)(x)
         x = FixedBatchNormalization(trainable=False, axis=bn_axis, name='bn_conv1')(x)
         x = Activation('relu')(x)
         x = MaxPooling2D((3, 3), strides=(2, 2))(x)
@@ -486,12 +487,12 @@ class ModelZoo(object):
         :return: classification and regression layers
         """
 
-        x = Convolution2D(512, (3, 3), padding='same', activation='relu', kernel_initializer='normal',
-                          name='rpn_conv1')(base_layers)
-        x_class = Convolution2D(num_anchors, (1, 1), activation='sigmoid', kernel_initializer='uniform',
-                                name='rpn_out_class')(x)
-        x_regr = Convolution2D(num_anchors * 4, (1, 1), activation='linear', kernel_initializer='normal',
-                               name='rpn_out_regress')(x)
+        x = Conv2D(512, (3, 3), padding='same', activation='relu', kernel_initializer='normal',
+                   name='rpn_conv1')(base_layers)
+        x_class = Conv2D(num_anchors, (1, 1), activation='sigmoid', kernel_initializer='uniform',
+                         name='rpn_out_class')(x)
+        x_regr = Conv2D(num_anchors * 4, (1, 1), activation='linear', kernel_initializer='normal',
+                        name='rpn_out_regress')(x)
 
         return [x_class, x_regr]
 
@@ -531,6 +532,7 @@ class ModelZoo(object):
         _model.add(Dense(output_shape, input_shape))
 
         return _model
+
 
 if __name__ == "__main__":
     im = cv2.resize(cv2.imread('cat.jpg'), (224, 224)).astype(numpy.float32)
