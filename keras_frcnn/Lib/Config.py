@@ -28,11 +28,12 @@ class Config:
         # size to resize the smallest side of the image
         self.im_size = 600
 
-        # size to resize
         self.image_width = 800
         self.image_height = 600
-        self.crop_width = 100
-        self.crop_height = 300
+        # size to resize
+        # todo: need to be decided
+        self.crop_width = 200
+        self.crop_height = 200
         self.padding_method = "zero_pad"
 
         # number of ROIs at once
@@ -59,8 +60,8 @@ class Config:
         # https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5
         # https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5
         if K.image_dim_ordering() == 'th':
-            self.base_net_weights = 'resnet50_weights_th_dim_ordering_th_kernels_notop.h5'
+            self.base_net_weights = 'Weights/resnet50_weights_th_dim_ordering_th_kernels_notop.h5'
         else:
-            self.base_net_weights = 'resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
+            self.base_net_weights = 'Weights/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
         self.model_path = 'model_frcnn.hdf5'
