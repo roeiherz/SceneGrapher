@@ -32,8 +32,8 @@ class Config:
         self.image_height = 600
         # size to resize
         # todo: need to be decided
-        self.crop_width = 200
-        self.crop_height = 200
+        self.crop_width = 224
+        self.crop_height = 224
         self.padding_method = "zero_pad"
 
         # number of ROIs at once

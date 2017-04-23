@@ -15,7 +15,7 @@ import json
 import numpy as np
 from keras_frcnn.Lib.Config import Config
 from keras.optimizers import Adam
-from keras.layers import Input, AveragePooling2D, Flatten, Dense
+from keras.layers import Input, AveragePooling2D, Flatten, Dense, GlobalAveragePooling2D
 from keras_frcnn.Lib.PascalVoc import PascalVoc
 from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
 from keras import backend as K
@@ -369,6 +369,22 @@ def process_objects(img_data, hierarchy_mapping, object_file_name='objects.p'):
     return objects_array
 
 
+def get_new_hierarchy_mapping(hierarchy_mapping):
+    """
+    This function counts new hierarchy mapping from index 0 to number of classes
+    :param hierarchy_mapping: a dict with mapping between label string to an object id from visual genome dataset
+    :return: new dict with mapping between label string and a new count from 0 to number of classes
+    """
+
+    ind = 0
+    new_hierarchy_mapping = {}
+    for label in hierarchy_mapping.keys():
+        new_hierarchy_mapping[label] = ind
+        ind += 1
+
+    return new_hierarchy_mapping
+
+
 if __name__ == '__main__':
 
     # Load class config
@@ -379,6 +395,7 @@ if __name__ == '__main__':
                                                                  hierarchy_mapping_file_name="final_class_mapping.p",
                                                                  entititis_file_name="entities_example.p")
     objects = process_objects(entities, hierarchy_mapping, object_file_name="objects.p")
+    new_hierarchy_mapping = get_new_hierarchy_mapping(hierarchy_mapping)
 
     # todo: delete this line after testing
     objects = objects[:100]
@@ -416,11 +433,11 @@ if __name__ == '__main__':
     #                                              classes_count=classes_count, config=config,
     #                                              backend=K.image_dim_ordering(), mode='test', batch_size=5)
 
-    data_gen_train_vg = VisualGenomeDataGenerator_func(data=train_imgs, hierarchy_mapping=hierarchy_mapping,
+    data_gen_train_vg = VisualGenomeDataGenerator_func(data=train_imgs, hierarchy_mapping=new_hierarchy_mapping,
                                                        classes_count=classes_count,
                                                        config=config, backend=K.image_dim_ordering(), mode='train',
                                                        batch_size=10)
-    data_gen_test_vg = VisualGenomeDataGenerator_func(data=test_imgs, hierarchy_mapping=hierarchy_mapping,
+    data_gen_test_vg = VisualGenomeDataGenerator_func(data=test_imgs, hierarchy_mapping=new_hierarchy_mapping,
                                                       classes_count=classes_count, config=config,
                                                       backend=K.image_dim_ordering(), mode='test', batch_size=5)
     # data_gen_train_vg.next()
@@ -447,8 +464,9 @@ if __name__ == '__main__':
     model_resnet50 = net.resnet50_base(img_input, trainable=True)
     # Add AVG Pooling Layer
     # model_resnet50 = AveragePooling2D((7, 7), name='avg_pool')(model_resnet50)
+    model_resnet50 = GlobalAveragePooling2D()(model_resnet50)
     # Add the fully-connected layers
-    model_resnet50 = Flatten(name='flatten')(model_resnet50)
+    # model_resnet50 = Flatten(name='flatten')(model_resnet50)
     output_resnet50 = Dense(number_of_classes, activation='softmax', name='fc')(model_resnet50)
 
     # Define the model

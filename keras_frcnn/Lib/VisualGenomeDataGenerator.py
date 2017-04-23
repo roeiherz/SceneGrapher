@@ -29,6 +29,8 @@ def VisualGenomeDataGenerator_func(data, hierarchy_mapping, classes_count, confi
 
             # Get the lable of object
             label = object.names[0]
+            # Get the label uuid
+            label_id = hierarchy_mapping[label]
 
             # Get the mask: a dict with {x1,x2,y1,y2}
             mask = get_mask_from_object(object)
@@ -51,7 +53,7 @@ def VisualGenomeDataGenerator_func(data, hierarchy_mapping, classes_count, confi
             resized_img[:, :, 1] -= 116.779
             resized_img[:, :, 2] -= 123.68
 
-            yield [resized_img], [label]
+            yield [np.copy(resized_img)], [np.copy(label_id)]
 
 
 def get_img(url):
