@@ -451,11 +451,11 @@ if __name__ == '__main__':
     if K.image_dim_ordering() == 'th':
         input_shape_img = (3, None, None)
     else:
-        input_shape_img = (None, None, 3)
+        input_shape_img = (config.crop_height, config.crop_width, 3)
 
     # Get back the ResNet50 base part of a ResNet50 network trained on MS-COCO
-    # model_resnet50 = ResNet50(weights='imagenet', include_top=False)
-    # model_resnet50.summary()
+    # model = ResNet50(weights=None, include_top=True, classes=number_of_classes)
+    # model.summary()
 
     img_input = Input(shape=input_shape_img, name="image_input")
 
@@ -464,13 +464,13 @@ if __name__ == '__main__':
     model_resnet50 = net.resnet50_base(img_input, trainable=True)
     # Add AVG Pooling Layer
     # model_resnet50 = AveragePooling2D((7, 7), name='avg_pool')(model_resnet50)
-    model_resnet50 = GlobalAveragePooling2D()(model_resnet50)
+    # model_resnet50 = GlobalAveragePooling2D()(model_resnet50)
     # Add the fully-connected layers
-    # model_resnet50 = Flatten(name='flatten')(model_resnet50)
+    model_resnet50 = Flatten(name='flatten')(model_resnet50)
     output_resnet50 = Dense(number_of_classes, activation='softmax', name='fc')(model_resnet50)
 
     # Define the model
-    model = Model(inputs=img_input, outputs=output_resnet50)
+    model = Model(inputs=img_input, outputs=model_resnet50, name='resnet50')
 
     # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
     model.summary()
@@ -478,7 +478,7 @@ if __name__ == '__main__':
     # Load pre-trained weights for ResNet50
     try:
         print('loading weights from {}'.format(config.base_net_weights))
-        model.load_weights(config.base_net_weights, by_name=True)
+        # model.load_weights(config.base_net_weights, by_name=True)
     except Exception as e:
         print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',

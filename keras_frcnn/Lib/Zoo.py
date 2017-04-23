@@ -477,6 +477,11 @@ class ModelZoo(object):
         x = identity_block(x, 3, [256, 256, 1024], stage=4, block='e', trainable=trainable)
         x = identity_block(x, 3, [256, 256, 1024], stage=4, block='f', trainable=trainable)
 
+        x = conv_block(x, 3, [512, 512, 2048], stage=5, block='a', trainable=trainable)
+        x = identity_block(x, 3, [512, 512, 2048], stage=5, block='b', trainable=trainable)
+        x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c', trainable=trainable)
+
+        x = AveragePooling2D((7, 7), name='avg_pool')(x)
         return x
 
     def rpn(self, base_layers, num_anchors):
