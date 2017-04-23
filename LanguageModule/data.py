@@ -2,6 +2,7 @@ import os
 import os.path
 import numpy as np
 import cPickle
+import operator
 
 
 def prepare_data(max_nof_predicates):
@@ -11,9 +12,27 @@ def prepare_data(max_nof_predicates):
     :param max_nof_predicates:
     :return:
     """
-    file = open("entities.p", "rb")
+    file = open("final_entities.p", "rb")
     entities = cPickle.load(file)
     file.close()
+
+    file = open("final_classes_count.p", "rb")
+    classes = cPickle.load(file)
+    file.close()
+
+    file = open("final_predicates_count.p", "rb")
+    predicates = cPickle.load(file)
+    file.close()
+
+    nof_predicates = 150
+    sorted_predictes_count = sorted(predicates.items(), key=operator.itemgetter(1), reverse=True)
+    sorted_predictes = sorted_predictes_count[:nof_predicates]
+    predicates_to_be_used = dict(sorted_predictes)
+
+    nof_classes = 150
+    sorted_classes_count = sorted(classes.items(), key=operator.itemgetter(1), reverse=True)
+    sorted_classes = sorted_classes_count[:nof_classes]
+    classes_to_be_used = dict(sorted_classes)
 
     worda = []
     wordb = []
@@ -25,6 +44,12 @@ def prepare_data(max_nof_predicates):
         for R in entity.relationships:
             if len(predicate_dict) >= max_nof_predicates:
                 break
+            if not classes_to_be_used.has_key(R.subject.names[0]):
+                continue
+            if not classes_to_be_used.has_key(R.object.names[0]):
+                continue
+            if not predicates_to_be_used.has_key(R.predicate):
+                continue
             worda.append(R.subject.names[0])
             wordb.append(R.object.names[0])
             predicate.append(R.predicate)
@@ -44,6 +69,13 @@ def prepare_data(max_nof_predicates):
     predicate_ids = np.asarray(predicate_ids)
     perm1 = np.random.permutation(worda.shape[0])
     perm2 = np.random.permutation(worda.shape[0])
+
+    # save data
+    filtered_data = {"subjects" : worda, "objects" : wordb, "predicates" : predicates, "predicates_ids" : predicate_ids, "instances" : instances}
+    filtered_data_file = open("filtered_data.p", "wb")
+    cPickle.dump(filtered_data, filtered_data_file, 0)
+    filtered_data_file.close()
+
 
     R1 = Data(worda[perm1], wordb[perm1], predicate[perm1], predicate_ids[perm1], instances)
     R2 = Data(worda[perm2], wordb[perm2], predicate[perm2], predicate_ids[perm1], instances)

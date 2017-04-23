@@ -92,17 +92,17 @@ class WordEmbd(object):
 
             #Save picke files
             print "Save Embed Words"
-            embed_file = file(WordEmbd.EMBED_PICKLE_FILE, "wb")
+            embed_file = open(WordEmbd.EMBED_PICKLE_FILE, "wb")
             cPickle.dump(self.embed, embed_file, 0)
             embed_file.close()
 
             print "Save Vocab"
-            vocab_file = file(WordEmbd.VOCAB_PICKLE_FILE, "wb")
+            vocab_file = open(WordEmbd.VOCAB_PICKLE_FILE, "wb")
             cPickle.dump(self.vocab, vocab_file, 0)
             vocab_file.close()
 
             print "Save Word Index"
-            word_index_file = file(WordEmbd.WORD_INDEX_PICKLE_FILE, "wb")
+            word_index_file = open(WordEmbd.WORD_INDEX_PICKLE_FILE, "wb")
             cPickle.dump(self.word_index, word_index_file, 0)
             word_index_file.close()
 
