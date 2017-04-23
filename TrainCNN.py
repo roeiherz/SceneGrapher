@@ -394,13 +394,14 @@ if __name__ == '__main__':
     classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
                                                                  hierarchy_mapping_file_name="final_class_mapping.p",
                                                                  entititis_file_name="entities_example.p")
+    # todo: not in used
     objects = process_objects(entities, hierarchy_mapping, object_file_name="objects.p")
+    objects = objects[:100]
     new_hierarchy_mapping = get_new_hierarchy_mapping(hierarchy_mapping)
 
-    # todo: delete this line after testing
-    objects = objects[:100]
-    train_imgs, test_imgs, val_imgs = preprocessing_data(objects)
+    train_imgs, test_imgs, val_imgs = preprocessing_data(entities)
 
+    # Set the number of classes
     number_of_classes = len(classes_count)
 
     # Get PascalVoc data
@@ -414,25 +415,7 @@ if __name__ == '__main__':
                                           classes_count=classes_count1,
                                           config=config, backend=K.image_dim_ordering(), mode='test', batch_size=1)
 
-    #
-    # image_data = GetAllImageData(dataDir=DATA_PATH)
-    # region_interest = GetAllRegionDescriptions(dataDir=DATA_PATH)
-    # qas = GetAllQAs(dataDir=DATA_PATH)
-    # tt = GetSceneGraph(1, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/", synsetFile=DATA_PATH + "synsets.json")
-
-    # classes_count, hierarchy_mapping, entities = create_data_visual_genome(image_data)
-    # exit()
-
-    print("test")
-    # Create a data generator for Visual Genome
-    # data_gen_train_vg = VisualGenomeDataGenerator(data=train_imgs, hierarchy_mapping=hierarchy_mapping,
-    #                                               classes_count=classes_count,
-    #                                               config=config, backend=K.image_dim_ordering(), mode='train',
-    #                                               batch_size=10)
-    # data_gen_test_vg = VisualGenomeDataGenerator(data=test_imgs, hierarchy_mapping=hierarchy_mapping,
-    #                                              classes_count=classes_count, config=config,
-    #                                              backend=K.image_dim_ordering(), mode='test', batch_size=5)
-
+    # Create a data generator for VisualGenome
     data_gen_train_vg = VisualGenomeDataGenerator_func(data=train_imgs, hierarchy_mapping=new_hierarchy_mapping,
                                                        classes_count=classes_count,
                                                        config=config, backend=K.image_dim_ordering(), mode='train',
@@ -440,13 +423,6 @@ if __name__ == '__main__':
     data_gen_test_vg = VisualGenomeDataGenerator_func(data=test_imgs, hierarchy_mapping=new_hierarchy_mapping,
                                                       classes_count=classes_count, config=config,
                                                       backend=K.image_dim_ordering(), mode='test', batch_size=5)
-    # data_gen_train_vg.next()
-    print("end test")
-
-    # image_data = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "images_data.p"), "rb"))
-    # qas = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "qas.p"), "rb"))
-    # region_interest = cPickle.load(open(os.path.join("Data/VisualGenome/pickles", "region_interest.p"), "rb"))
-    print('loading pickles')
 
     if K.image_dim_ordering() == 'th':
         input_shape_img = (3, None, None)
@@ -464,21 +440,25 @@ if __name__ == '__main__':
     model_resnet50 = net.resnet50_base(img_input, trainable=True)
     # Add AVG Pooling Layer
     # model_resnet50 = AveragePooling2D((7, 7), name='avg_pool')(model_resnet50)
-    # model_resnet50 = GlobalAveragePooling2D()(model_resnet50)
+    model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
+
+     # x = GlobalAveragePooling2D(name='avg_pool')(x)
+    # x = Dense(1000, activation='softmax', name='predictions')(x)
     # Add the fully-connected layers
-    model_resnet50 = Flatten(name='flatten')(model_resnet50)
+    # model_resnet50 = Flatten(name='flatten')(model_resnet50)
     output_resnet50 = Dense(number_of_classes, activation='softmax', name='fc')(model_resnet50)
 
     # Define the model
-    model = Model(inputs=img_input, outputs=model_resnet50, name='resnet50')
+    model = Model(inputs=img_input, outputs=output_resnet50, name='resnet50')
 
     # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
     model.summary()
 
     # Load pre-trained weights for ResNet50
     try:
-        print('loading weights from {}'.format(config.base_net_weights))
-        # model.load_weights(config.base_net_weights, by_name=True)
+        if config.load_weights:
+            print('loading weights from {}'.format(config.base_net_weights))
+            model.load_weights(config.base_net_weights, by_name=True)
     except Exception as e:
         print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
@@ -499,8 +479,6 @@ if __name__ == '__main__':
                                   validation_data=data_gen_test_vg, validation_steps=NUM_VAL_SAMPLES,
                                   callbacks=callbacks,
                                   max_q_size=1, workers=1)
-
-    model.get_layer()
 
     # summarize history for accuracy
     plt.plot(history.history['acc'])

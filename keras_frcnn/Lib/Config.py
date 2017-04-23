@@ -36,6 +36,9 @@ class Config:
         self.crop_height = 224
         self.padding_method = "zero_pad"
 
+        # Load weights
+        self.load_weights = False
+
         # number of ROIs at once
         self.num_rois = 2
 
