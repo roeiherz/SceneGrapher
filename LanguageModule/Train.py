@@ -11,13 +11,13 @@ def train():
     TBD: improve
     :return: trained langauge module
     """
-    #embedded words module
-    embed = WordEmbd()
-
 
     #get data - TBD
     R1, R2, nof_predicates = prepare_data(1000)
     data = [R1, R2]
+
+    #embedded words module
+    embed = WordEmbd()
 
     # create LangModule
     lang = LangModule(nof_predicates, embed.vector_dim)
