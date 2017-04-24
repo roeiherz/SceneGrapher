@@ -12,9 +12,8 @@ def train():
     :return: trained langauge module
     """
 
-    #get data - TBD
-    R1, R2, nof_predicates = prepare_data(1000)
-    data = [R1, R2]
+    #get data
+    filtered_data, nof_predicates = prepare_data(1000)
 
     #embedded words module
     embed = WordEmbd()
@@ -26,7 +25,7 @@ def train():
     weights = lang.get_weights()
 
     #train
-    sgd.sgd(lambda x: lang_module_sgd_wrapper(x, data, lang),
+    sgd.sgd(lambda x: lang_module_sgd_wrapper(x, filtered_data, lang),
             weights)
 
     return lang
@@ -51,14 +50,22 @@ def lang_module_sgd_wrapper(x, data, lang):
 
     return cost, grad
 
-def get_random_data(data):
+def get_random_data(data, batch_size=1000):
     """
     Randomly select batch from the data
     TBD..
     :param data: list of two objects of Data
     :return: list of two objects of Data (batch size)
     """
-    return data
+    batch = []
+
+    indices = np.random.randint(0, data.worda.shape[0], batch_size)
+    perm = np.random.permutation(batch_size)
+
+    R1 = data.get_subset(indices)
+    R2 = R1.get_subset(perm)
+
+    return [R1, R2]
 
 
 
@@ -73,8 +80,8 @@ def sanity_check():
     embed = WordEmbd()
 
     # get data - TBD
-    R1, R2, nof_predicates = prepare_data(10)
-    data = [R1, R2]
+    data, nof_predicates = prepare_data(10)
+    data = get_random_data(data)
 
     # create LangModule
     lang = LangModule(nof_predicates, embed.vector_dim)
@@ -86,5 +93,5 @@ def sanity_check():
                     lang.cost_and_gradient(x, data[0], data[1]), params)
 
 if __name__ == "__main__":
-    train()
-    #sanity_check()
+    #train()
+    sanity_check()
