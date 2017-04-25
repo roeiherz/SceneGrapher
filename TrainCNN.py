@@ -15,7 +15,7 @@ import json
 import numpy as np
 from keras_frcnn.Lib.Config import Config
 from keras.optimizers import Adam
-from keras.layers import Input, AveragePooling2D, Flatten, Dense, GlobalAveragePooling2D
+from keras.layers import Input, AveragePooling2D, Flatten, Dense, GlobalAveragePooling2D, Activation
 from keras_frcnn.Lib.PascalVoc import PascalVoc
 from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
 from keras import backend as K
@@ -60,6 +60,7 @@ NUM_EPOCHS = 50
 TRAIN_SAMPLES_PER_EPOCH = 2000
 # len(val_imgs)
 NUM_VAL_SAMPLES = 500
+TOTAL_OBJECTS = 2071985
 
 
 def create_data_pascal_voc(load=False):
@@ -312,13 +313,22 @@ def preprocessing_data(entities):
     # Create a numpy array of indices of the data
     indices = np.arange(len(entities))
     # Shuffle the indices of the data
-
     # todo: must returned the shuffle
-    # random.shuffle(indices)
+    random.shuffle(indices)
 
+    # Get the train + test + val dataset
     train_imgs = entities[indices[:train_size]]
     test_imgs = entities[indices[train_size:train_size + test_size]]
     val_imgs = entities[indices[train_size + test_size:]]
+
+    # Take the round number of each dataset per the number of epochs
+    num_of_samples_per_train_updated = len(train_imgs) / NUM_EPOCHS * NUM_EPOCHS
+    train_imgs = train_imgs[:num_of_samples_per_train_updated]
+    num_of_samples_per_test_updated = len(test_imgs) / NUM_EPOCHS * NUM_EPOCHS
+    test_imgs = test_imgs[:num_of_samples_per_test_updated]
+    num_of_samples_per_val_updated = len(val_imgs) / NUM_EPOCHS * NUM_EPOCHS
+    val_imgs = val_imgs[:num_of_samples_per_val_updated]
+
     return train_imgs, test_imgs, val_imgs
 
 
@@ -342,6 +352,7 @@ def process_objects(img_data, hierarchy_mapping, object_file_name='objects.p'):
     # Get the whole objects from entities
     objects_lst = []
     correct_labels = hierarchy_mapping.keys()
+    idx = 0
     for img in img_data:
 
         # Get the url image
@@ -361,6 +372,9 @@ def process_objects(img_data, hierarchy_mapping, object_file_name='objects.p'):
                                                object.synsets, url)
             # Append the new objectMapping to objects_lst
             objects_lst.append(new_object_mapping)
+
+        idx += 1
+        print("Finished img: {}".format(idx))
 
     # Save the objects files to the disk
     objects_file = file(objects_path, 'wb')
@@ -405,20 +419,21 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)
 
     # Define tensorflow use only the amount of memory required for the process
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
-    set_session(tf.Session(config=config))
+    # config_tf = tf.ConfigProto()
+    # config_tf.gpu_options.allow_growth = True
+    # set_session(tf.Session(config=config_tf))
 
-    # Get Visual Genome Data
     classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
                                                                  hierarchy_mapping_file_name="final_class_mapping.p",
                                                                  entititis_file_name="entities_example.p")
-    # todo: not in used
-    objects = process_objects(entities, hierarchy_mapping, object_file_name="objects.p")
-    objects = objects[:100]
+                                                                 # entititis_file_name="final_entities.p")
+
+    # Get Visual Genome Data objects
+    objects = process_objects(entities, hierarchy_mapping, object_file_name="full_objects.p")
+    # objects = objects[:100]
     new_hierarchy_mapping = get_new_hierarchy_mapping(hierarchy_mapping)
 
-    train_imgs, test_imgs, val_imgs = preprocessing_data(entities)
+    train_imgs, test_imgs, val_imgs = preprocessing_data(objects)
 
     # Set the number of classes
     number_of_classes = len(classes_count)
@@ -436,42 +451,32 @@ if __name__ == '__main__':
 
     # Create a data generator for VisualGenome
     data_gen_train_vg = VisualGenomeDataGenerator_func(data=train_imgs, hierarchy_mapping=new_hierarchy_mapping,
-                                                       classes_count=classes_count,
-                                                       config=config, backend=K.image_dim_ordering(), mode='train',
-                                                       batch_size=10)
+                                                       config=config, mode='train')
     data_gen_test_vg = VisualGenomeDataGenerator_func(data=test_imgs, hierarchy_mapping=new_hierarchy_mapping,
-                                                      classes_count=classes_count, config=config,
-                                                      backend=K.image_dim_ordering(), mode='test', batch_size=5)
+                                                      config=config, mode='test')
 
     if K.image_dim_ordering() == 'th':
         input_shape_img = (3, None, None)
     else:
         input_shape_img = (config.crop_height, config.crop_width, 3)
 
-    # Get back the ResNet50 base part of a ResNet50 network trained on MS-COCO
-    # model = ResNet50(weights=None, include_top=True, classes=number_of_classes)
-    # model.summary()
-
     img_input = Input(shape=input_shape_img, name="image_input")
 
+    # Define ResNet50 model Without Top
     net = ModelZoo()
-    # Without Top
     model_resnet50 = net.resnet50_base(img_input, trainable=True)
-    # Add AVG Pooling Layer
-    # model_resnet50 = AveragePooling2D((7, 7), name='avg_pool')(model_resnet50)
     model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
-
-     # x = GlobalAveragePooling2D(name='avg_pool')(x)
-    # x = Dense(1000, activation='softmax', name='predictions')(x)
-    # Add the fully-connected layers
-    # model_resnet50 = Flatten(name='flatten')(model_resnet50)
-    output_resnet50 = Dense(number_of_classes, activation='softmax', name='fc')(model_resnet50)
+    output_resnet50 = Dense(number_of_classes, kernel_initializer="he_normal", activation='softmax', name='fc')(
+        model_resnet50)
 
     # Define the model
     model = Model(inputs=img_input, outputs=output_resnet50, name='resnet50')
-
     # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
     model.summary()
+
+    # Get back the ResNet50 base part of a ResNet50 network trained on MS-COCO
+    # model = ResNet50(weights=None, include_top=True, classes=number_of_classes)
+    # model.summary()
 
     # Load pre-trained weights for ResNet50
     try:
@@ -494,8 +499,8 @@ if __name__ == '__main__':
                  TensorBoard(log_dir="logs/", write_graph=False, write_images=True)]
 
     print('Starting training')
-    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=TRAIN_SAMPLES_PER_EPOCH, epochs=NUM_EPOCHS,
-                                  validation_data=data_gen_test_vg, validation_steps=NUM_VAL_SAMPLES,
+    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs)/NUM_EPOCHS, epochs=NUM_EPOCHS,
+                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs)/NUM_EPOCHS,
                                   callbacks=callbacks,
                                   max_q_size=1, workers=1)
 

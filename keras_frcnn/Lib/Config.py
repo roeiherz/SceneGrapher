@@ -12,6 +12,9 @@ class Config:
         # Define the GPU number
         self.gpu_num = gpu_num
 
+        # Normalize images while training
+        self.normalize = False
+
         # setting for Data augmentation
         # todo: create a jitter class for future use
         self.jitter = False

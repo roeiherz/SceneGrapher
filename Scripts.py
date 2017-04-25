@@ -3,10 +3,10 @@ from __future__ import print_function
 import timeit
 import cPickle
 import os
-
+import numpy as np
 from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
 from TrainCNN import VisualGenome_PICKLES_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE, ENTITIES_FILE, DATA_PATH, \
-    RELATIONS_COUNT_FILE, RELATIONS_MAPPING_FILE, PREDICATES_COUNT_FILE
+    RELATIONS_COUNT_FILE, RELATIONS_MAPPING_FILE, PREDICATES_COUNT_FILE, HIERARCHY_MAPPING
 from keras_frcnn.Utils.Utils import create_folder, VG_PATCH_PATH
 
 
@@ -98,6 +98,40 @@ def create_data():
     return 1
 
 
+def process_objects(img_data, hierarchy_mapping):
+    """
+    This function takes the img_data and create a full object list that contains ObjectMapping class
+    :param img_data: list of entities files
+    :param hierarchy_mapping: dict of hierarchy_mapping
+    :return: list of ObjectMapping
+    """
+    # Get the whole objects from entities
+    objects_ind = 1
+    correct_labels = hierarchy_mapping.keys()
+    for img in img_data:
+
+        # Get the objects per image
+        objects = img.objects
+        for object in objects:
+
+            # Get the lable of object
+            label = object.names[0]
+
+            # Check if it is a correct label
+            if label not in correct_labels:
+                continue
+
+            objects_ind += 1
+
+    print("Number of objects are: {0}".format(objects_ind))
+
+
 if __name__ == '__main__':
-    res = create_data()
-    print(res)
+
+    entities_file_name = os.path.join(VisualGenome_PICKLES_PATH, ENTITIES_FILE)
+    entities = cPickle.load(file(entities_file_name, 'rb'))
+
+    hierarchy_mapping_file_name = os.path.join(VisualGenome_PICKLES_PATH, HIERARCHY_MAPPING)
+    hierarchy_mapping = cPickle.load(file(hierarchy_mapping_file_name, 'rb'))
+    process_objects(entities, hierarchy_mapping)
+    # print(res)
