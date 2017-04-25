@@ -22,38 +22,56 @@ def VisualGenomeDataGenerator_func(data, hierarchy_mapping, classes_count, confi
     :param batch_size: the batch size
     """
 
+    correct_labels = hierarchy_mapping.keys()
+
     while True:
-        for object in data:
+        for img_data in data:
 
-            img = get_img(object.url)
+            img = get_img(img_data.image.url)
 
-            # Get the lable of object
-            label = object.names[0]
-            # Get the label uuid
-            label_id = hierarchy_mapping[label]
-
-            # Get the mask: a dict with {x1,x2,y1,y2}
-            mask = get_mask_from_object(object)
-
-            # Cropping the patch from the image.
-            patch = img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
-
-            # Resize the image according the padding method
-            resized_img = get_img_resize(patch, config.crop_width, config.crop_height,
-                                         type=config.padding_method)
-
-            if mode == 'train' and config.jitter:
-                # Augment only in training
-                # todo: create a regular jitter for each patch increase the number of patches by some constant
-                resized_img = augment_visual_genome(resized_img, object, config, mask)
+            if img is None:
+                print("Coulden't get the image")
+                continue
 
             # Zero-center by mean pixel
-            resized_img = resized_img.astype(np.float32)
-            resized_img[:, :, 0] -= 103.939
-            resized_img[:, :, 1] -= 116.779
-            resized_img[:, :, 2] -= 123.68
+            norm_img = img.astype(np.float32)
+            norm_img[:, :, 0] -= 103.939
+            norm_img[:, :, 1] -= 116.779
+            norm_img[:, :, 2] -= 123.68
 
-            yield [np.copy(resized_img)], [np.copy(label_id)]
+            # resized_img = np.transpose(resized_img, (2, 0, 1))
+            # resized_img = np.expand_dims(resized_img, axis=0)
+
+            objects = img_data.objects
+
+            for object in objects:
+
+                # Get the lable of object
+                label = object.names[0]
+
+                # Check if it is a correct label
+                if not label in correct_labels:
+                    continue
+
+                # Get the label uuid
+                label_id = hierarchy_mapping[label]
+
+                # Get the mask: a dict with {x1,x2,y1,y2}
+                mask = get_mask_from_object(object)
+
+                # Cropping the patch from the image.
+                patch = norm_img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
+
+                # Resize the image according the padding method
+                resized_img = get_img_resize(patch, config.crop_width, config.crop_height,
+                                             type=config.padding_method)
+
+                if mode == 'train' and config.jitter:
+                    # Augment only in training
+                    # todo: create a regular jitter for each patch increase the number of patches by some constant
+                    resized_img = augment_visual_genome(resized_img, object, config, mask)
+
+                yield [np.copy(resized_img)], [np.copy(label_id)]
 
 
 def get_img(url):
