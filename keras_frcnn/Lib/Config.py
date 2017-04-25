@@ -7,9 +7,12 @@ class Config:
     """
     This class represents Config file
     """
-    def __init__(self):
-        # setting for Data augmentation
+    def __init__(self, gpu_num):
 
+        # Define the GPU number
+        self.gpu_num = gpu_num
+
+        # setting for Data augmentation
         # todo: create a jitter class for future use
         self.jitter = False
         self.use_horizontal_flips = False

@@ -21,9 +21,12 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
 from keras import backend as K
 from keras.models import Model
 import cv2
+import sys
 import random
 import matplotlib.pyplot as plt
 from keras_frcnn.Utils.Utils import get_mask_from_object, create_folder, try_create_patch, VG_PATCH_PATH
+import tensorflow as tf
+from keras.backend.tensorflow_backend import set_session
 
 NOF_LABELS = 150
 TRAINING_PERCENT = 0.75
@@ -387,8 +390,24 @@ def get_new_hierarchy_mapping(hierarchy_mapping):
 
 if __name__ == '__main__':
 
+    # Get argument
+    if len(sys.argv) < 2:
+        # Default GPU number
+        gpu_num = 0
+    else:
+        # Get the GPU number from the user
+        gpu_num = sys.argv[1]
+
     # Load class config
-    config = Config()
+    config = Config(gpu_num)
+
+    # Define GPU training
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)
+
+    # Define tensorflow use only the amount of memory required for the process
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    set_session(tf.Session(config=config))
 
     # Get Visual Genome Data
     classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
