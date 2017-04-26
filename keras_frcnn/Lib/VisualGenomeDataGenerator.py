@@ -9,7 +9,7 @@ import os
 
 __author__ = 'roeih'
 
-
+# todo: delete - old version
 # def VisualGenomeDataGenerator_func(data, hierarchy_mapping, config, mode):
 #     """
 #     This function is a generator
@@ -129,7 +129,7 @@ def VisualGenomeDataGenerator_func(data, hierarchy_mapping, config, mode):
             # Get the label uuid
             label_id = hierarchy_mapping[label]
 
-            # Get the y labels
+            # Create the y labels as a one hot vector
             y_labels = np.zeros((len(hierarchy_mapping)))
             y_labels[label_id] = 1
 
@@ -148,7 +148,7 @@ def VisualGenomeDataGenerator_func(data, hierarchy_mapping, config, mode):
                 # todo: create a regular jitter for each patch increase the number of patches by some constant
                 resized_img = augment_visual_genome(resized_img, object, config, mask)
 
-            # Expand dimensions
+            # Expand dimensions - add batch dimension for the numpy
             resized_img = np.expand_dims(resized_img, axis=0)
             y_labels = np.expand_dims(y_labels, axis=0)
 
