@@ -130,7 +130,8 @@ def VisualGenomeDataGenerator_func(data, hierarchy_mapping, config, mode):
             label_id = hierarchy_mapping[label]
 
             # Create the y labels as a one hot vector
-            y_labels = np.zeros((len(hierarchy_mapping)))
+            # y_labels = np.eye(len(hierarchy_mapping), dtype='uint8')[label_id]
+            y_labels = np.zeros((len(hierarchy_mapping)), dtype='uint8')
             y_labels[label_id] = 1
 
             # Get the mask: a dict with {x1,x2,y1,y2}

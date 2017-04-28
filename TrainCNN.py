@@ -17,7 +17,7 @@ from keras_frcnn.Lib.Config import Config
 from keras.optimizers import Adam
 from keras.layers import Input, AveragePooling2D, Flatten, Dense, GlobalAveragePooling2D, Activation
 from keras_frcnn.Lib.PascalVoc import PascalVoc
-from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
+from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, CSVLogger
 from keras import backend as K
 from keras.models import Model
 import cv2
@@ -55,12 +55,7 @@ PascalVoc_PICKLES_PATH = "keras_frcnn/Data/PascalVoc"
 VisualGenome_PICKLES_PATH = "keras_frcnn/Data/VisualGenome"
 DATA_PATH = "Data/VisualGenome/data/"
 
-NUM_EPOCHS = 50
-# len(train_imgs)
-TRAIN_SAMPLES_PER_EPOCH = 2000
-# len(val_imgs)
-NUM_VAL_SAMPLES = 500
-TOTAL_OBJECTS = 2071985
+NUM_EPOCHS = 128
 
 
 def create_data_pascal_voc(load=False):
@@ -426,10 +421,10 @@ if __name__ == '__main__':
     classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
                                                                  hierarchy_mapping_file_name="final_class_mapping.p",
                                                                  entititis_file_name="entities_example.p")
-                                                                 # entititis_file_name="final_entities.p")
+    # entititis_file_name="final_entities.p")
 
     # Get Visual Genome Data objects
-    objects = process_objects(entities, hierarchy_mapping, object_file_name="full_objects.p")
+    objects = process_objects(entities, hierarchy_mapping, object_file_name="objects.p")
     # objects = objects[:100]
     new_hierarchy_mapping = get_new_hierarchy_mapping(hierarchy_mapping)
 
@@ -492,17 +487,16 @@ if __name__ == '__main__':
 
     optimizer = Adam(1e-6)
     model.compile(optimizer=optimizer,
-                  loss='categorical_crossentropy')
+                  loss='categorical_crossentropy', metrics=['accuracy'])
 
-    callbacks = [EarlyStopping(monitor='val_loss', patience=20, verbose=0),
-                 ModelCheckpoint(config.model_path, monitor='val_loss', save_best_only=True, verbose=0),
-                 TensorBoard(log_dir="logs/", write_graph=False, write_images=True)]
+    callbacks = [ModelCheckpoint(config.model_path, monitor='val_loss', save_best_only=True, verbose=0),
+                 TensorBoard(log_dir="logs", write_graph=True, write_images=True),
+                 CSVLogger('training.log', separator=',', append=False)]
 
     print('Starting training')
-    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs)/NUM_EPOCHS, epochs=NUM_EPOCHS,
-                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs)/NUM_EPOCHS,
-                                  callbacks=callbacks,
-                                  max_q_size=1, workers=1)
+    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_EPOCHS, epochs=NUM_EPOCHS,
+                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_EPOCHS,
+                                  callbacks=callbacks, max_q_size=1, workers=1)
 
     # summarize history for accuracy
     plt.plot(history.history['acc'])
