@@ -227,8 +227,8 @@ def load_pickles(classes_mapping_path, classes_count_path, entities_path, ):
     return classes_count, hierarchy_mapping, entities
 
 
-def get_sorted_data(classes_count_file_name="80000_classes_count.p",
-                    hierarchy_mapping_file_name="80000_class_mapping.p", entititis_file_name="80000_entities.p"):
+def get_sorted_data(classes_count_file_name="final_classes_count.p",
+                    hierarchy_mapping_file_name="final_class_mapping.p", entititis_file_name="final_entities.p"):
     """
     This function his sorted the hierarchy_mapping and classes_count by the number of labels
     :param entitis_file_name: the full entities of *all* the dataset
@@ -397,6 +397,34 @@ def get_new_hierarchy_mapping(hierarchy_mapping):
     return new_hierarchy_mapping
 
 
+def get_classes_mapping_and_hierarchy_mapping_by_objects(objects):
+    """
+    This function creates classes_mapping and hierarchy_mapping by objects
+    :param objects: list of objects
+    :return: dict of classes_mapping and hierarchy_mapping
+    """
+    classes_count_per_objects = {}
+    hierarchy_mapping_per_objects = {}
+    new_obj_id = 1
+    for object in objects:
+        # Get the lable of object
+        label = object.names[0]
+
+        # Update the classes_count dict
+        if label in classes_count_per_objects:
+            # Check if label is already in dict
+            classes_count_per_objects[label] += 1
+        else:
+            # Init label in dict
+            classes_count_per_objects[label] = 1
+
+        # Update hierarchy_mapping dict
+        if label not in hierarchy_mapping_per_objects:
+            hierarchy_mapping_per_objects[label] = new_obj_id
+            new_obj_id += 1
+    return classes_count_per_objects, hierarchy_mapping_per_objects
+
+
 if __name__ == '__main__':
 
     # Get argument
@@ -421,12 +449,12 @@ if __name__ == '__main__':
     classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
                                                                  hierarchy_mapping_file_name="final_class_mapping.p",
                                                                  entititis_file_name="entities_example.p")
-    # entititis_file_name="final_entities.p")
 
     # Get Visual Genome Data objects
     objects = process_objects(entities, hierarchy_mapping, object_file_name="objects.p")
-    # objects = objects[:100]
-    new_hierarchy_mapping = get_new_hierarchy_mapping(hierarchy_mapping)
+
+    # Only for debug
+    classes_count_per_objects, hierarchy_mapping_per_objects = get_classes_mapping_and_hierarchy_mapping_by_objects(objects)
 
     train_imgs, test_imgs, val_imgs = preprocessing_data(objects)
 

@@ -9,6 +9,9 @@ class Config:
     """
     def __init__(self, gpu_num):
 
+        # For debugging
+        self.debug = True
+
         # Define the GPU number
         self.gpu_num = gpu_num
 

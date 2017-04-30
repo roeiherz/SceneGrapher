@@ -9,6 +9,7 @@ import os
 
 __author__ = 'roeih'
 
+
 # todo: delete - old version
 # def VisualGenomeDataGenerator_func(data, hierarchy_mapping, config, mode):
 #     """
@@ -99,83 +100,86 @@ def VisualGenomeDataGenerator_func(data, hierarchy_mapping, config, mode):
 
     while True:
         for object in data:
+            try:
+                img = get_img(object.url)
 
-            img = get_img(object.url)
+                if img is None:
+                    print("Coulden't get the image")
+                    continue
 
-            if img is None:
-                print("Coulden't get the image")
-                continue
+                # In-case we want to normalize
+                if config.normalize:
+                    # Subtract mean and normalize
+                    mean_image = np.mean(img, axis=0)
+                    img -= mean_image
+                    img /= 128.
 
-            # In-case we want to normalize
-            if config.normalize:
-                # Subtract mean and normalize
-                mean_image = np.mean(img, axis=0)
-                img -= mean_image
-                img /= 128.
+                    # Zero-center by mean pixel
+                    # norm_img = img.astype(np.float32)
+                    # norm_img[:, :, 0] -= 103.939
+                    # norm_img[:, :, 1] -= 116.779
+                    # norm_img[:, :, 2] -= 123.68
 
-                # Zero-center by mean pixel
-                # norm_img = img.astype(np.float32)
-                # norm_img[:, :, 0] -= 103.939
-                # norm_img[:, :, 1] -= 116.779
-                # norm_img[:, :, 2] -= 123.68
+                # Get the lable of object
+                label = object.names[0]
 
-            # Get the lable of object
-            label = object.names[0]
+                # Check if it is a correct label
+                if label not in correct_labels:
+                    continue
 
-            # Check if it is a correct label
-            if label not in correct_labels:
-                continue
+                # Get the label uuid
+                label_id = hierarchy_mapping[label]
 
-            # Get the label uuid
-            label_id = hierarchy_mapping[label]
+                # Create the y labels as a one hot vector
+                # y_labels = np.eye(len(hierarchy_mapping), dtype='uint8')[label_id]
+                y_labels = np.zeros((len(hierarchy_mapping)), dtype='uint8')
+                y_labels[label_id] = 1
 
-            # Create the y labels as a one hot vector
-            # y_labels = np.eye(len(hierarchy_mapping), dtype='uint8')[label_id]
-            y_labels = np.zeros((len(hierarchy_mapping)), dtype='uint8')
-            y_labels[label_id] = 1
+                # Get the mask: a dict with {x1,x2,y1,y2}
+                mask = get_mask_from_object(object)
 
-            # Get the mask: a dict with {x1,x2,y1,y2}
-            mask = get_mask_from_object(object)
+                # Cropping the patch from the image.
+                patch = img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
 
-            # Cropping the patch from the image.
-            patch = img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
+                # Resize the image according the padding method
+                resized_img = get_img_resize(patch, config.crop_width, config.crop_height,
+                                             type=config.padding_method)
 
-            # Resize the image according the padding method
-            resized_img = get_img_resize(patch, config.crop_width, config.crop_height,
-                                         type=config.padding_method)
+                if mode == 'train' and config.jitter:
+                    # Augment only in training
+                    # todo: create a regular jitter for each patch increase the number of patches by some constant
+                    resized_img = augment_visual_genome(resized_img, object, config, mask)
 
-            if mode == 'train' and config.jitter:
-                # Augment only in training
-                # todo: create a regular jitter for each patch increase the number of patches by some constant
-                resized_img = augment_visual_genome(resized_img, object, config, mask)
+                # Expand dimensions - add batch dimension for the numpy
+                resized_img = np.expand_dims(resized_img, axis=0)
+                y_labels = np.expand_dims(y_labels, axis=0)
 
-            # Expand dimensions - add batch dimension for the numpy
-            resized_img = np.expand_dims(resized_img, axis=0)
-            y_labels = np.expand_dims(y_labels, axis=0)
-
-            yield [np.copy(resized_img)], [np.copy(y_labels)]
+                yield [np.copy(resized_img)], [np.copy(y_labels)]
+            except Exception as e:
+                print("Exception for image {0}".format(object.url))
+                print(str(e))
 
 
 def get_img(url):
-        """
-        This function read image from VisualGenome dataset as url and returns the image from local hard-driver
-        :param url: url of the image
-        :return: the image
-        """
-        try:
-            path_lst = url.split('/')
-            img_path = os.path.join(VG_DATA_PATH, path_lst[-2], path_lst[-1])
+    """
+    This function read image from VisualGenome dataset as url and returns the image from local hard-driver
+    :param url: url of the image
+    :return: the image
+    """
+    try:
+        path_lst = url.split('/')
+        img_path = os.path.join(VG_DATA_PATH, path_lst[-2], path_lst[-1])
 
-            if not os.path.isfile(img_path):
-                print("Error. Image path was not found")
+        if not os.path.isfile(img_path):
+            print("Error. Image path was not found")
 
-            img = cv2.imread(img_path)
+        img = cv2.imread(img_path)
 
-        except Exception as e:
-            print(str(e))
-            return None
+    except Exception as e:
+        print(str(e))
+        return None
 
-        return img
+    return img
 
 
 class VisualGenomeDataGenerator(object):
@@ -265,7 +269,6 @@ class VisualGenomeDataGenerator(object):
             self._current_index += self._batch_size
 
         return np.array(data), np.array(labels)
-
 
     # old next funcion
     # def next(self):
