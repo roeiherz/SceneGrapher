@@ -46,7 +46,7 @@ class Config:
         self.padding_method = "zero_pad"
 
         # Load weights
-        self.load_weights = False
+        self.load_weights = True
 
         # number of ROIs at once
         self.num_rois = 2

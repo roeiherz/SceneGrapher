@@ -399,7 +399,7 @@ def get_new_hierarchy_mapping(hierarchy_mapping):
 
 def get_classes_mapping_and_hierarchy_mapping_by_objects(objects):
     """
-    This function creates classes_mapping and hierarchy_mapping by objects
+    This function creates classes_mapping and hierarchy_mapping by objects and updates the hierarchy_mapping accordingly
     :param objects: list of objects
     :return: dict of classes_mapping and hierarchy_mapping
     """
