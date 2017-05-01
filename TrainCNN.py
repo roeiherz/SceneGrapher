@@ -452,8 +452,9 @@ if __name__ == '__main__':
 
     # Get Visual Genome Data objects
     objects = process_objects(entities, hierarchy_mapping, object_file_name="objects.p")
+    # new_hierarchy_mapping = get_new_hierarchy_mapping(hierarchy_mapping)
 
-    # Only for debug
+    # Get the class_mapping and hierarchy_mapping by mapping
     classes_count_per_objects, hierarchy_mapping_per_objects = get_classes_mapping_and_hierarchy_mapping_by_objects(objects)
 
     train_imgs, test_imgs, val_imgs = preprocessing_data(objects)
@@ -473,9 +474,9 @@ if __name__ == '__main__':
                                           config=config, backend=K.image_dim_ordering(), mode='test', batch_size=1)
 
     # Create a data generator for VisualGenome
-    data_gen_train_vg = VisualGenomeDataGenerator_func(data=train_imgs, hierarchy_mapping=new_hierarchy_mapping,
+    data_gen_train_vg = VisualGenomeDataGenerator_func(data=train_imgs, hierarchy_mapping=hierarchy_mapping_per_objects,
                                                        config=config, mode='train')
-    data_gen_test_vg = VisualGenomeDataGenerator_func(data=test_imgs, hierarchy_mapping=new_hierarchy_mapping,
+    data_gen_test_vg = VisualGenomeDataGenerator_func(data=test_imgs, hierarchy_mapping=hierarchy_mapping_per_objects,
                                                       config=config, mode='test')
 
     if K.image_dim_ordering() == 'th':
