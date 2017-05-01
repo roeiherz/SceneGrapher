@@ -454,7 +454,7 @@ if __name__ == '__main__':
     objects = process_objects(entities, hierarchy_mapping, object_file_name="objects.p")
     # new_hierarchy_mapping = get_new_hierarchy_mapping(hierarchy_mapping)
 
-    # Get the class_mapping and hierarchy_mapping by mapping
+    # Get the updating class_mapping and hierarchy_mapping by mapping
     classes_count, hierarchy_mapping = get_classes_mapping_and_hierarchy_mapping_by_objects(objects)
 
     train_imgs, test_imgs, val_imgs = preprocessing_data(objects)
@@ -543,66 +543,3 @@ if __name__ == '__main__':
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     plt.show()
-
-# from keras.preprocessing import image
-# from keras.applications.vgg16 import preprocess_input
-# from keras.layers import Input, Flatten, Dense
-# from keras.models import Model
-# import numpy as np
-#
-# # Load class config
-# config = Config()
-#
-# # Get back the ResNet50 base part of a ResNet50 network trained on MS-COCO
-# model_resnet50 = ResNet50(weights='imagenet', include_top=False)
-# model_resnet50.summary()
-#
-# img_input = Input(shape=(200, 200, 3), name="image_input")
-#
-# net = ModelZoo()
-# # Without Top
-# model_resnet50 = net.resnet50_base(img_input, trainable=True)
-# # Add AVG Pooling Layer
-# model_resnet50 = AveragePooling2D((7, 7), name='avg_pool')(model_resnet50)
-# # Add the fully-connected layers
-# model_resnet50 = Flatten(name='flatten')(model_resnet50)
-# output_resnet50 = Dense(classes, activation='softmax', name='fc')(model_resnet50)
-#
-# # Define the model
-# model = Model(input=img_input, output=output_resnet50)
-#
-# # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
-# model.summary()
-#
-# # Load pre-trained weights for ResNet50
-# try:
-#     print('loading weights from {}'.format(config.base_net_weights))
-#     model.load_weights(config.base_net_weights, by_name=True)
-# except Exception as e:
-#     print(e)
-#     print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
-#         'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
-#         'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
-#     ))
-
-# # Use the generated model
-# output_resnet50 = model_resnet50(input)
-#
-# # Create your own model
-# my_model = Model(input=img_input, output=output_resnet50)
-#
-# # In the summary, weights and layers from VGG part will be hidden, but they will be fit during the training
-# my_model.summary()
-#
-# # Then training with your data !
-#
-# # create graph of your new model
-# head_model = Model(input=base_model.input, output=predictions)
-#
-# # compile the model
-# head_model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
-#
-# head_model.summary()
-#
-# # train your model on data
-# head_model.fit(x, y, batch_size=batch_size, verbose=1)
