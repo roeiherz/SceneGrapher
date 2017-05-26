@@ -115,15 +115,20 @@ class WordEmbd(object):
         :return: embedded vector or embedded matrix
         """
         if isinstance(word, np.ndarray):
-            indices = []
+            index = 0
+            words_vec = np.zeros((len(word), self.vector_dim))
             for elem in word:
-                if self.word_index.has_key(elem):
-                    indices.append(self.word_index[elem])
-                else:
-                    indices.append(self.word_index["unknown"])
+                for single in elem.split():
+                    # temp work-around for phrase
+                    if self.word_index.has_key(single):
+                        words_vec[index] += self.embed[self.word_index[single]].astype("float64")
+                    else:
+                        words_vec[index] += self.embed[self.word_index["unknown"]].astype("float64")
+                index += 1
         else:
             indices =  self.word_index[word]
-        return self.embed[indices].astype("float32")
+            words_vec = self.embed[indices].astype("float32")
+        return words_vec
 
     def embed_vec_dim(self):
         return self.vector_dim

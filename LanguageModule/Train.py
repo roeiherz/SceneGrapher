@@ -5,6 +5,7 @@ import numpy as np
 from data import *
 from gradcheck import gradcheck_naive
 
+
 def train():
     """
     Basic function to train language module.
@@ -12,23 +13,25 @@ def train():
     :return: trained langauge module
     """
 
-    #get data
+    # get data
     filtered_data, nof_predicates = prepare_data(1000)
-
-    #embedded words module
+    training_data, test_data = filtered_data.split(0.98)
+    # embedded words module
     embed = WordEmbd()
 
     # create LangModule
     lang = LangModule(nof_predicates, embed.vector_dim)
 
-    #get weights
+    # get weights
     weights = lang.get_weights()
 
-    #train
-    sgd.sgd(lambda x: lang_module_sgd_wrapper(x, filtered_data, lang),
-            weights)
+    # train
+    sgd.sgd(lambda x: lang_module_sgd_wrapper(x, training_data, lang),
+            weights,
+            test_func=lambda x: lang_module_sgd_test(x, test_data, lang))
 
     return lang
+
 
 def lang_module_sgd_wrapper(x, data, lang):
     """
@@ -50,23 +53,41 @@ def lang_module_sgd_wrapper(x, data, lang):
 
     return cost, grad
 
+
+def lang_module_sgd_test(x, data, lang):
+    """
+    Wrapper for SGD training
+    :param x: module parameters
+    :param data: list of two objects of Data
+    :param lang: the langauge module
+    :return: cost and gradient of batch
+    """
+    f = lang.predict(data.worda, data.wordb, x)
+    #predicate_ids = np.argmax(f, axis=0)
+    correct_ans = np.sum(f[np.arange(len(data.worda)), data.predicate_ids])
+    print("accuracy {0}".format(str(float(correct_ans) / np.sum(f))))
+
+
 def get_random_data(data, batch_size=1000):
     """
     Randomly select batch from the data
     TBD..
+    :param batch_size:
     :param data: list of two objects of Data
     :return: list of two objects of Data (batch size)
     """
     batch = []
 
-    indices = np.random.randint(0, data.worda.shape[0], batch_size)
-    perm = np.random.permutation(batch_size)
-
-    R1 = data.get_subset(indices)
-    R2 = R1.get_subset(perm)
+    indices1 = np.random.randint(0, data.worda.shape[0], batch_size)
+    R1 = data.get_subset(indices1)
+    indices2 = np.random.randint(0, data.worda.shape[0], batch_size)
+    R2 = data.get_subset(indices2)
+    # make sure no relation comapred to itself
+    while np.sum(np.logical_and(np.logical_and(R1.worda == R2.wordb, R1.predicate_ids == R2.predicate_ids), R1.wordb == R2.wordb)):
+        indices2 = np.random.randint(0, data.worda.shape[0], batch_size)
+        R2 = data.get_subset(indices2)
 
     return [R1, R2]
-
 
 
 def sanity_check():
@@ -92,6 +113,7 @@ def sanity_check():
     gradcheck_naive(lambda x:
                     lang.cost_and_gradient(x, data[0], data[1]), params)
 
+
 if __name__ == "__main__":
-    #train()
-    sanity_check()
+    train()
+    # sanity_check()

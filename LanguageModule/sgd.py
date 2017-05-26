@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Save parameters every a few SGD iterations as fail-safe
-SAVE_PARAMS_EVERY = 5000
+SAVE_PARAMS_EVERY = 1000
 import glob
 import random
 import numpy as np
@@ -35,8 +35,8 @@ def save_params(iter, params):
         pickle.dump(random.getstate(), f)
 
 
-def sgd(f, x0, step=0.001, iterations=1000, anneal_every = 1000,
-        print_every=10, useSaved=True):
+def sgd(f, x0, step=0.01, iterations=100000, anneal_every = 500,
+        print_every=10, useSaved=True, test_func = None):
     """ Stochastic Gradient Descent
 
     Implement the stochastic gradient descent method in this function.
@@ -81,6 +81,8 @@ def sgd(f, x0, step=0.001, iterations=1000, anneal_every = 1000,
             else:
                 expcost = .95 * expcost + .05 * cost
             print "iter %d: expcost %f  -  cost %f" % (iter, expcost, cost)
+            # test the model
+            test_func(x)
 
         if iter % SAVE_PARAMS_EVERY == 0:
             save_params(iter, x)

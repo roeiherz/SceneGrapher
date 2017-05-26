@@ -1,5 +1,6 @@
-import  numpy as np
+import numpy as np
 from numpy.core.umath_tests import inner1d
+
 
 def cosine_distance(u, v):
     """
@@ -12,3 +13,65 @@ def cosine_distance(u, v):
     norm_v = v / np.sqrt((v * v).sum(axis=1)).reshape(-1, 1)
     cosine_dist_vec = inner1d(norm_u, norm_v)
     return cosine_dist_vec
+
+
+def softmax(x):
+    """Compute the softmax function for each row of the input x.
+
+    It is crucial that this function is optimized for speed because
+    it will be used frequently in later code. You might find numpy
+    functions np.exp, np.sum, np.reshape, np.max, and numpy
+    broadcasting useful for this task.
+
+    Numpy broadcasting documentation:
+    http://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
+
+    You should also make sure that your code works for a single
+    N-dimensional vector (treat the vector as a single row) and
+    for M x N matrices. This may be useful for testing later. Also,
+    make sure that the dimensions of the output match the input.
+
+    You must implement the optimization in problem assignment1(a) of the
+    written assignment!
+
+    Arguments:
+    x -- A N dimensional vector or M x N dimensional numpy matrix.
+
+    Return:
+    x -- You are allowed to modify x in-place
+    """
+    orig_shape = x.shape
+
+    if len(x.shape) > 1:
+        # Implementation Matrix
+
+        # Get the maximum each row from data
+        max_rows = np.max(x, axis=1)
+        # Reshape the max rows to a matrix [:,assignment1]
+        reshape_max_rows = max_rows.reshape((max_rows.shape[0]), 1)
+        # Normalize the matrix by subtract the max from each row per row
+        norm_data = x - reshape_max_rows
+        # Power mat by exponent
+        exp_mat = np.exp(norm_data)
+        # Sum each col per exp_mat
+        exp_mat_rows_sum = np.sum(exp_mat, axis=1)
+        # The new SoftMax mat is exp_mat normalized by the rows_sum
+        x = exp_mat / exp_mat_rows_sum.reshape(-1, 1)
+
+    else:
+        # Implementation a row Vector
+
+        # Get the maximum each row from data
+        max_rows = np.max(x)
+        # Normalize the matrix by subtract the max from each row per row
+        norm_data = x - max_rows
+        # Power mat by exponent
+        exp_mat = np.exp(norm_data)
+        # Sum each col per exp_mat
+        exp_mat_rows_sum = np.sum(exp_mat, axis=0)
+        # The new SoftMax mat is exp_mat normalized by the rows_sum
+        x = exp_mat / exp_mat_rows_sum
+        return x
+
+    assert x.shape == orig_shape
+    return x

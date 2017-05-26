@@ -118,5 +118,24 @@ class Data(object):
 
         return sub_data
 
+    def split(self, precent):
+        part1 = Data()
+        part2 = Data()
+
+        part1_max = int(len(self.worda) * precent)
+        part1.worda = self.worda[0:part1_max]
+        part1.wordb = self.wordb[0:part1_max]
+        part1.predicate = self.predicate[0:part1_max]
+        part1.predicate_ids = self.predicate_ids[0:part1_max]
+        part1.instances = self.instances[0:part1_max]
+
+        part2.worda = self.worda[part1_max + 1:]
+        part2.wordb = self.wordb[part1_max + 1:]
+        part2.predicate = self.predicate[part1_max + 1:]
+        part2.predicate_ids = self.predicate_ids[part1_max + 1:]
+        part2.instances = self.instances[part1_max + 1]
+
+        return part1, part2
+
 if __name__ == "__main__":
     prepare_data(1000)
