@@ -262,3 +262,27 @@ class ObjectMapping(object):
 
     def __repr__(self):
         return str(self)
+
+
+class RelationshipMapping(object):
+    """
+    Relationships. Ex, 'man - jumping over - fire hydrant'.
+        subject    int
+        predicate  string
+        object     int
+        rel_canon  Synset
+    """
+
+    def __init__(self, id, subject, predicate, object, synset, url):
+        self.id = id
+        self.subject = subject
+        self.predicate = predicate
+        self.object = object
+        self.synset = synset
+        self.url = url
+
+    def __str__(self):
+        return "%d: %s %s %s" % (self.id, self.subject, self.predicate, self.object)
+
+    def __repr__(self):
+        return str(self)

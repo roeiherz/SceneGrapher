@@ -9,6 +9,25 @@ FILE_EXISTS_ERROR = (17, 'File exists')
 VG_DATA_PATH = "Data/VisualGenome/data"
 VG_PATCH_PATH = "Data/VisualGenome/Patches"
 VG_PICKLES_FOLDER_PATH = "Data/VisualGenome/pickles"
+VAL_IMGS_P = "val_imgs.p"
+TRAIN_IMGS_P = "train_imgs.p"
+CLASSES_COUNT_FILE = "classes_count.p"
+CLASSES_MAPPING_FILE = "class_mapping.p"
+RELATIONS_COUNT_FILE = "relations_count.p"
+RELATIONS_MAPPING_FILE = "relations_mapping.p"
+PREDICATES_COUNT_FILE = "predicates_count.p"
+HIERARCHY_MAPPING = "hierarchy_mapping.p"
+ENTITIES_FILE = "final_entities.p"
+PascalVoc_PICKLES_PATH = "keras_frcnn/Data/PascalVoc"
+VisualGenome_PICKLES_PATH = "keras_frcnn/Data/VisualGenome"
+VG_VisualModule_PICKLES_PATH = "VisualModule/Data/VisualGenome"
+MINI_VG_DATADET_PATH = "/home/roeih/VisualGenome/vg"
+DATA_PATH = "Data/VisualGenome/data/"
+TRAIN_DATA_SET = "train_set.p"
+TEST_DATA_SET = "test_set.p"
+VALIDATION_DATA_SET = "validation_set.p"
+MINI_IMDB = "mini_imdb_1024.h5"
+
 
 
 def convert_img_bgr_to_rgb(img):

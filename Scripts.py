@@ -1,13 +1,12 @@
-from __future__ import print_function
-from __future__ import print_function
 import timeit
 import cPickle
 import os
 import numpy as np
 from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
-from TrainCNN import VisualGenome_PICKLES_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE, ENTITIES_FILE, DATA_PATH, \
-    RELATIONS_COUNT_FILE, RELATIONS_MAPPING_FILE, PREDICATES_COUNT_FILE, HIERARCHY_MAPPING
-from keras_frcnn.Utils.Utils import create_folder, VG_PATCH_PATH
+from TrainCNN import VisualGenome_PICKLES_PATH
+from keras_frcnn.Utils.Utils import create_folder, VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
+    HIERARCHY_MAPPING
+from keras_frcnn.Utils.data import create_mini_data_visual_genome
 
 
 def check_loading_pickle_time():
@@ -128,6 +127,8 @@ def process_objects(img_data, hierarchy_mapping):
 
 if __name__ == '__main__':
 
+    classes_count, hierarchy_mapping, entities = create_mini_data_visual_genome()
+    exit()
     entities_file_name = os.path.join(VisualGenome_PICKLES_PATH, ENTITIES_FILE)
     entities = cPickle.load(file(entities_file_name, 'rb'))
 

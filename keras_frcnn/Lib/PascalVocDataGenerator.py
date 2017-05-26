@@ -1,7 +1,7 @@
 import random
 import numpy as np
 from keras_frcnn.Lib.DataAugmention import augment_pascal_voc
-from keras_frcnn.Utils.BOXES import iou
+from keras_frcnn.Utils.Boxes import iou
 from keras_frcnn.Utils.Utils import convert_img_bgr_to_rgb
 import cv2
 

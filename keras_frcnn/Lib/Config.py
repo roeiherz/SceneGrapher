@@ -10,7 +10,7 @@ class Config:
     def __init__(self, gpu_num):
 
         # For debugging
-        self.debug = True
+        self.debug = False
 
         # Define the GPU number
         self.gpu_num = gpu_num
@@ -28,7 +28,7 @@ class Config:
         self.random_rotate_scale = 180
         self.dataset = "VisualGenome"
 
-        # anchor box scales
+        # anchor box scales 
         self.anchor_box_scales = [128, 256, 512]
 
         # anchor box ratios
