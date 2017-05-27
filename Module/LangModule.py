@@ -11,57 +11,76 @@ class LangModule(object):
     Language module for scene grapher
     """
 
-    def __init__(self, nof_predicats, embed_vector_dim):
+    def __init__(self):
         """
-        Initilize language module of scene grapher
-        :param nof_predicats: nof predicates that should be represented by this module
-        :param embed_vector_dim: dimensions of the embedded word
+        Initialize language module of scene grapher
         """
+        # get singleton instance of word embed object
+        self.word_embed_obj = WordEmbd()
 
-        self.nof_predicates = nof_predicats
-        self.embed_vector_dim = embed_vector_dim
-        ## Module Parameters
-        # W (DIM: predicats X 2embed_vector_dim)
-        # self.W = np.zeros((self.nof_predicates, 2 * self.embed_vector_dim))
-        self.W = np.random.rand(self.nof_predicates, 2 * self.embed_vector_dim)
-        # B (DIM: predicates)
-        self.B = np.random.rand(self.nof_predicates)
-
-        # get singelton instance of word embed object
-        self.word_embed = WordEmbd()
-
-    def predict(self, word1, word2, x=None):
+    def predict(self, word1, word2, w, b):
         """
         Given subject - worda and object - wordb, returns array of predicate likelihood (each entry is predicate-id)
         :param word1: string - subject word
         :param word2:  string - object word
-        :param x: external parameters
+        :param w, b: external parameters
         :return: numpy array - array of predicate likelihood
         """
         # get W and B
-        if x is not None:
-            W = x[:, 0:-1]
-            B = x[:, -1]
-        else:
-            W = self.W
-            B = self.B
 
         # Get embedded vectors
-        embed_word1 = self.word_embed.word2vec(word1)
-        embed_word2 = self.word_embed.word2vec(word2)
+        embed_word1 = self.word_embed_obj.word2vec(word1)
+        embed_word2 = self.word_embed_obj.word2vec(word2)
         embed = np.concatenate((embed_word1, embed_word2), axis=1)
 
         # calc f
-        f = np.dot(W, embed.T) + B.reshape(-1, 1)
+        f = np.dot(w, embed.T) + b.reshape(-1, 1)
         # return softmax(f.T)
         return f.T
 
-    def get_weights(self):
+    def word_embed(self, words):
         """
-        return module parameters,
-        :return: numpy matrix - module paramters,
+        convert to word embedding
+        :param words: single word or array of words
+        :return: single word embedding or array of word embedding
         """
-        return np.concatenate((self.W, self.B.reshape(-1, 1)), axis=1)
+        return self.word_embed_obj.word2vec(words)
+
+    def relation_embed(self, word_a_embed, word_b_embed):
+        """
+        convert word embedding relation embedding
+        :param word_a_embed: embedding of subjects in the relationship
+        :param word_b_embed: embedding of objects in the relationship
+        :return: embedding of a relationship
+        """
+        return np.concatenate((word_a_embed, word_b_embed), axis=1)
+
+    def distance(self, r1_a_embed, r1_b_embed, r1_predicate_embed, r2_a_embed, r2_b_embed, r2_predicate_embed):
+        """
+        Return an array of cosine distance between r1[i] and r2[i]
+        :param r1_a_embed:  embedding of r1 subjects
+        :param r1_b_embed: embedding of r1 objects
+        :param r1_predicate_embed: embedding of r1 predicates
+        :param r2_a_embed: embedding of r2 subjects
+        :param r2_b_embed: embedding of r2 objects
+        :param r2_predicate_embed: embedding of r2 predicates
+        :return: cosine distance
+        """
+        dist = cosine_distance(r1_a_embed, r2_a_embed)
+        dist += cosine_distance(r1_b_embed, r2_b_embed)
+        dist += cosine_distance(r1_predicate_embed, r2_predicate_embed)
+        return dist
+
+    def likelihood(self, r_embed, w, b, predicate_ids):
+        """
+        Get the likelihood of a relationship
+        :param r_embed: embedding of the relationship
+        :param w: language module params
+        :param b: language module params
+        :param predicate_ids: ids of relationship predicates
+        :return: array of likelihood
+        """
+        return inner1d(w[predicate_ids], r_embed).reshape(-1, 1) + b[predicate_ids].reshape(-1, 1)
 
     def cost_and_gradient(self, x, R1, R2, coeff_l=0.05, coeff_k=0.002):
         """
@@ -175,9 +194,9 @@ class LangModule(object):
         np.add.at(grad_b_l, R2.predicate_ids, l_r2_coeffs)
 
         ### Calc C
-        #C = 0
-        #for R in R1:
-        #    C +=  np.max(max_v(R, R2) - v(R) + 1, 0)
+        # W grad C
+        C = 0
+        # predicate_features, subject_probabilities, object_probabilities  = visual.extract_features(R1)
 
         ### total loss and grad
         loss = coeff_k * K + coeff_l * L

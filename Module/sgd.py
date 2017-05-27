@@ -35,7 +35,7 @@ def save_params(iter, params):
         pickle.dump(random.getstate(), f)
 
 
-def sgd(f, x0, step=0.01, iterations=100000, anneal_every = 500,
+def sgd(f, x0, step=0.0001, iterations=100000, anneal_every = 500,
         print_every=10, useSaved=True, test_func = None):
     """ Stochastic Gradient Descent
 
