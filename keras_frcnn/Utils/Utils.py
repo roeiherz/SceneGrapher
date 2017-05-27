@@ -2,6 +2,7 @@ import numpy
 import cv2
 import math
 import os
+import time
 
 __author__ = 'roeih'
 
@@ -9,6 +10,27 @@ FILE_EXISTS_ERROR = (17, 'File exists')
 VG_DATA_PATH = "Data/VisualGenome/data"
 VG_PATCH_PATH = "Data/VisualGenome/Patches"
 VG_PICKLES_FOLDER_PATH = "Data/VisualGenome/pickles"
+VAL_IMGS_P = "val_imgs.p"
+TRAIN_IMGS_P = "train_imgs.p"
+CLASSES_COUNT_FILE = "classes_count.p"
+CLASSES_MAPPING_FILE = "class_mapping.p"
+RELATIONS_COUNT_FILE = "relations_count.p"
+RELATIONS_MAPPING_FILE = "relations_mapping.p"
+PREDICATES_COUNT_FILE = "predicates_count.p"
+HIERARCHY_MAPPING = "hierarchy_mapping.p"
+ENTITIES_FILE = "final_entities.p"
+PascalVoc_PICKLES_PATH = "keras_frcnn/Data/PascalVoc"
+VisualGenome_PICKLES_PATH = "keras_frcnn/Data/VisualGenome"
+VisualGenome_DATASETS_PICKLES_PATH = "keras_frcnn/PicklesDataset"
+VG_VisualModule_PICKLES_PATH = "VisualModule/Data/VisualGenome"
+MINI_VG_DATADET_PATH = "/home/roeih/VisualGenome/vg"
+DATA_PATH = "Data/VisualGenome/data/"
+TRAIN_DATA_SET = "train_set.p"
+TEST_DATA_SET = "test_set.p"
+VALIDATION_DATA_SET = "validation_set.p"
+MINI_IMDB = "mini_imdb_1024.h5"
+TRAINING_OBJECTS_CNN_PATH = "Training/TrainingObjectsCNN"
+TRAINING_PREDICATE_CNN_PATH = "Training/TrainingPredicatesCNN"
 
 
 def convert_img_bgr_to_rgb(img):
@@ -169,3 +191,10 @@ def get_mask_from_object(object):
     x2 = x1 + width
     y2 = y1 + height
     return {"x1": x1, "y1": y1, "x2": x2, "y2": y2}
+
+def get_time_and_date():
+    """
+    This function returns the time and the date without spaces mainly for saving files
+    :return: string file which contains time and the date without spaces
+    """
+    return time.strftime("%c").replace(" ", "_")
