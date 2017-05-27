@@ -13,11 +13,12 @@ from keras_frcnn.Utils.Boxes import find_union_box
 from keras_frcnn.Utils.Utils import create_folder, VG_PATCH_PATH, DATA_PATH, CLASSES_MAPPING_FILE, CLASSES_COUNT_FILE, \
     TRAIN_IMGS_P, VAL_IMGS_P, VisualGenome_PICKLES_PATH, ENTITIES_FILE, HIERARCHY_MAPPING, PascalVoc_PICKLES_PATH, \
     VALIDATION_DATA_SET, TEST_DATA_SET, TRAIN_DATA_SET, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
-    MINI_VG_DATADET_PATH, MINI_IMDB
+    MINI_VG_DATADET_PATH, MINI_IMDB, get_time_and_date, VG_PICKLES_FOLDER_PATH, VisualGenome_DATASETS_PICKLES_PATH
 from DesignPatterns.Detections import Detections
 from keras_frcnn.Utils.Visualizer import VisualizerDrawer, CvColor
 import cv2
 import h5py
+import sys
 
 __author__ = 'roeih'
 
@@ -223,8 +224,8 @@ def get_sorted_data(classes_count_file_name="final_classes_count.p",
     """
 
     # Check if pickles are already created
-    classes_count_path = os.path.join(VisualGenome_PICKLES_PATH, CLASSES_COUNT_FILE)
-    classes_mapping_path = os.path.join(VisualGenome_PICKLES_PATH, HIERARCHY_MAPPING)
+    classes_count_path = os.path.join(VisualGenome_PICKLES_PATH, classes_count_file_name)
+    classes_mapping_path = os.path.join(VisualGenome_PICKLES_PATH, hierarchy_mapping_file_name)
     entities_path = os.path.join(VisualGenome_PICKLES_PATH, entities_file_name)
 
     if os.path.isfile(classes_count_path) and os.path.isfile(classes_mapping_path) and os.path.isfile(entities_path):
@@ -272,7 +273,7 @@ def get_sorted_data(classes_count_file_name="final_classes_count.p",
     return classes_count, hierarchy_mapping, entities
 
 
-def splitting_to_datasets(entities, training_percent, testing_percent, num_epochs, path=VisualGenome_PICKLES_PATH):
+def splitting_to_datasets(entities, training_percent, testing_percent, num_epochs, path=VisualGenome_DATASETS_PICKLES_PATH):
     """
     This function splits the data for train and test dataset
     :param path: path where we are saving the data
@@ -329,6 +330,7 @@ def pickle_dataset(train_set, test_set, validation_set, path):
     :param test_set: the test data-set
     :param validation_set: the validation data-set
     """
+
     train_set_filename = open(os.path.join(path, TRAIN_DATA_SET), 'wb')
     # Pickle classes_count
     cPickle.dump(train_set, train_set_filename, protocol=cPickle.HIGHEST_PROTOCOL)
@@ -364,10 +366,11 @@ def generate_new_hierarchy_mapping(hierarchy_mapping):
     return new_hierarchy_mapping
 
 
-def get_predicate_hierarchy_mapping_from_detections(detections):
+def get_predicate_hierarchy_mapping_from_detections(detections, path):
     """
     This function get the predicate hierarchy mapping from detections
     :param detections: a Detections numpy dtype
+    :param path: saving or loading the classes_count_per_objects and hierarchy_mapping_per_objects from path folder
     :return: a new dict of hierarchy mapping of predicate (new_hierarchy_mapping)
             and a new dict of number of classes (new_classes_count)
     """
@@ -393,6 +396,18 @@ def get_predicate_hierarchy_mapping_from_detections(detections):
 
         ind += 1
 
+    # Save classes_count file
+    classes_count_file = file(os.path.join(path, CLASSES_COUNT_FILE), 'wb')
+    # Pickle classes_count
+    cPickle.dump(new_classes_count, classes_count_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    classes_count_file.close()
+    # Save hierarchy_mapping file
+    hierarchy_mapping_file = file(os.path.join(path, CLASSES_MAPPING_FILE), 'wb')
+    # Pickle hierarchy_mapping
+    cPickle.dump(new_hierarchy_mapping, hierarchy_mapping_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    hierarchy_mapping_file.close()
     return new_classes_count, new_hierarchy_mapping
 
 

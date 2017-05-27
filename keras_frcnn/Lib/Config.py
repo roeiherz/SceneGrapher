@@ -9,6 +9,20 @@ class Config:
     """
     def __init__(self, gpu_num):
 
+        # Do we continuing to train or start from fresh
+        self.loading_model = False
+        self.loading_model_folder = "Training/TrainingObjectsCNN/Sat_May_27_14:59:37_2017"
+        self.model_weights_name = 'model_vg_resnet50.hdf5'
+
+        # location of pre-trained weights for the base network
+        # weight files can be found at:
+        # https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5
+        # https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5
+        if K.image_dim_ordering() == 'th':
+            self.base_net_weights = 'Weights/resnet50_weights_th_dim_ordering_th_kernels_notop.h5'
+        else:
+            self.base_net_weights = 'Weights/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
+
         # For debugging
         self.debug = False
 
@@ -67,13 +81,4 @@ class Config:
         self.classifier_min_overlap = 0.1
         self.classifier_max_overlap = 0.5
 
-        # location of pretrained weights for the base network
-        # weight files can be found at:
-        # https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5
-        # https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5
-        if K.image_dim_ordering() == 'th':
-            self.base_net_weights = 'Weights/resnet50_weights_th_dim_ordering_th_kernels_notop.h5'
-        else:
-            self.base_net_weights = 'Weights/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
-        self.model_path = 'Weights/model_vg_resnet50.hdf5'

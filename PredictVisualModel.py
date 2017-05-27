@@ -314,16 +314,20 @@ if __name__ == '__main__':
     # union_box_ndarray = flatten_boxes.reshape((len(union_box_data), 4))
 
     resized_img_mat = get_resize_images_array(detections)
+    get_features_output = K.function([model.layers[0].input], [model.layers[-2].output])
+    features_model = get_features_output([resized_img_mat])[0]
 
     # resized_img = np.expand_dims(resized_img, axis=0)
     # Get back the ResNet50 base part of a ResNet50 network trained on MS-COCO
     output_model = ResNet50(weights=None, include_top=False)
+    output_model.load_weights(weights_path)
     features_model = output_model.predict(resized_img_mat)
 
     print('debug')
 
     # resized_img = np.expand_dims(resized_img, axis=0)
-    # get_features_output = K.function([model.layers[0].input], [model.layers[-2].output])
+    get_features_output = K.function([model.layers[0].input], [model.layers[-2].output])
+    features_model = get_features_output([resized_img_mat])[0]
 
     # tmp = model.layers[:]
     # model.layers = model.layers[-2]

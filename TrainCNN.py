@@ -1,4 +1,3 @@
-from __future__ import print_function
 from Data.VisualGenome.models import ObjectMapping
 from keras_frcnn.Lib.PascalVocDataGenerator import PascalVocDataGenerator
 from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator
@@ -15,10 +14,10 @@ from keras import backend as K
 from keras.models import Model
 import sys
 import matplotlib.pyplot as plt
-from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH
+from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, get_time_and_date, create_folder, \
+    TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
-
 from keras_frcnn.Utils.data import get_sorted_data, splitting_to_datasets, create_data_pascal_voc, \
     generate_new_hierarchy_mapping
 
@@ -26,7 +25,7 @@ NOF_LABELS = 150
 TRAINING_PERCENT = 0.75
 VALIDATION_PERCENT = 0.05
 TESTING_PERCENT = 0.2
-NUM_EPOCHS = 128
+NUM_EPOCHS = 90
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -92,12 +91,14 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
     return objects_array
 
 
-def get_classes_mapping_and_hierarchy_mapping_by_objects(objects):
+def get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path):
     """
     This function creates classes_mapping and hierarchy_mapping by objects and updates the hierarchy_mapping accordingly
     :param objects: list of objects
+    :param path: saving or loading the classes_count_per_objects and hierarchy_mapping_per_objects from path folder
     :return: dict of classes_mapping and hierarchy_mapping
     """
+
     classes_count_per_objects = {}
     hierarchy_mapping_per_objects = {}
     new_obj_id = 1
@@ -117,6 +118,19 @@ def get_classes_mapping_and_hierarchy_mapping_by_objects(objects):
         if label not in hierarchy_mapping_per_objects:
             hierarchy_mapping_per_objects[label] = new_obj_id
             new_obj_id += 1
+
+    # Save classes_count_per_objects file
+    classes_count_file = file(os.path.join(path, CLASSES_COUNT_FILE), 'wb')
+    # Pickle classes_count_per_objects
+    cPickle.dump(classes_count_per_objects, classes_count_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    classes_count_file.close()
+    # Save hierarchy_mapping_per_objects file
+    hierarchy_mapping_file = file(os.path.join(path, CLASSES_MAPPING_FILE), 'wb')
+    # Pickle hierarchy_mapping_per_objects
+    cPickle.dump(hierarchy_mapping_per_objects, hierarchy_mapping_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    hierarchy_mapping_file.close()
     return classes_count_per_objects, hierarchy_mapping_per_objects
 
 
@@ -141,20 +155,38 @@ if __name__ == '__main__':
     # config_tf.gpu_options.allow_growth = True
     # set_session(tf.Session(config=config_tf))
 
-    classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="mini_final_classes_count.p",
-                                                                 hierarchy_mapping_file_name="mini_final_class_mapping.p",
-                                                                 entities_file_name="mini_entities_example.p",
+    # Get time and date
+    time_and_date = get_time_and_date()
+    # Path for the training folder
+    path = os.path.join(TRAINING_OBJECTS_CNN_PATH, time_and_date)
+    # Create a new folder for training
+    create_folder(path)
+    # loading model weights
+    if config.loading_model:
+        net_weights = os.path.join(config.loading_model_folder, config.model_weights_name)
+        print("Loading Weights from: {}".format(net_weights))
+    else:
+        # The Weights for training
+        net_weights = config.base_net_weights
+        print("Taking Base Weights from: {}".format(net_weights))
+    net_weights_path = os.path.join(path, config.model_weights_name)
+    print("The new Model Weights will be Saved: {}".format(net_weights_path))
+
+    classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
+                                                                 hierarchy_mapping_file_name="final_class_mapping.p",
+                                                                 entities_file_name="final_entities.p",
                                                                  nof_labels=NOF_LABELS)
 
     # Get Visual Genome Data objects
-    objects = preprocessing_objects(entities, hierarchy_mapping, object_file_name="mini_objects.p")
+    objects = preprocessing_objects(entities, hierarchy_mapping, object_file_name="full_objects.p")
     # new_hierarchy_mapping = create_new_hierarchy_mapping(hierarchy_mapping)
 
-    # Get the updating class_mapping and hierarchy_mapping by mapping
-    classes_count, hierarchy_mapping = get_classes_mapping_and_hierarchy_mapping_by_objects(objects)
+    # Get the updating class_mapping and hierarchy_mapping by mapping and save them in Training Folder
+    classes_count, hierarchy_mapping = get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path)
 
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(objects, training_percent=TRAINING_PERCENT,
-                                                            testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS)
+                                                            testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
+                                                            path=path)
 
     # Set the number of classes
     number_of_classes = len(classes_count)
@@ -202,8 +234,8 @@ if __name__ == '__main__':
     # Load pre-trained weights for ResNet50
     try:
         if config.load_weights:
-            print('loading weights from {}'.format(config.base_net_weights))
-            model.load_weights(config.base_net_weights, by_name=True)
+            print('loading weights from {}'.format(net_weights))
+            model.load_weights(net_weights, by_name=True)
     except Exception as e:
         print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
@@ -215,19 +247,19 @@ if __name__ == '__main__':
     model.compile(optimizer=optimizer,
                   loss='categorical_crossentropy', metrics=['accuracy'])
 
-    callbacks = [ModelCheckpoint(config.model_path, monitor='val_loss', save_best_only=True, verbose=0),
+    callbacks = [ModelCheckpoint(net_weights_path, monitor='val_loss', save_best_only=True, verbose=0),
                  TensorBoard(log_dir="logs", write_graph=True, write_images=True),
-                 CSVLogger('training.log', separator=',', append=False)]
+                 CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False)]
 
     print('Starting training')
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_EPOCHS, epochs=NUM_EPOCHS,
                                   validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_EPOCHS,
                                   callbacks=callbacks, max_q_size=1, workers=1)
 
-    # todo add evaluate_generator
-    test_score = model.evaluate_generator(val_imgs, steps=len(train_imgs), max_q_size=1, workers=1)
+    # Validating the model
+    test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(val_imgs), max_q_size=1, workers=1)
     # Plot the Score
-    print("The Validation score is: {}".format(test_score))
+    print("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
 
     # Summarize history for accuracy
     plt.plot(history.history['acc'])
@@ -236,7 +268,7 @@ if __name__ == '__main__':
     plt.ylabel('accuracy')
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
+    plt.savefig(os.path.join(path, "model_accuracy.jpg"))
     # summarize history for loss
     plt.plot(history.history['loss'])
     plt.plot(history.history['val_loss'])
@@ -244,4 +276,4 @@ if __name__ == '__main__':
     plt.ylabel('loss')
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
-    plt.show()
+    plt.savefig(os.path.join(path, "model_loss.jpg"))
