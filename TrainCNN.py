@@ -91,13 +91,22 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
     return objects_array
 
 
-def get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path):
+def get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path, config=None):
     """
     This function creates classes_mapping and hierarchy_mapping by objects and updates the hierarchy_mapping accordingly
+    :param config: config
     :param objects: list of objects
     :param path: saving or loading the classes_count_per_objects and hierarchy_mapping_per_objects from path folder
     :return: dict of classes_mapping and hierarchy_mapping
     """
+
+    # Load hierarchy mapping and class counting from cache
+    if config is not None and config.use_cache_dir:
+        classes_count_path = os.path.join(config.loading_model_folder, CLASSES_COUNT_FILE)
+        classes_count_per_objects = cPickle.load(open(classes_count_path, 'rb'))
+        hierarchy_mapping_path = os.path.join(config.loading_model_folder, CLASSES_MAPPING_FILE)
+        hierarchy_mapping_per_objects = cPickle.load(open(hierarchy_mapping_path, 'rb'))
+        return classes_count_per_objects, hierarchy_mapping_per_objects
 
     classes_count_per_objects = {}
     hierarchy_mapping_per_objects = {}
@@ -182,11 +191,12 @@ if __name__ == '__main__':
     # new_hierarchy_mapping = create_new_hierarchy_mapping(hierarchy_mapping)
 
     # Get the updating class_mapping and hierarchy_mapping by mapping and save them in Training Folder
-    classes_count, hierarchy_mapping = get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path)
+    classes_count, hierarchy_mapping = get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path,
+                                                                                            config=config)
 
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(objects, training_percent=TRAINING_PERCENT,
                                                             testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
-                                                            path=path)
+                                                            path=path, config=config)
 
     # Set the number of classes
     number_of_classes = len(classes_count)
@@ -252,8 +262,8 @@ if __name__ == '__main__':
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False)]
 
     print('Starting training')
-    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_EPOCHS, epochs=NUM_EPOCHS,
-                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_EPOCHS,
+    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs), epochs=NUM_EPOCHS,
+                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs),
                                   callbacks=callbacks, max_q_size=1, workers=1)
 
     # Validating the model

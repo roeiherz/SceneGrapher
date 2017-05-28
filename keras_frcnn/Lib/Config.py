@@ -13,6 +13,8 @@ class Config:
         self.loading_model = False
         self.loading_model_folder = "Training/TrainingObjectsCNN/Sat_May_27_14:59:37_2017"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
+        # Get the cached data-sets and cached hierarchy mapping and class counting
+        self.use_cache_dir = True
 
         # location of pre-trained weights for the base network
         # weight files can be found at:

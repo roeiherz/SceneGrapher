@@ -273,9 +273,10 @@ def get_sorted_data(classes_count_file_name="final_classes_count.p",
     return classes_count, hierarchy_mapping, entities
 
 
-def splitting_to_datasets(entities, training_percent, testing_percent, num_epochs, path=VisualGenome_DATASETS_PICKLES_PATH):
+def splitting_to_datasets(entities, training_percent, testing_percent, num_epochs, path=VisualGenome_DATASETS_PICKLES_PATH, config=None):
     """
     This function splits the data for train and test dataset
+    :param config: config
     :param path: path where we are saving the data
     :param num_epochs: number of epochs
     :param testing_percent: testing percent from the data
@@ -283,6 +284,17 @@ def splitting_to_datasets(entities, training_percent, testing_percent, num_epoch
     :param entities: entities from visual genome
     :return: list of entities of train and test data
     """
+
+    # Load datasets from cache
+    if config is not None and config.use_cache_dir:
+        train_dataset_path = os.path.join(config.loading_model_folder, TRAIN_DATA_SET)
+        train_imgs = cPickle.load(open(train_dataset_path, 'rb'))
+        test_dataset_path = os.path.join(config.loading_model_folder, TEST_DATA_SET)
+        test_imgs = cPickle.load(open(test_dataset_path, 'rb'))
+        validation_dataset_path = os.path.join(config.loading_model_folder, VALIDATION_DATA_SET)
+        val_imgs = cPickle.load(open(validation_dataset_path, 'rb'))
+        return train_imgs, test_imgs, val_imgs
+
     number_of_samples = len(entities)
     train_size = int(number_of_samples * training_percent)
     test_size = int(number_of_samples * testing_percent)

@@ -301,8 +301,8 @@ if __name__ == '__main__':
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False)]
 
     print('Starting training')
-    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_EPOCHS, epochs=NUM_EPOCHS,
-                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_EPOCHS,
+    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs), epochs=NUM_EPOCHS,
+                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs),
                                   callbacks=callbacks, max_q_size=1, workers=1)
 
     # Validating the model
