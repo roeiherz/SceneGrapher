@@ -1,6 +1,7 @@
 from Data.VisualGenome.models import ObjectMapping
 from keras_frcnn.Lib.PascalVocDataGenerator import PascalVocDataGenerator
-from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator
+from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator, \
+    visual_genome_data_cnn_generator_ab
 from keras_frcnn.Lib.Zoo import ModelZoo
 from keras.applications.resnet50 import ResNet50
 import os
@@ -26,6 +27,7 @@ TRAINING_PERCENT = 0.75
 VALIDATION_PERCENT = 0.05
 TESTING_PERCENT = 0.2
 NUM_EPOCHS = 90
+NUM_BATCHES = 128
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -110,9 +112,9 @@ def get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path, config=N
 
     classes_count_per_objects = {}
     hierarchy_mapping_per_objects = {}
-    new_obj_id = 1
+    new_obj_id = 0
     for object in objects:
-        # Get the lable of object
+        # Get the label of object
         label = object.names[0]
 
         # Update the classes_count dict
@@ -181,13 +183,13 @@ if __name__ == '__main__':
     net_weights_path = os.path.join(path, config.model_weights_name)
     print("The new Model Weights will be Saved: {}".format(net_weights_path))
 
-    classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
-                                                                 hierarchy_mapping_file_name="final_class_mapping.p",
-                                                                 entities_file_name="final_entities.p",
+    classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="mini_classes_count.p",
+                                                                 hierarchy_mapping_file_name="mini_class_mapping.p",
+                                                                 entities_file_name="mini_final_entities.p",
                                                                  nof_labels=NOF_LABELS)
 
     # Get Visual Genome Data objects
-    objects = preprocessing_objects(entities, hierarchy_mapping, object_file_name="full_objects.p")
+    objects = preprocessing_objects(entities, hierarchy_mapping, object_file_name="mini_objects.p")
     # new_hierarchy_mapping = create_new_hierarchy_mapping(hierarchy_mapping)
 
     # Get the updating class_mapping and hierarchy_mapping by mapping and save them in Training Folder
@@ -221,6 +223,13 @@ if __name__ == '__main__':
                                                         config=config, mode='test')
     data_gen_validation_vg = visual_genome_data_cnn_generator(data=val_imgs, hierarchy_mapping=hierarchy_mapping,
                                                               config=config, mode='validation')
+    # todo: fix batch-size
+    # data_gen_train_vg = visual_genome_data_cnn_generator_ab(data=train_imgs, hierarchy_mapping=hierarchy_mapping,
+    #                                                         config=config, mode='train')
+    # data_gen_test_vg = visual_genome_data_cnn_generator_ab(data=test_imgs, hierarchy_mapping=hierarchy_mapping,
+    #                                                        config=config, mode='test')
+    # data_gen_validation_vg = visual_genome_data_cnn_generator_ab(data=val_imgs, hierarchy_mapping=hierarchy_mapping,
+    #                                                              config=config, mode='validation')
 
     if K.image_dim_ordering() == 'th':
         input_shape_img = (3, None, None)

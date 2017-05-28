@@ -14,7 +14,9 @@ class Config:
         self.loading_model_folder = "Training/TrainingObjectsCNN/Sat_May_27_14:59:37_2017"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
-        self.use_cache_dir = True
+        self.use_cache_dir = False
+        # Load weights
+        self.load_weights = False
 
         # location of pre-trained weights for the base network
         # weight files can be found at:
@@ -60,9 +62,6 @@ class Config:
         self.crop_width = 224
         self.crop_height = 224
         self.padding_method = "zero_pad"
-
-        # Load weights
-        self.load_weights = True
 
         # number of ROIs at once
         self.num_rois = 2

@@ -224,21 +224,22 @@ if __name__ == '__main__':
     net_weights_path = os.path.join(path, config.model_weights_name)
     print("The new Model Weights will be Saved: {}".format(net_weights_path))
 
-    classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
-                                                                 hierarchy_mapping_file_name="final_class_mapping.p",
-                                                                 entities_file_name="final_entities.p",
+    classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="mini_classes_count.p",
+                                                                 hierarchy_mapping_file_name="mini_class_mapping.p",
+                                                                 entities_file_name="mini_final_entities.p",
                                                                  nof_labels=NOF_LABELS)
     # Get Visual Genome Data relations
-    relations = preprocessing_relations(entities, hierarchy_mapping, relation_file_name="full_relations.p")
+    relations = preprocessing_relations(entities, hierarchy_mapping, relation_file_name="mini_relations.p")
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="full_detections.p")
-    exit()
+    detections = process_to_detections(relations, detections_file_name="mini_detections.p")
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
                                                             testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
-                                                            path=path)
+                                                            path=path, config=config)
     # Get the predicate hierarchy mapping and the number of the predicated classes
-    predicate_classes_count, predicate_hierarchy_mapping = get_predicate_hierarchy_mapping_from_detections(detections, path)
+    predicate_classes_count, predicate_hierarchy_mapping = get_predicate_hierarchy_mapping_from_detections(detections,
+                                                                                                           path,
+                                                                                                           config=config)
 
     # Create a data generator for VisualGenome
     data_gen_train_vg = visual_genome_data_generator(data=train_imgs,

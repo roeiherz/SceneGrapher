@@ -378,14 +378,23 @@ def generate_new_hierarchy_mapping(hierarchy_mapping):
     return new_hierarchy_mapping
 
 
-def get_predicate_hierarchy_mapping_from_detections(detections, path):
+def get_predicate_hierarchy_mapping_from_detections(detections, path, config=None):
     """
     This function get the predicate hierarchy mapping from detections
     :param detections: a Detections numpy dtype
+    :param config: config
     :param path: saving or loading the classes_count_per_objects and hierarchy_mapping_per_objects from path folder
     :return: a new dict of hierarchy mapping of predicate (new_hierarchy_mapping)
             and a new dict of number of classes (new_classes_count)
     """
+
+    # Load hierarchy mapping and class counting from cache
+    if config is not None and config.use_cache_dir:
+        classes_count_path = os.path.join(config.loading_model_folder, CLASSES_COUNT_FILE)
+        classes_count_per_objects = cPickle.load(open(classes_count_path, 'rb'))
+        hierarchy_mapping_path = os.path.join(config.loading_model_folder, CLASSES_MAPPING_FILE)
+        hierarchy_mapping_per_objects = cPickle.load(open(hierarchy_mapping_path, 'rb'))
+        return classes_count_per_objects, hierarchy_mapping_per_objects
 
     ind = 0
     new_hierarchy_mapping = {}
@@ -399,14 +408,13 @@ def get_predicate_hierarchy_mapping_from_detections(detections, path):
         # Update the new_hierarchy_mapping
         if predicate not in new_hierarchy_mapping:
             new_hierarchy_mapping[predicate] = ind
+            ind += 1
 
         # Update the new_classes_count
         if predicate not in new_classes_count:
             new_classes_count[predicate] = 1
         else:
             new_classes_count[predicate] += 1
-
-        ind += 1
 
     # Save classes_count file
     classes_count_file = file(os.path.join(path, CLASSES_COUNT_FILE), 'wb')
