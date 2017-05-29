@@ -5,7 +5,7 @@ import numpy as np
 from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
 from TrainCNN import VisualGenome_PICKLES_PATH
 from keras_frcnn.Utils.Utils import create_folder, VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
-    HIERARCHY_MAPPING
+    HIERARCHY_MAPPING, plot_graph
 from keras_frcnn.Utils.data import create_mini_data_visual_genome
 
 
@@ -126,6 +126,9 @@ def process_objects(img_data, hierarchy_mapping):
 
 
 if __name__ == '__main__':
+    path_to_folder = "/home/roeih/SceneGrapher/Training/TrainingObjectsCNN/" \
+                           "Sat_May_27_18:25:10_2017_full"
+    plot_graph(folder_path=path_to_folder)
 
     classes_count, hierarchy_mapping, entities = create_mini_data_visual_genome()
     exit()
