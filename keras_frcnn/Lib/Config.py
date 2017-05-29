@@ -17,8 +17,8 @@ class Config:
         self.use_cache_dir = True
         # Load weights
         self.load_weights = True
-        # Replace the classifier
-        self.replace_top = True
+        # Replace the Dense layer
+        self.replace_top = False
 
         # location of pre-trained weights for the base network
         # weight files can be found at:

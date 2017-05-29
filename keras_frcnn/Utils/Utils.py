@@ -4,6 +4,8 @@ import math
 import os
 import time
 import matplotlib.pyplot as plt
+from keras.engine import Model
+from keras.layers import Dense
 
 __author__ = 'roeih'
 
@@ -256,8 +258,8 @@ def plot_graph(folder_path=""):
 
     # Graph for model error
     plt.figure()
-    plt.plot([1-acc for acc in data_dict['acc']])
-    plt.plot([1-acc for acc in data_dict['val_acc']])
+    plt.plot([1 - acc for acc in data_dict['acc']])
+    plt.plot([1 - acc for acc in data_dict['val_acc']])
     plt.title('model error')
     plt.ylabel('error')
     plt.xlabel('epoch')
@@ -275,3 +277,20 @@ def plot_graph(folder_path=""):
     plt.legend(['train', 'test'], loc='upper left')
     plt.savefig(os.path.join(folder_path, "model_loss.jpg"))
     plt.close()
+
+
+def replace_top_layer(model, num_of_classes):
+    """
+    This function replaces the last top layer (Dense layer) in a new layer
+    :param num_of_classes: number of new classes for the new Dense layer
+    :param model: the model
+    :return: the updated model
+    """
+    # Remove the Dense layer and replace it with another
+    model.layers.pop()
+    # Define new layer
+    new_output_layer = Dense(num_of_classes, kernel_initializer="he_normal", activation='softmax', name='fc')(
+        model.layers[-1].output)
+    # Define the new model
+    model = Model(inputs=model.input, outputs=new_output_layer, name='resnet50')
+    return model

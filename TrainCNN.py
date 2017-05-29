@@ -1,7 +1,7 @@
 from Data.VisualGenome.models import ObjectMapping
 from keras_frcnn.Lib.PascalVocDataGenerator import PascalVocDataGenerator
 from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator, \
-    visual_genome_data_cnn_generator_ab
+    visual_genome_data_cnn_generator_with_batch
 from keras_frcnn.Lib.Zoo import ModelZoo
 from keras.applications.resnet50 import ResNet50
 import os
@@ -16,7 +16,7 @@ from keras.models import Model
 import sys
 import matplotlib.pyplot as plt
 from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, get_time_and_date, create_folder, \
-    TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE
+    TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE, replace_top_layer
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 from keras_frcnn.Utils.data import get_sorted_data, splitting_to_datasets, create_data_pascal_voc, \
@@ -226,11 +226,11 @@ if __name__ == '__main__':
     data_gen_validation_vg = visual_genome_data_cnn_generator(data=val_imgs, hierarchy_mapping=hierarchy_mapping,
                                                               config=config, mode='validation')
     # todo: fix batch-size
-    # data_gen_train_vg = visual_genome_data_cnn_generator_ab(data=train_imgs, hierarchy_mapping=hierarchy_mapping,
+    # data_gen_train_vg = visual_genome_data_cnn_generator_with_batch(data=train_imgs, hierarchy_mapping=hierarchy_mapping,
     #                                                         config=config, mode='train')
-    # data_gen_test_vg = visual_genome_data_cnn_generator_ab(data=test_imgs, hierarchy_mapping=hierarchy_mapping,
+    # data_gen_test_vg = visual_genome_data_cnn_generator_with_batch(data=test_imgs, hierarchy_mapping=hierarchy_mapping,
     #                                                        config=config, mode='test')
-    # data_gen_validation_vg = visual_genome_data_cnn_generator_ab(data=val_imgs, hierarchy_mapping=hierarchy_mapping,
+    # data_gen_validation_vg = visual_genome_data_cnn_generator_with_batch(data=val_imgs, hierarchy_mapping=hierarchy_mapping,
     #                                                              config=config, mode='validation')
 
     if K.image_dim_ordering() == 'th':
@@ -273,13 +273,9 @@ if __name__ == '__main__':
         # Set the new initialized weights
         model.layers[-1].set_weights(last_layer_weights)
 
-        # # Remove the Dense layer and replace it with another
-        # model.layers.pop()
-        # new_output_layer = Dense(10, kernel_initializer="he_normal", activation='softmax', name='fc')(
-        #                     model.layers[-1].output)
-        # # Define the model
-        # model = Model(inputs=model.input, outputs=new_output_layer, name='resnet50')
-        # # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
+        # Replace the last top layer with a new Dense layer
+        # model = replace_top_layer(model, number_of_classes)
+        # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
         # model.summary()
 
     optimizer = Adam(1e-6)

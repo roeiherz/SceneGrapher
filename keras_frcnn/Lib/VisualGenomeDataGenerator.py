@@ -250,7 +250,8 @@ def visual_genome_data_generator(data, hierarchy_mapping, config, mode, classifi
                 print(str(e))
 
 
-def visual_genome_data_cnn_generator_ab(data, hierarchy_mapping, config, mode):
+# todo: add ability to train with different batch size
+def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config, mode):
     """
     This function is a generator for only objects for CNN
     :param data: dictionary of Data
@@ -274,10 +275,6 @@ def visual_genome_data_cnn_generator_ab(data, hierarchy_mapping, config, mode):
                 for current_index in range(batch_size):
                     ind = batch_num * batch_size + current_index
                     object = data[ind]
-                    # todo: There is a bug that creates exceptions for some of the objects
-                    # if object.url == "https://cs.stanford.edu/people/rak248/VG_100K/2338578.jpg":
-                    #     print("debug")
-
                     img = get_img(object.url)
 
                     if img is None:
@@ -413,7 +410,6 @@ def visual_genome_data_cnn_generator(data, hierarchy_mapping, config, mode):
             except Exception as e:
                 print("Exception for image {0}".format(object.url))
                 print(str(e))
-
 
 def get_img(url):
     """
