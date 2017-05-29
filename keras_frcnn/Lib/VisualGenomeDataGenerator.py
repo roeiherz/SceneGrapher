@@ -12,9 +12,10 @@ __author__ = 'roeih'
 
 
 # todo: add ability to train with different batch size
-def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, config, mode):
+def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, config, mode, batch_size=1):
     """
     This function is a generator for subject and object together
+    :param batch_size: batch size
     :param data: dictionary of Data
     :param hierarchy_mapping: hierarchy mapping
     :param config: the class config which contains different parameters
@@ -183,9 +184,10 @@ def visual_genome_data_parallel_generator(data, hierarchy_mapping, config, mode)
 
 
 # todo: add ability to train with different batch size
-def visual_genome_data_generator_with_batch(data, hierarchy_mapping, config, mode, classification, type_box):
+def visual_genome_data_generator_with_batch(data, hierarchy_mapping, config, mode, classification, type_box, batch_size=1):
     """
     This function is a generator for Detections
+    :param batch_size: batch size
     :param type_box: Detections.SubjectBox ('subject_box') or Detections.ObjectBox ('object_box') or
                      Detection.UnionBox ('union_box')
     :param classification: Detections.SubjectClassifications ('subject_classifications') or
