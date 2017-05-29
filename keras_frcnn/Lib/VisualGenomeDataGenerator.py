@@ -174,9 +174,10 @@ def visual_genome_data_generator(data, hierarchy_mapping, config, mode, classifi
 
 
 # todo: add ability to train with different batch size
-def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config, mode):
+def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config, mode, batch_size=1):
     """
     This function is a generator for only objects for CNN
+    :param batch_size: batch size
     :param data: dictionary of Data
     :param hierarchy_mapping: hierarchy mapping
     :param config: the class config which contains different parameters
@@ -185,16 +186,17 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
 
     correct_labels = hierarchy_mapping.keys()
     size = len(data)
-    batch_size = 128
+    num_of_batches_per_epoch = size / batch_size
 
     while True:
 
-        for batch_num in range(size / batch_size):
+        # Batch number
+        for batch_num in range(num_of_batches_per_epoch):
             try:
                 imgs = []
                 labels = []
 
-                # Start batch
+                # Start one batch
                 for current_index in range(batch_size):
                     ind = batch_num * batch_size + current_index
                     object = data[ind]
@@ -254,8 +256,12 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
                     imgs.append(np.copy(resized_img))
                     labels.append(np.copy(y_labels))
 
-                # Finished batch
-                yield imgs, labels
+                # Continue if imgs and labels are empty
+                if len(imgs) == 0 or len(labels) == 0:
+                    continue
+
+                # Finished one batch
+                yield np.concatenate(imgs, axis=0), np.concatenate(labels, axis=0)
 
             except Exception as e:
                 print("Exception for image {0}".format(object.url))
