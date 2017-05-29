@@ -187,13 +187,13 @@ if __name__ == '__main__':
     net_weights_path = os.path.join(path, config.model_weights_name)
     print("The new Model Weights will be Saved: {}".format(net_weights_path))
 
-    classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="mini_classes_count.p",
-                                                                 hierarchy_mapping_file_name="mini_class_mapping.p",
-                                                                 entities_file_name="mini_final_entities.p",
+    classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
+                                                                 hierarchy_mapping_file_name="final_class_mapping.p",
+                                                                 entities_file_name="final_entities.p",
                                                                  nof_labels=NOF_LABELS)
 
     # Get Visual Genome Data objects
-    objects = preprocessing_objects(entities, hierarchy_mapping, object_file_name="mini_objects.p")
+    objects = preprocessing_objects(entities, hierarchy_mapping, object_file_name="full_objects.p")
     # new_hierarchy_mapping = create_new_hierarchy_mapping(hierarchy_mapping)
 
     # Get the updating class_mapping and hierarchy_mapping by mapping and save them in Training Folder

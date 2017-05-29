@@ -10,11 +10,11 @@ class Config:
     def __init__(self, gpu_num):
 
         # Do we continuing to train or start from fresh
-        self.loading_model = True
-        self.loading_model_folder = "/home/roeih/SceneGrapher/Training/TrainingObjectsCNN/Sun_May_28_21:21:47_2017"
+        self.loading_model = False
+        self.loading_model_folder = "Training/TrainingObjectsCNN/Sat_May_27_18:25:10_2017_full"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
-        self.use_cache_dir = True
+        self.use_cache_dir = False
         # Load weights
         self.load_weights = True
         # Replace the Dense layer
