@@ -273,7 +273,8 @@ def get_sorted_data(classes_count_file_name="final_classes_count.p",
     return classes_count, hierarchy_mapping, entities
 
 
-def splitting_to_datasets(entities, training_percent, testing_percent, num_epochs, path=VisualGenome_DATASETS_PICKLES_PATH, config=None):
+def splitting_to_datasets(entities, training_percent, testing_percent, num_epochs,
+                          path=VisualGenome_DATASETS_PICKLES_PATH, config=None):
     """
     This function splits the data for train and test dataset
     :param config: config
@@ -288,10 +289,13 @@ def splitting_to_datasets(entities, training_percent, testing_percent, num_epoch
     # Load datasets from cache
     if config is not None and config.use_cache_dir:
         train_dataset_path = os.path.join(config.loading_model_folder, TRAIN_DATA_SET)
-        train_imgs = cPickle.load(open(train_dataset_path, 'rb'))
         test_dataset_path = os.path.join(config.loading_model_folder, TEST_DATA_SET)
-        test_imgs = cPickle.load(open(test_dataset_path, 'rb'))
         validation_dataset_path = os.path.join(config.loading_model_folder, VALIDATION_DATA_SET)
+        print("Loading cached data-sets: training-{0}, testing-{1} and valiation-{2}".format(train_dataset_path,
+                                                                                             test_dataset_path,
+                                                                                             validation_dataset_path))
+        train_imgs = cPickle.load(open(train_dataset_path, 'rb'))
+        test_imgs = cPickle.load(open(test_dataset_path, 'rb'))
         val_imgs = cPickle.load(open(validation_dataset_path, 'rb'))
         return train_imgs, test_imgs, val_imgs
 

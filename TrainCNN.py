@@ -105,8 +105,10 @@ def get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path, config=N
     # Load hierarchy mapping and class counting from cache
     if config is not None and config.use_cache_dir:
         classes_count_path = os.path.join(config.loading_model_folder, CLASSES_COUNT_FILE)
-        classes_count_per_objects = cPickle.load(open(classes_count_path, 'rb'))
         hierarchy_mapping_path = os.path.join(config.loading_model_folder, CLASSES_MAPPING_FILE)
+        print("Loading from cached hierarchy mapping from {0} and class counting {1}".format(hierarchy_mapping_path,
+                                                                                             classes_count_path))
+        classes_count_per_objects = cPickle.load(open(classes_count_path, 'rb'))
         hierarchy_mapping_per_objects = cPickle.load(open(hierarchy_mapping_path, 'rb'))
         return classes_count_per_objects, hierarchy_mapping_per_objects
 
