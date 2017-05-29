@@ -356,10 +356,6 @@ def visual_genome_data_cnn_generator(data, hierarchy_mapping, config, mode):
         for object in data:
             try:
 
-                # todo: There is a bug that creates exceptions for some of the objects
-                # if object.url == "https://cs.stanford.edu/people/rak248/VG_100K/2338578.jpg":
-                #     print("debug")
-
                 img = get_img(object.url)
 
                 if img is None:
