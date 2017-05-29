@@ -312,6 +312,7 @@ if __name__ == '__main__':
     print("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
 
     # Summarize history for accuracy
+    plt.figure()
     plt.plot(history.history['acc'])
     plt.plot(history.history['val_acc'])
     plt.title('model accuracy')
@@ -319,7 +320,9 @@ if __name__ == '__main__':
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     plt.savefig(os.path.join(path, "model_accuracy.jpg"))
+    plt.close()
     # summarize history for loss
+    plt.figure()
     plt.plot(history.history['loss'])
     plt.plot(history.history['val_loss'])
     plt.title('model loss')
@@ -327,3 +330,4 @@ if __name__ == '__main__':
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     plt.savefig(os.path.join(path, "model_loss.jpg"))
+    plt.close()
