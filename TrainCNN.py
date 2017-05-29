@@ -240,7 +240,7 @@ if __name__ == '__main__':
 
     img_input = Input(shape=input_shape_img, name="image_input")
 
-    # Define ResNet50 model Without Top
+    # Define ResNet50 model With Top
     net = ModelZoo()
     model_resnet50 = net.resnet50_base(img_input, trainable=True)
     model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
@@ -251,6 +251,10 @@ if __name__ == '__main__':
     model = Model(inputs=img_input, outputs=output_resnet50, name='resnet50')
     # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
     model.summary()
+
+    # Save the last layer initialized weights
+    if config.replace_top:
+        last_layer_weights = model.layers[-1].get_weights()
 
     # Load pre-trained weights for ResNet50
     try:
@@ -263,6 +267,20 @@ if __name__ == '__main__':
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
         ))
         raise Exception(e)
+
+    # Replace the last layer
+    if config.replace_top:
+        # Set the new initialized weights
+        model.layers[-1].set_weights(last_layer_weights)
+
+        # # Remove the Dense layer and replace it with another
+        # model.layers.pop()
+        # new_output_layer = Dense(10, kernel_initializer="he_normal", activation='softmax', name='fc')(
+        #                     model.layers[-1].output)
+        # # Define the model
+        # model = Model(inputs=model.input, outputs=new_output_layer, name='resnet50')
+        # # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
+        # model.summary()
 
     optimizer = Adam(1e-6)
     model.compile(optimizer=optimizer,
