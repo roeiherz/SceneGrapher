@@ -1,3 +1,5 @@
+import matplotlib as mpl
+mpl.use('Agg')
 from Data.VisualGenome.models import ObjectMapping
 from keras_frcnn.Lib.PascalVocDataGenerator import PascalVocDataGenerator
 from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator, \

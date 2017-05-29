@@ -1,5 +1,5 @@
-from __future__ import print_function
-
+import matplotlib as mpl
+mpl.use('Agg')
 from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger
 from keras.optimizers import Adam
 
