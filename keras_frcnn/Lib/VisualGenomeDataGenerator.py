@@ -11,83 +11,6 @@ from DesignPatterns.Detections import Detections
 __author__ = 'roeih'
 
 
-# regiontodo: delete - old version
-# def VisualGenomeDataGenerator_func(data, hierarchy_mapping, config, mode):
-#     """
-#     This function is a generator
-#     :param data: dictionary of Data
-#     :param hierarchy_mapping: hierarchy mapping
-#     :param classes_count: A dict that contains {class: number of objects}
-#     :param config: the class config which contains different parameters
-#     :param backend: tensorflow or theano
-#     :param mode: 'train' or 'test'
-#     :param batch_size: the batch size
-#     """
-#
-#     correct_labels = hierarchy_mapping.keys()
-#
-#     while True:
-#         for img_data in data:
-#
-#             img = get_img(img_data.image.url)
-#
-#             if img is None:
-#                 print("Coulden't get the image")
-#                 continue
-#
-#             # In-case we want to normalize
-#             if config.normalize:
-#                 # Subtract mean and normalize
-#                 mean_image = np.mean(img, axis=0)
-#                 img -= mean_image
-#                 img /= 128.
-#
-#                 # Zero-center by mean pixel
-#                 # norm_img = img.astype(np.float32)
-#                 # norm_img[:, :, 0] -= 103.939
-#                 # norm_img[:, :, 1] -= 116.779
-#                 # norm_img[:, :, 2] -= 123.68
-#
-#             # Get the whole objects per image
-#             objects = img_data.objects
-#             for object in objects:
-#
-#                 # Get the lable of object
-#                 label = object.names[0]
-#
-#                 # Check if it is a correct label
-#                 if label not in correct_labels:
-#                     continue
-#
-#                 # Get the label uuid
-#                 label_id = hierarchy_mapping[label]
-#
-#                 # Get the y labels
-#                 y_labels = np.zeros((len(hierarchy_mapping)))
-#                 y_labels[label_id] = 1
-#
-#                 # Get the mask: a dict with {x1,x2,y1,y2}
-#                 mask = get_mask_from_object(object)
-#
-#                 # Cropping the patch from the image.
-#                 patch = img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
-#
-#                 # Resize the image according the padding method
-#                 resized_img = get_img_resize(patch, config.crop_width, config.crop_height,
-#                                              type=config.padding_method)
-#
-#                 if mode == 'train' and config.jitter:
-#                     # Augment only in training
-#                     # todo: create a regular jitter for each patch increase the number of patches by some constant
-#                     resized_img = augment_visual_genome(resized_img, object, config, mask)
-#
-#                 # Expand dimensions
-#                 resized_img = np.expand_dims(resized_img, axis=0)
-#                 y_labels = np.expand_dims(y_labels, axis=0)
-#
-#                 yield [np.copy(resized_img)], [np.copy(y_labels)]
-# endregion
-
 def visual_genome_data_parallel_generator(data, hierarchy_mapping, config, mode):
     """
     This function is a generator for subject and object together
@@ -266,7 +189,7 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
 
     while True:
 
-        for batch_num in range(size/batch_size):
+        for batch_num in range(size / batch_size):
             try:
                 imgs = []
                 labels = []
@@ -335,8 +258,9 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
                 yield imgs, labels
 
             except Exception as e:
-                    print("Exception for image {0}".format(object.url))
-                    print(str(e))
+                print("Exception for image {0}".format(object.url))
+                print(str(e))
+
 
 def visual_genome_data_cnn_generator(data, hierarchy_mapping, config, mode):
     """
@@ -410,6 +334,7 @@ def visual_genome_data_cnn_generator(data, hierarchy_mapping, config, mode):
             except Exception as e:
                 print("Exception for image {0}".format(object.url))
                 print(str(e))
+
 
 def get_img(url):
     """

@@ -225,7 +225,7 @@ if __name__ == '__main__':
                                                         config=config, mode='test')
     data_gen_validation_vg = visual_genome_data_cnn_generator(data=val_imgs, hierarchy_mapping=hierarchy_mapping,
                                                               config=config, mode='validation')
-    # todo: fix batch-size
+    # todo: add batch-size
     # data_gen_train_vg = visual_genome_data_cnn_generator_with_batch(data=train_imgs, hierarchy_mapping=hierarchy_mapping,
     #                                                         config=config, mode='train')
     # data_gen_test_vg = visual_genome_data_cnn_generator_with_batch(data=test_imgs, hierarchy_mapping=hierarchy_mapping,
