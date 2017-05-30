@@ -273,9 +273,11 @@ def get_sorted_data(classes_count_file_name="final_classes_count.p",
     return classes_count, hierarchy_mapping, entities
 
 
-def splitting_to_datasets(entities, training_percent, testing_percent, num_epochs, path=VisualGenome_DATASETS_PICKLES_PATH):
+def splitting_to_datasets(entities, training_percent, testing_percent, num_epochs,
+                          path=VisualGenome_DATASETS_PICKLES_PATH, config=None):
     """
     This function splits the data for train and test dataset
+    :param config: config
     :param path: path where we are saving the data
     :param num_epochs: number of epochs
     :param testing_percent: testing percent from the data
@@ -283,6 +285,20 @@ def splitting_to_datasets(entities, training_percent, testing_percent, num_epoch
     :param entities: entities from visual genome
     :return: list of entities of train and test data
     """
+
+    # Load datasets from cache
+    if config is not None and config.use_cache_dir:
+        train_dataset_path = os.path.join(config.loading_model_folder, TRAIN_DATA_SET)
+        test_dataset_path = os.path.join(config.loading_model_folder, TEST_DATA_SET)
+        validation_dataset_path = os.path.join(config.loading_model_folder, VALIDATION_DATA_SET)
+        print("Loading cached data-sets: training-{0}, testing-{1} and valiation-{2}".format(train_dataset_path,
+                                                                                             test_dataset_path,
+                                                                                             validation_dataset_path))
+        train_imgs = cPickle.load(open(train_dataset_path, 'rb'))
+        test_imgs = cPickle.load(open(test_dataset_path, 'rb'))
+        val_imgs = cPickle.load(open(validation_dataset_path, 'rb'))
+        return train_imgs, test_imgs, val_imgs
+
     number_of_samples = len(entities)
     train_size = int(number_of_samples * training_percent)
     test_size = int(number_of_samples * testing_percent)
@@ -366,14 +382,25 @@ def generate_new_hierarchy_mapping(hierarchy_mapping):
     return new_hierarchy_mapping
 
 
-def get_predicate_hierarchy_mapping_from_detections(detections, path):
+def get_predicate_hierarchy_mapping_from_detections(detections, path, config=None):
     """
     This function get the predicate hierarchy mapping from detections
     :param detections: a Detections numpy dtype
+    :param config: config
     :param path: saving or loading the classes_count_per_objects and hierarchy_mapping_per_objects from path folder
     :return: a new dict of hierarchy mapping of predicate (new_hierarchy_mapping)
             and a new dict of number of classes (new_classes_count)
     """
+
+    # Load hierarchy mapping and class counting from cache
+    if config is not None and config.use_cache_dir:
+        classes_count_path = os.path.join(config.loading_model_folder, CLASSES_COUNT_FILE)
+        hierarchy_mapping_path = os.path.join(config.loading_model_folder, CLASSES_MAPPING_FILE)
+        print("Loading from cached hierarchy mapping from {0} and class counting {1}".format(hierarchy_mapping_path,
+                                                                                             classes_count_path))
+        classes_count_per_objects = cPickle.load(open(classes_count_path, 'rb'))
+        hierarchy_mapping_per_objects = cPickle.load(open(hierarchy_mapping_path, 'rb'))
+        return classes_count_per_objects, hierarchy_mapping_per_objects
 
     ind = 0
     new_hierarchy_mapping = {}
@@ -387,14 +414,13 @@ def get_predicate_hierarchy_mapping_from_detections(detections, path):
         # Update the new_hierarchy_mapping
         if predicate not in new_hierarchy_mapping:
             new_hierarchy_mapping[predicate] = ind
+            ind += 1
 
         # Update the new_classes_count
         if predicate not in new_classes_count:
             new_classes_count[predicate] = 1
         else:
             new_classes_count[predicate] += 1
-
-        ind += 1
 
     # Save classes_count file
     classes_count_file = file(os.path.join(path, CLASSES_COUNT_FILE), 'wb')

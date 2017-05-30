@@ -1,5 +1,5 @@
-from __future__ import print_function
-
+import matplotlib as mpl
+mpl.use('Agg')
 from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger
 from keras.optimizers import Adam
 
@@ -232,13 +232,14 @@ if __name__ == '__main__':
     relations = preprocessing_relations(entities, hierarchy_mapping, relation_file_name="full_relations.p")
     # Process relations to numpy Detections dtype
     detections = process_to_detections(relations, detections_file_name="full_detections.p")
-    exit()
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
                                                             testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
-                                                            path=path)
+                                                            path=path, config=config)
     # Get the predicate hierarchy mapping and the number of the predicated classes
-    predicate_classes_count, predicate_hierarchy_mapping = get_predicate_hierarchy_mapping_from_detections(detections, path)
+    predicate_classes_count, predicate_hierarchy_mapping = get_predicate_hierarchy_mapping_from_detections(detections,
+                                                                                                           path,
+                                                                                                           config=config)
 
     # Create a data generator for VisualGenome
     data_gen_train_vg = visual_genome_data_generator(data=train_imgs,
@@ -301,8 +302,8 @@ if __name__ == '__main__':
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False)]
 
     print('Starting training')
-    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_EPOCHS, epochs=NUM_EPOCHS,
-                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_EPOCHS,
+    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs), epochs=NUM_EPOCHS,
+                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs),
                                   callbacks=callbacks, max_q_size=1, workers=1)
 
     # Validating the model
@@ -311,6 +312,7 @@ if __name__ == '__main__':
     print("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
 
     # Summarize history for accuracy
+    plt.figure()
     plt.plot(history.history['acc'])
     plt.plot(history.history['val_acc'])
     plt.title('model accuracy')
@@ -318,7 +320,9 @@ if __name__ == '__main__':
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     plt.savefig(os.path.join(path, "model_accuracy.jpg"))
+    plt.close()
     # summarize history for loss
+    plt.figure()
     plt.plot(history.history['loss'])
     plt.plot(history.history['val_loss'])
     plt.title('model loss')
@@ -326,3 +330,4 @@ if __name__ == '__main__':
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     plt.savefig(os.path.join(path, "model_loss.jpg"))
+    plt.close()

@@ -3,6 +3,9 @@ import cv2
 import math
 import os
 import time
+import matplotlib.pyplot as plt
+from keras.engine import Model
+from keras.layers import Dense
 
 __author__ = 'roeih'
 
@@ -192,9 +195,102 @@ def get_mask_from_object(object):
     y2 = y1 + height
     return {"x1": x1, "y1": y1, "x2": x2, "y2": y2}
 
+
 def get_time_and_date():
     """
     This function returns the time and the date without spaces mainly for saving files
     :return: string file which contains time and the date without spaces
     """
     return time.strftime("%c").replace(" ", "_")
+
+
+def plot_graph(folder_path=""):
+    """
+    This function creates the error, accuracy and loss graph for training and testing and saved them to a folder path
+    :param folder_path: the path for the training log folder (not file)
+    """
+
+    training_log_file = os.path.join(folder_path, "training.log")
+
+    if not os.path.exists(training_log_file):
+        print("Error with the file path. The file is not exist")
+
+    # Open the file
+    log = open(training_log_file, 'rb')
+    first_line = True
+
+    # Parser the file
+    for line in log:
+        try:
+            # Remove the \r\n from the line
+            line_splits = line.splitlines()
+            # Split the line with the delimiter ",
+            data_line = line_splits[0].split(",")
+
+            if first_line:
+                # The first line is creating the data dict with the keys from the first line
+                data_dict = {key: [] for key in data_line}
+                first_line = False
+                # Continue to the next line
+                continue
+
+            # Fill the dict
+            data_dict['epoch'].append(int(data_line[0]))
+            data_dict['acc'].append(float(data_line[1]))
+            data_dict['loss'].append(float(data_line[2]))
+            data_dict['val_acc'].append(float(data_line[3]))
+            data_dict['val_loss'].append(float(data_line[4]))
+
+        except Exception as e:
+            print("Exception while parser training.log")
+            print(str(e))
+
+    # Graph for model accuracy
+    plt.figure()
+    plt.plot(data_dict['acc'])
+    plt.plot(data_dict['val_acc'])
+    plt.title('model accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.savefig(os.path.join(folder_path, "model_accuracy.jpg"))
+    plt.close()
+
+    # Graph for model error
+    plt.figure()
+    plt.plot([1 - acc for acc in data_dict['acc']])
+    plt.plot([1 - acc for acc in data_dict['val_acc']])
+    plt.title('model error')
+    plt.ylabel('error')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.savefig(os.path.join(folder_path, "model_error.jpg"))
+    plt.close()
+
+    # Graph for model loss
+    plt.figure()
+    plt.plot(data_dict['loss'])
+    plt.plot(data_dict['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.savefig(os.path.join(folder_path, "model_loss.jpg"))
+    plt.close()
+
+
+def replace_top_layer(model, num_of_classes):
+    """
+    This function replaces the last top layer (Dense layer) in a new layer
+    :param num_of_classes: number of new classes for the new Dense layer
+    :param model: the model
+    :return: the updated model
+    """
+    # Remove the Dense layer and replace it with another
+    model.layers.pop()
+    # Define new layer
+    new_output_layer = Dense(num_of_classes, kernel_initializer="he_normal", activation='softmax', name='fc')(
+        model.layers[-1].output)
+    # Define the new model
+    model = Model(inputs=model.input, outputs=new_output_layer, name='resnet50')
+    return model

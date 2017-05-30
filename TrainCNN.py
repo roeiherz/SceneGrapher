@@ -1,6 +1,9 @@
+import matplotlib as mpl
+mpl.use('Agg')
 from Data.VisualGenome.models import ObjectMapping
 from keras_frcnn.Lib.PascalVocDataGenerator import PascalVocDataGenerator
-from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator
+from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator, \
+    visual_genome_data_cnn_generator_with_batch
 from keras_frcnn.Lib.Zoo import ModelZoo
 from keras.applications.resnet50 import ResNet50
 import os
@@ -15,7 +18,7 @@ from keras.models import Model
 import sys
 import matplotlib.pyplot as plt
 from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, get_time_and_date, create_folder, \
-    TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE
+    TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE, replace_top_layer
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 from keras_frcnn.Utils.data import get_sorted_data, splitting_to_datasets, create_data_pascal_voc, \
@@ -26,6 +29,7 @@ TRAINING_PERCENT = 0.75
 VALIDATION_PERCENT = 0.05
 TESTING_PERCENT = 0.2
 NUM_EPOCHS = 90
+NUM_BATCHES = 128
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -91,19 +95,30 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
     return objects_array
 
 
-def get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path):
+def get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path, config=None):
     """
     This function creates classes_mapping and hierarchy_mapping by objects and updates the hierarchy_mapping accordingly
+    :param config: config
     :param objects: list of objects
     :param path: saving or loading the classes_count_per_objects and hierarchy_mapping_per_objects from path folder
     :return: dict of classes_mapping and hierarchy_mapping
     """
 
+    # Load hierarchy mapping and class counting from cache
+    if config is not None and config.use_cache_dir:
+        classes_count_path = os.path.join(config.loading_model_folder, CLASSES_COUNT_FILE)
+        hierarchy_mapping_path = os.path.join(config.loading_model_folder, CLASSES_MAPPING_FILE)
+        print("Loading from cached hierarchy mapping from {0} and class counting {1}".format(hierarchy_mapping_path,
+                                                                                             classes_count_path))
+        classes_count_per_objects = cPickle.load(open(classes_count_path, 'rb'))
+        hierarchy_mapping_per_objects = cPickle.load(open(hierarchy_mapping_path, 'rb'))
+        return classes_count_per_objects, hierarchy_mapping_per_objects
+
     classes_count_per_objects = {}
     hierarchy_mapping_per_objects = {}
-    new_obj_id = 1
+    new_obj_id = 0
     for object in objects:
-        # Get the lable of object
+        # Get the label of object
         label = object.names[0]
 
         # Update the classes_count dict
@@ -182,11 +197,12 @@ if __name__ == '__main__':
     # new_hierarchy_mapping = create_new_hierarchy_mapping(hierarchy_mapping)
 
     # Get the updating class_mapping and hierarchy_mapping by mapping and save them in Training Folder
-    classes_count, hierarchy_mapping = get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path)
+    classes_count, hierarchy_mapping = get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path,
+                                                                                            config=config)
 
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(objects, training_percent=TRAINING_PERCENT,
                                                             testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
-                                                            path=path)
+                                                            path=path, config=config)
 
     # Set the number of classes
     number_of_classes = len(classes_count)
@@ -211,6 +227,13 @@ if __name__ == '__main__':
                                                         config=config, mode='test')
     data_gen_validation_vg = visual_genome_data_cnn_generator(data=val_imgs, hierarchy_mapping=hierarchy_mapping,
                                                               config=config, mode='validation')
+    # todo: add batch-size
+    # data_gen_train_vg = visual_genome_data_cnn_generator_with_batch(data=train_imgs, hierarchy_mapping=hierarchy_mapping,
+    #                                                         config=config, mode='train')
+    # data_gen_test_vg = visual_genome_data_cnn_generator_with_batch(data=test_imgs, hierarchy_mapping=hierarchy_mapping,
+    #                                                        config=config, mode='test')
+    # data_gen_validation_vg = visual_genome_data_cnn_generator_with_batch(data=val_imgs, hierarchy_mapping=hierarchy_mapping,
+    #                                                              config=config, mode='validation')
 
     if K.image_dim_ordering() == 'th':
         input_shape_img = (3, None, None)
@@ -219,7 +242,7 @@ if __name__ == '__main__':
 
     img_input = Input(shape=input_shape_img, name="image_input")
 
-    # Define ResNet50 model Without Top
+    # Define ResNet50 model With Top
     net = ModelZoo()
     model_resnet50 = net.resnet50_base(img_input, trainable=True)
     model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
@@ -230,6 +253,10 @@ if __name__ == '__main__':
     model = Model(inputs=img_input, outputs=output_resnet50, name='resnet50')
     # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
     model.summary()
+
+    # Save the last layer initialized weights
+    if config.replace_top:
+        last_layer_weights = model.layers[-1].get_weights()
 
     # Load pre-trained weights for ResNet50
     try:
@@ -243,6 +270,16 @@ if __name__ == '__main__':
         ))
         raise Exception(e)
 
+    # Replace the last layer
+    if config.replace_top:
+        # Set the new initialized weights
+        model.layers[-1].set_weights(last_layer_weights)
+
+        # Replace the last top layer with a new Dense layer
+        # model = replace_top_layer(model, number_of_classes)
+        # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
+        # model.summary()
+
     optimizer = Adam(1e-6)
     model.compile(optimizer=optimizer,
                   loss='categorical_crossentropy', metrics=['accuracy'])
@@ -252,8 +289,8 @@ if __name__ == '__main__':
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False)]
 
     print('Starting training')
-    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_EPOCHS, epochs=NUM_EPOCHS,
-                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_EPOCHS,
+    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs), epochs=NUM_EPOCHS,
+                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs),
                                   callbacks=callbacks, max_q_size=1, workers=1)
 
     # Validating the model
@@ -262,6 +299,7 @@ if __name__ == '__main__':
     print("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
 
     # Summarize history for accuracy
+    plt.figure()
     plt.plot(history.history['acc'])
     plt.plot(history.history['val_acc'])
     plt.title('model accuracy')
@@ -269,7 +307,9 @@ if __name__ == '__main__':
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     plt.savefig(os.path.join(path, "model_accuracy.jpg"))
+    plt.close()
     # summarize history for loss
+    plt.figure()
     plt.plot(history.history['loss'])
     plt.plot(history.history['val_loss'])
     plt.title('model loss')
@@ -277,3 +317,4 @@ if __name__ == '__main__':
     plt.xlabel('epoch')
     plt.legend(['train', 'test'], loc='upper left')
     plt.savefig(os.path.join(path, "model_loss.jpg"))
+    plt.close()

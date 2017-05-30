@@ -11,82 +11,92 @@ from DesignPatterns.Detections import Detections
 __author__ = 'roeih'
 
 
-# regiontodo: delete - old version
-# def VisualGenomeDataGenerator_func(data, hierarchy_mapping, config, mode):
-#     """
-#     This function is a generator
-#     :param data: dictionary of Data
-#     :param hierarchy_mapping: hierarchy mapping
-#     :param classes_count: A dict that contains {class: number of objects}
-#     :param config: the class config which contains different parameters
-#     :param backend: tensorflow or theano
-#     :param mode: 'train' or 'test'
-#     :param batch_size: the batch size
-#     """
-#
-#     correct_labels = hierarchy_mapping.keys()
-#
-#     while True:
-#         for img_data in data:
-#
-#             img = get_img(img_data.image.url)
-#
-#             if img is None:
-#                 print("Coulden't get the image")
-#                 continue
-#
-#             # In-case we want to normalize
-#             if config.normalize:
-#                 # Subtract mean and normalize
-#                 mean_image = np.mean(img, axis=0)
-#                 img -= mean_image
-#                 img /= 128.
-#
-#                 # Zero-center by mean pixel
-#                 # norm_img = img.astype(np.float32)
-#                 # norm_img[:, :, 0] -= 103.939
-#                 # norm_img[:, :, 1] -= 116.779
-#                 # norm_img[:, :, 2] -= 123.68
-#
-#             # Get the whole objects per image
-#             objects = img_data.objects
-#             for object in objects:
-#
-#                 # Get the lable of object
-#                 label = object.names[0]
-#
-#                 # Check if it is a correct label
-#                 if label not in correct_labels:
-#                     continue
-#
-#                 # Get the label uuid
-#                 label_id = hierarchy_mapping[label]
-#
-#                 # Get the y labels
-#                 y_labels = np.zeros((len(hierarchy_mapping)))
-#                 y_labels[label_id] = 1
-#
-#                 # Get the mask: a dict with {x1,x2,y1,y2}
-#                 mask = get_mask_from_object(object)
-#
-#                 # Cropping the patch from the image.
-#                 patch = img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
-#
-#                 # Resize the image according the padding method
-#                 resized_img = get_img_resize(patch, config.crop_width, config.crop_height,
-#                                              type=config.padding_method)
-#
-#                 if mode == 'train' and config.jitter:
-#                     # Augment only in training
-#                     # todo: create a regular jitter for each patch increase the number of patches by some constant
-#                     resized_img = augment_visual_genome(resized_img, object, config, mask)
-#
-#                 # Expand dimensions
-#                 resized_img = np.expand_dims(resized_img, axis=0)
-#                 y_labels = np.expand_dims(y_labels, axis=0)
-#
-#                 yield [np.copy(resized_img)], [np.copy(y_labels)]
-# endregion
+# todo: add ability to train with different batch size
+def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, config, mode, batch_size=1):
+    """
+    This function is a generator for subject and object together
+    :param batch_size: batch size
+    :param data: dictionary of Data
+    :param hierarchy_mapping: hierarchy mapping
+    :param config: the class config which contains different parameters
+    :param mode: 'train' or 'test'
+    """
+
+    correct_labels = hierarchy_mapping.keys()
+
+    while True:
+        for detection in data:
+            try:
+                img = get_img(detection[Detections.Url])
+
+                if img is None:
+                    print("Coulden't get the image")
+                    continue
+
+                # In-case we want to normalize
+                if config.normalize:
+                    # Subtract mean and normalize
+                    mean_image = np.mean(img, axis=0)
+                    img -= mean_image
+                    img /= 128.
+
+                    # Zero-center by mean pixel
+                    # norm_img = img.astype(np.float32)
+                    # norm_img[:, :, 0] -= 103.939
+                    # norm_img[:, :, 1] -= 116.779
+                    # norm_img[:, :, 2] -= 123.68
+
+                # For-each pairwise objects: once Subject and once Object
+                for i in range(2):
+
+                    if i == 0:
+                        # Subject
+                        classification = Detections.SubjectClassifications
+                        box = Detections.SubjectBox
+                    else:
+                        # Object
+                        classification = Detections.ObjectClassifications
+                        box = Detections.ObjectBox
+
+                    # Get the label of object
+                    label = detection[classification]
+
+                    # Check if it is a correct label
+                    if label not in correct_labels:
+                        continue
+
+                    # Get the label uuid
+                    label_id = hierarchy_mapping[label]
+
+                    # Create the y labels as a one hot vector
+                    y_labels = np.eye(len(hierarchy_mapping), dtype='uint8')[label_id]
+
+                    # Get the box: a BOX (numpy array) with [x1,x2,y1,y2]
+                    box = detection[box]
+
+                    # Cropping the patch from the image.
+                    patch = img[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
+
+                    # Resize the image according the padding method
+                    resized_img = get_img_resize(patch, config.crop_width, config.crop_height,
+                                                 type=config.padding_method)
+
+                    if mode == 'train' and config.jitter:
+                        # Augment only in training
+                        # todo: create a regular jitter for each patch increase the number of patches by some constant
+                        # resized_img = augment_visual_genome(resized_img, detection, config, mask)
+                        print("No data augmentation")
+
+                    # Expand dimensions - add batch dimension for the numpy
+                    resized_img = np.expand_dims(resized_img, axis=0)
+                    y_labels = np.expand_dims(y_labels, axis=0)
+
+                    yield [np.copy(resized_img)], [np.copy(y_labels)]
+
+            except Exception as e:
+                print("Exception for image {0}".format(detection.url))
+                print(str(e))
+
 
 def visual_genome_data_parallel_generator(data, hierarchy_mapping, config, mode):
     """
@@ -173,6 +183,85 @@ def visual_genome_data_parallel_generator(data, hierarchy_mapping, config, mode)
                 print(str(e))
 
 
+# todo: add ability to train with different batch size
+def visual_genome_data_generator_with_batch(data, hierarchy_mapping, config, mode, classification, type_box, batch_size=1):
+    """
+    This function is a generator for Detections
+    :param batch_size: batch size
+    :param type_box: Detections.SubjectBox ('subject_box') or Detections.ObjectBox ('object_box') or
+                     Detection.UnionBox ('union_box')
+    :param classification: Detections.SubjectClassifications ('subject_classifications') or
+            Detections.ObjectClassifications ('object_classifications') or Detections.Predicate ('predicate')
+    :param data: dictionary of Data
+    :param hierarchy_mapping: hierarchy mapping
+    :param config: the class config which contains different parameters
+    :param mode: 'train' or 'test' or 'validate'
+    """
+
+    correct_labels = hierarchy_mapping.keys()
+
+    while True:
+        for detection in data:
+            try:
+
+                img = get_img(detection[Detections.Url])
+
+                if img is None:
+                    print("Coulden't get the image")
+                    continue
+
+                # In-case we want to normalize
+                if config.normalize:
+                    # Subtract mean and normalize
+                    mean_image = np.mean(img, axis=0)
+                    img -= mean_image
+                    img /= 128.
+
+                    # Zero-center by mean pixel
+                    # norm_img = img.astype(np.float32)
+                    # norm_img[:, :, 0] -= 103.939
+                    # norm_img[:, :, 1] -= 116.779
+                    # norm_img[:, :, 2] -= 123.68
+
+                # Get the label of object
+                label = detection[classification]
+
+                # Check if it is a correct label
+                if label not in correct_labels:
+                    continue
+
+                # Get the label uuid
+                label_id = hierarchy_mapping[label]
+
+                # Create the y labels as a one hot vector
+                y_labels = np.eye(len(hierarchy_mapping), dtype='uint8')[label_id]
+
+                # Get the box: a BOX (numpy array) with [x1,x2,y1,y2]
+                box = detection[type_box]
+
+                # Cropping the patch from the image.
+                patch_subject = img[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
+
+                # Resize the image according the padding method
+                resized_img = get_img_resize(patch_subject, config.crop_width, config.crop_height,
+                                             type=config.padding_method)
+
+                if mode == 'train' and config.jitter:
+                    # Augment only in training
+                    # todo: create a regular jitter for each patch increase the number of patches by some constant
+                    # resized_img = augment_visual_genome(resized_img, detection, config, mask)
+                    print("No data augmentation")
+
+                # Expand dimensions - add batch dimension for the numpy
+                resized_img = np.expand_dims(resized_img, axis=0)
+                y_labels = np.expand_dims(y_labels, axis=0)
+
+                yield [np.copy(resized_img)], [np.copy(y_labels)]
+            except Exception as e:
+                print("Exception for image {0}".format(detection[Detections.Url]))
+                print(str(e))
+
+
 def visual_genome_data_generator(data, hierarchy_mapping, config, mode, classification, type_box):
     """
     This function is a generator for Detections
@@ -250,6 +339,101 @@ def visual_genome_data_generator(data, hierarchy_mapping, config, mode, classifi
                 print(str(e))
 
 
+# todo: add ability to train with different batch size
+def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config, mode, batch_size=1):
+    """
+    This function is a generator for only objects for CNN
+    :param batch_size: batch size
+    :param data: dictionary of Data
+    :param hierarchy_mapping: hierarchy mapping
+    :param config: the class config which contains different parameters
+    :param mode: 'train' or 'test'
+    """
+
+    correct_labels = hierarchy_mapping.keys()
+    size = len(data)
+    num_of_batches_per_epoch = size / batch_size
+
+    while True:
+
+        # Batch number
+        for batch_num in range(num_of_batches_per_epoch):
+            try:
+                imgs = []
+                labels = []
+
+                # Start one batch
+                for current_index in range(batch_size):
+                    ind = batch_num * batch_size + current_index
+                    object = data[ind]
+                    img = get_img(object.url)
+
+                    if img is None:
+                        print("Coulden't get the image")
+                        continue
+
+                    # In-case we want to normalize
+                    if config.normalize:
+                        # Subtract mean and normalize
+                        mean_image = np.mean(img, axis=0)
+                        img -= mean_image
+                        img /= 128.
+
+                        # Zero-center by mean pixel
+                        # norm_img = img.astype(np.float32)
+                        # norm_img[:, :, 0] -= 103.939
+                        # norm_img[:, :, 1] -= 116.779
+                        # norm_img[:, :, 2] -= 123.68
+
+                    # Get the lable of object
+                    label = object.names[0]
+
+                    # Check if it is a correct label
+                    if label not in correct_labels:
+                        continue
+
+                    # Get the label uuid
+                    label_id = hierarchy_mapping[label]
+
+                    # Create the y labels as a one hot vector
+                    # y_labels = np.eye(len(hierarchy_mapping), dtype='uint8')[label_id]
+                    y_labels = np.zeros((len(hierarchy_mapping)), dtype='uint8')
+                    y_labels[label_id] = 1
+
+                    # Get the mask: a dict with {x1,x2,y1,y2}
+                    mask = get_mask_from_object(object)
+
+                    # Cropping the patch from the image.
+                    patch = img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
+
+                    # Resize the image according the padding method
+                    resized_img = get_img_resize(patch, config.crop_width, config.crop_height,
+                                                 type=config.padding_method)
+
+                    if mode == 'train' and config.jitter:
+                        # Augment only in training
+                        # todo: create a regular jitter for each patch increase the number of patches by some constant
+                        resized_img = augment_visual_genome(resized_img, object, config, mask)
+
+                    # Expand dimensions - add batch dimension for the numpy
+                    resized_img = np.expand_dims(resized_img, axis=0)
+                    y_labels = np.expand_dims(y_labels, axis=0)
+
+                    imgs.append(np.copy(resized_img))
+                    labels.append(np.copy(y_labels))
+
+                # Continue if imgs and labels are empty
+                if len(imgs) == 0 or len(labels) == 0:
+                    continue
+
+                # Finished one batch
+                yield np.concatenate(imgs, axis=0), np.concatenate(labels, axis=0)
+
+            except Exception as e:
+                print("Exception for image {0}".format(object.url))
+                print(str(e))
+
+
 def visual_genome_data_cnn_generator(data, hierarchy_mapping, config, mode):
     """
     This function is a generator for only objects for CNN
@@ -264,10 +448,6 @@ def visual_genome_data_cnn_generator(data, hierarchy_mapping, config, mode):
     while True:
         for object in data:
             try:
-
-                # todo: There is a bug that creates exceptions for some of the objects
-                # if object.url == "https://cs.stanford.edu/people/rak248/VG_100K/2338578.jpg":
-                #     print("debug")
 
                 img = get_img(object.url)
 

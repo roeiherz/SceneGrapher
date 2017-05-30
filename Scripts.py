@@ -5,7 +5,7 @@ import numpy as np
 from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
 from TrainCNN import VisualGenome_PICKLES_PATH
 from keras_frcnn.Utils.Utils import create_folder, VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
-    HIERARCHY_MAPPING
+    HIERARCHY_MAPPING, plot_graph
 from keras_frcnn.Utils.data import create_mini_data_visual_genome
 
 
@@ -125,14 +125,32 @@ def process_objects(img_data, hierarchy_mapping):
     print("Number of objects are: {0}".format(objects_ind))
 
 
+def graph_plot():
+    """
+    This function plot training and testing graph
+    :return:
+    """
+    path_to_folder = "/home/roeih/SceneGrapher/Training/TrainingObjectsCNN/Sun_May_28_21:21:47_2017"
+    path_to_folder = "/home/roeih/SceneGrapher/Training/TrainingPredicatesCNN/Sun_May_28_21:28:52_2017/"
+    plot_graph(folder_path=path_to_folder)
+
 if __name__ == '__main__':
+    hp_mini_path = "/home/roeih/SceneGrapher/Training/TrainingObjectsCNN/Sun_May_28_21:21:47_2017/class_mapping.p"
+    hp_full_path = "/home/roeih/SceneGrapher/Training/TrainingObjectsCNN/Sat_May_27_18:25:10_2017_full/class_mapping.p"
+    hierarchy_mapping_mini = cPickle.load(open(hp_mini_path, 'rb'))
+    hierarchy_mapping_full = cPickle.load(open(hp_full_path, 'rb'))
+
+    hierarchy_mapping_mini_set = set(hierarchy_mapping_mini.keys())
+    hierarchy_mapping_full_set = set(hierarchy_mapping_full.keys())
+    print("debug")
+
+    graph_plot()
 
     classes_count, hierarchy_mapping, entities = create_mini_data_visual_genome()
-    exit()
     entities_file_name = os.path.join(VisualGenome_PICKLES_PATH, ENTITIES_FILE)
-    entities = cPickle.load(file(entities_file_name, 'rb'))
+    entities = cPickle.load(open(entities_file_name, 'rb'))
 
     hierarchy_mapping_file_name = os.path.join(VisualGenome_PICKLES_PATH, HIERARCHY_MAPPING)
-    hierarchy_mapping = cPickle.load(file(hierarchy_mapping_file_name, 'rb'))
+    hierarchy_mapping = cPickle.load(open(hierarchy_mapping_file_name, 'rb'))
     process_objects(entities, hierarchy_mapping)
     # print(res)
