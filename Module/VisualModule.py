@@ -5,9 +5,9 @@ class VisualModule(object):
     """
     Visual module for scene grapher
     """
-    def __init__(self):
-        self.nof_objects = 150
-        self.visual_embed_size = 1
+    def __init__(self, nof_objects, visual_embed_size):
+        self.nof_objects = nof_objects
+        self.visual_embed_size = visual_embed_size
 
     def extract_features(self, R1):
         """
@@ -29,7 +29,7 @@ class VisualModule(object):
         Get likelihoods of relationships given visual features and visual model parameters
         :param subject_ids: subject ids of relationships (DIM: batch_size X 1)
         :param object_ids: object ids of relationships (DIM: batch_size X 1)
-        :param predicate_ids: predipcate ids of relationships (DIM: batch_size X 1)
+        :param predicate_ids: predicate ids of relationships (DIM: batch_size X 1)
         :param predicate_features: predicate features extracted
         :param subject_probabilities: probability for each subject id
         :param object_probabilities: probability for each object id

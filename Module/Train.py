@@ -108,11 +108,11 @@ def sanity_check():
 
     # create LangModule
     nof_objects = 150
-    visual_embed_size = 1
+    visual_embed_size = 10
     module = Module(nof_objects, nof_predicates, embed.vector_dim, visual_embed_size)
 
     # get weights
-    params = module.get_weights()
+    params = module.get_params()
 
     gradcheck_naive(lambda x:
                     module.get_gradient_and_loss(x, data[0], data[1]), params)
@@ -120,4 +120,4 @@ def sanity_check():
 
 if __name__ == "__main__":
     train()
-    # sanity_check()
+    #sanity_check()

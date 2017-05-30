@@ -27,7 +27,7 @@ class Module(object):
         self.lang = LangModule()
 
         # create visual module
-        self.visual = VisualModule()
+        self.visual = VisualModule(nof_objects, visual_embed_size)
 
         # create dimensions for module parameters
         self.w_dimensions = (nof_predicates, 2 * lang_embed_size)
@@ -222,27 +222,25 @@ class Module(object):
             # gradients
             if c_loss != 0:
                 # w gradient
-                grad_w_c[R2.predicate_ids[r2_max_index]] += r2_v[r2_max_index] * r2_embed[r2_max_index]
-                grad_w_c[R1.predicate_ids[index]] -= r_v * r1_embed[index]
+                grad_w_c[R2.predicate_ids[r2_max_index]] += r2_v[r2_max_index] * r2_embed[r2_max_index] / len(R1.worda)
+                grad_w_c[R1.predicate_ids[index]] -= r_v * r1_embed[index] / len(R1.worda)
 
                 # b gradient
-                grad_b_c[R2.predicate_ids[r2_max_index]] += r2_v[r2_max_index]
-                grad_b_c[R1.predicate_ids[index]] -= r_v
+                grad_b_c[R2.predicate_ids[r2_max_index]] += r2_v[r2_max_index] / len(R1.worda)
+                grad_b_c[R1.predicate_ids[index]] -= r_v / len(R1.worda)
 
                 # z gradient
-                grad_z_c[R2.predicate_ids[r2_max_index]] += predicate_features[index] * r2_f[r2_max_index]
-                grad_z_c[R1.predicate_ids[index]] -= predicate_features[index] * r1_f[index]
+                grad_z_c[R2.predicate_ids[r2_max_index]] += predicate_features[index] * r2_f[r2_max_index] / len(R1.worda)
+                grad_z_c[R1.predicate_ids[index]] -= predicate_features[index] * r1_f[index] / len(R1.worda)
 
                 # s gradient
-                grad_s_c[R2.predicate_ids[r2_max_index]] += r2_f[r2_max_index]
-                grad_s_c[R1.predicate_ids[index]] -= r1_f[index]
+                grad_s_c[R2.predicate_ids[r2_max_index]] += r2_f[r2_max_index] / len(R1.worda)
+                grad_s_c[R1.predicate_ids[index]] -= r1_f[index] / len(R1.worda)
 
         ### total loss and grad
         loss = coeff_k * K + coeff_l * L + C
-        if loss < 0:
-            print "debug"
         grad_w = coeff_k * grad_w_k + coeff_l * grad_w_l + grad_w_c
-        grad_b = coeff_k * grad_b_k + coeff_l * grad_b_l
+        grad_b = coeff_k * grad_b_k + coeff_l * grad_b_l + grad_b_c
         grad_z = grad_z_c
         grad_s = grad_s_c
 
