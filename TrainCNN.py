@@ -1,4 +1,5 @@
 import matplotlib as mpl
+
 mpl.use('Agg')
 from Data.VisualGenome.models import ObjectMapping
 from keras_frcnn.Lib.PascalVocDataGenerator import PascalVocDataGenerator
@@ -22,7 +23,7 @@ from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, get_time_and_date
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 from keras_frcnn.Utils.data import get_sorted_data, splitting_to_datasets, create_data_pascal_voc, \
-    generate_new_hierarchy_mapping
+    generate_new_hierarchy_mapping, get_filtered_data
 
 NOF_LABELS = 150
 TRAINING_PERCENT = 0.75
@@ -187,38 +188,27 @@ if __name__ == '__main__':
     net_weights_path = os.path.join(path, config.model_weights_name)
     print("The new Model Weights will be Saved: {}".format(net_weights_path))
 
-    classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
-                                                                 hierarchy_mapping_file_name="final_class_mapping.p",
+    classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="mini_classes_count.p",
+                                                                 hierarchy_mapping_file_name="mini_class_mapping.p",
                                                                  entities_file_name="final_entities.p",
                                                                  nof_labels=NOF_LABELS)
 
+    hierarchy_mapping, entities = get_filtered_data(filtered_data_file_name="filtered_module_data.p")
+
     # Get Visual Genome Data objects
-    objects = preprocessing_objects(entities, hierarchy_mapping, object_file_name="full_objects.p")
+    objects = preprocessing_objects(entities, hierarchy_mapping, object_file_name="full_mini_objects.p")
     # new_hierarchy_mapping = create_new_hierarchy_mapping(hierarchy_mapping)
 
     # Get the updating class_mapping and hierarchy_mapping by mapping and save them in Training Folder
     classes_count, hierarchy_mapping = get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path,
-                                                                                            config=config)
+                                                                                                        config=config)
 
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(objects, training_percent=TRAINING_PERCENT,
                                                             testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
                                                             path=path, config=config)
 
     # Set the number of classes
-    number_of_classes = len(classes_count)
-
-    # region Pascal Voc
-    # # Get PascalVoc data
-    # train_imgs1, val_imgs1, hierarchy_mapping1, classes_count1 = create_data_pascal_voc(load=True)
-    #
-    # # Create a data generator for PascalVoc
-    # data_gen_train = PascalVocDataGenerator(data=train_imgs1, hierarchy_mapping=hierarchy_mapping1,
-    #                                         classes_count=classes_count1,
-    #                                         config=config, backend=K.image_dim_ordering(), mode='train', batch_size=1)
-    # data_gen_val = PascalVocDataGenerator(data=val_imgs1, hierarchy_mapping=hierarchy_mapping1,
-    #                                       classes_count=classes_count1,
-    #                                       config=config, backend=K.image_dim_ordering(), mode='test', batch_size=1)
-    # endregion
+    number_of_classes = len(hierarchy_mapping)
 
     # Create a data generator for VisualGenome
     data_gen_train_vg = visual_genome_data_cnn_generator(data=train_imgs, hierarchy_mapping=hierarchy_mapping,
