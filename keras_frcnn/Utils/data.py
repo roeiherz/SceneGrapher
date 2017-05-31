@@ -533,9 +533,9 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
     predicates_count_path = os.path.join(VisualGenome_PICKLES_PATH, predicates_count_file_name)
     entities_path = os.path.join(VisualGenome_PICKLES_PATH, entities_file_name)
 
-    objects_count = cPickle.load(open(objects_count_path, 'rb'))
-    predicate_count = cPickle.load(open(predicates_count_path, 'rb'))
-    entities = np.array(cPickle.load(open(entities_path, 'rb')))
+    objects_count = cPickle.load(file(objects_count_path, 'rb'))
+    predicate_count = cPickle.load(file(predicates_count_path, 'rb'))
+    entities = np.array(cPickle.load(file(entities_path, 'rb')))
 
     # Sorting - Extracting the most popular predicates
     sorted_predicates_count = sorted(predicate_count.items(), key=operator.itemgetter(1), reverse=True)
@@ -637,3 +637,4 @@ def get_filtered_data(filtered_data_file_name="filtered_module_data.p"):
     entities = filtered_module_data['entities_visual_module']
     hierarchy_mapping_objects = filtered_module_data['object_ids']
     hierarchy_mapping_predicates = filtered_module_data['predicate_ids']
+    return entities, hierarchy_mapping_objects, hierarchy_mapping_predicates
