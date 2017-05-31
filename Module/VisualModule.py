@@ -10,7 +10,6 @@ from keras_frcnn.Lib.Config import Config
 from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator, get_img
 from keras import backend as K
 from keras.models import Model
-
 from keras_frcnn.Lib.Zoo import ModelZoo
 from keras_frcnn.Utils.Boxes import BOX
 from keras_frcnn.Utils.Utils import get_img_resize
@@ -236,5 +235,5 @@ class VisualModule(object):
 if __name__ == '__main__':
     # Example
     tt = VisualModule(objects_training_dir_name="Sat_May_27_18:25:10_2017_full",
-                      predicates_training_dir_name="Sun_May_28_21:28:52_2017_mini_overfitted")
+                      predicates_training_dir_name="Wed_May_31_16:19:26_2017")
     tt.extract_features(relation_ids=[1, 2, 15, 5, 25, 10])
