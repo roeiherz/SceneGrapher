@@ -77,10 +77,10 @@ class VisualModule(object):
         probes = self.object_model.predict_generator(data_gen_validation_vg, steps=len(detections) * 2, max_q_size=1,
                                                      workers=1)
 
-        # Slice the Subject prob. (even index)
+        # Slice the Subject prob. (even index) [nof_samples, 150]
         subject_probabilities = probes[::2]
 
-        # Slice the Object prob. (odd index)
+        # Slice the Object prob. (odd index) [nof_samples, 150]
         object_probabilities = probes[1::2]
 
         # Fill detections with Subject and Object probabilities - for future use
@@ -91,7 +91,7 @@ class VisualModule(object):
         resized_union_box_mat = self.get_resize_images_array(detections)
         # Define a Graph function to extract the features from Global Average Pooling layer
         get_features_output = K.function([self.predict_model.layers[0].input], [self.predict_model.layers[-2].output])
-        # Predict the Graph function
+        # Predict the Graph function [nof_samples, 2048]
         predicate_features = get_features_output([resized_union_box_mat])[0]
 
         return predicate_features, subject_probabilities, object_probabilities
