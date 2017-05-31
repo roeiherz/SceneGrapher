@@ -27,7 +27,7 @@ from keras.backend.tensorflow_backend import set_session
 import cv2
 from keras_frcnn.Utils.Visualizer import VisualizerDrawer, CvColor
 from keras_frcnn.Utils.data import get_sorted_data, generate_new_hierarchy_mapping, splitting_to_datasets, \
-    get_predicate_hierarchy_mapping_from_detections, process_to_detections
+    get_predicate_hierarchy_mapping_from_detections, process_to_detections, get_filtered_data
 
 NOF_LABELS = 150
 TRAINING_PERCENT = 0.75
@@ -99,12 +99,14 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
     return objects_array
 
 
-def preprocessing_relations(img_data, hierarchy_mapping, relation_file_name='full_relations.p'):
+def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mapping_predicates,
+                            relation_file_name='full_relations.p'):
     """
     This function takes the img_data and create a full object list that contains ObjectMapping class
     :param relation_file_name: relation pickle file name
     :param img_data: list of entities files
-    :param hierarchy_mapping: dict of hierarchy_mapping
+    :param hierarchy_mapping_objects: dict of objects hierarchy_mapping
+    :param hierarchy_mapping_predicates: dict of predicates hierarchy_mapping
     :return: list of RelationshipMapping
     """
 
@@ -113,12 +115,13 @@ def preprocessing_relations(img_data, hierarchy_mapping, relation_file_name='ful
 
     if os.path.isfile(objects_path):
         print('File is already exist {0}'.format(objects_path))
-        objects = cPickle.load(file(objects_path, 'rb'))
+        objects = cPickle.load(open(objects_path, 'rb'))
         return objects
 
     # Get the whole objects from entities
     objects_lst = []
-    correct_labels = hierarchy_mapping.keys()
+    correct_object_labels = hierarchy_mapping_objects.keys()
+    correct_predicates_labels = hierarchy_mapping_predicates.keys()
     idx = 0
     for img in img_data:
 
@@ -131,9 +134,14 @@ def preprocessing_relations(img_data, hierarchy_mapping, relation_file_name='ful
             # Get the label of object1 and object2
             label_o1 = relation.object.names[0]
             label_o2 = relation.subject.names[0]
+            label_predicate = relation.predicate
 
-            # Check if it is a correct label
-            if label_o1 not in correct_labels or label_o2 not in correct_labels:
+            # Check if it is a correct object label
+            if label_o1 not in correct_object_labels or label_o2 not in correct_object_labels:
+                continue
+
+            # Check if it is a correct predicate label
+            if label_predicate not in correct_predicates_labels:
                 continue
 
             new_relation_mapping = RelationshipMapping(relation.id, relation.subject, relation.predicate,
@@ -145,7 +153,7 @@ def preprocessing_relations(img_data, hierarchy_mapping, relation_file_name='ful
         print("Finished img: {}".format(idx))
 
     # Save the objects files to the disk
-    objects_file = file(objects_path, 'wb')
+    objects_file = open(objects_path, 'wb')
     # Pickle objects_lst
     objects_array = np.array(objects_lst)
     cPickle.dump(objects_array, objects_file, protocol=cPickle.HIGHEST_PROTOCOL)
@@ -189,12 +197,9 @@ if __name__ == '__main__':
     if len(sys.argv) < 3:
         # Default GPU number
         gpu_num = 0
-        predict = False
     else:
         # Get the GPU number from the user
         gpu_num = sys.argv[1]
-        # Prediction for extracting the Confidence and the features for the object and subject
-        predict = sys.argv[2]
 
     # Load class config
     config = Config(gpu_num)
@@ -224,43 +229,48 @@ if __name__ == '__main__':
     net_weights_path = os.path.join(path, config.model_weights_name)
     print("The new Model Weights will be Saved: {}".format(net_weights_path))
 
-    classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
-                                                                 hierarchy_mapping_file_name="final_class_mapping.p",
-                                                                 entities_file_name="final_entities.p",
-                                                                 nof_labels=NOF_LABELS)
+    # classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
+    #                                                              hierarchy_mapping_file_name="final_class_mapping.p",
+    #                                                              entities_file_name="final_entities.p",
+    #                                                              nof_labels=NOF_LABELS)
+
+    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name="filtered_module_data.p")
+
     # Get Visual Genome Data relations
-    relations = preprocessing_relations(entities, hierarchy_mapping, relation_file_name="full_relations.p")
+    relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
+                                        relation_file_name="filtered_relations.p")
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="full_detections.p")
+    detections = process_to_detections(relations, detections_file_name="filtered_detections.p")
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
                                                             testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
                                                             path=path, config=config)
-    # Get the predicate hierarchy mapping and the number of the predicated classes
-    predicate_classes_count, predicate_hierarchy_mapping = get_predicate_hierarchy_mapping_from_detections(detections,
-                                                                                                           path,
-                                                                                                           config=config)
+
+    # # Get the predicate hierarchy mapping and the number of the predicated classes
+    # predicate_classes_count, predicate_hierarchy_mapping = get_predicate_hierarchy_mapping_from_detections(detections,
+    #                                                                                                        path,
+    #                                                                                                        config=config)
 
     # Create a data generator for VisualGenome
     data_gen_train_vg = visual_genome_data_generator(data=train_imgs,
-                                                     hierarchy_mapping=predicate_hierarchy_mapping,
+                                                     hierarchy_mapping=hierarchy_mapping_predicates,
                                                      config=config, mode='train',
                                                      classification=Detections.Predicate, type_box=Detections.UnionBox)
 
     # Create a data generator for VisualGenome
     data_gen_test_vg = visual_genome_data_generator(data=test_imgs,
-                                                    hierarchy_mapping=predicate_hierarchy_mapping,
+                                                    hierarchy_mapping=hierarchy_mapping_predicates,
                                                     config=config, mode='test', classification=Detections.Predicate,
                                                     type_box=Detections.UnionBox)
 
     # Create a data generator for VisualGenome
     data_gen_validation_vg = visual_genome_data_generator(data=val_imgs,
-                                                          hierarchy_mapping=predicate_hierarchy_mapping,
+                                                          hierarchy_mapping=hierarchy_mapping_predicates,
                                                           config=config, mode='valid',
                                                           classification=Detections.Predicate,
                                                           type_box=Detections.UnionBox)
     # Set the number of classes
-    number_of_classes = len(predicate_classes_count)
+    number_of_classes = len(hierarchy_mapping_predicates)
 
     if K.image_dim_ordering() == 'th':
         input_shape_img = (3, None, None)

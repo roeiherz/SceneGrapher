@@ -256,7 +256,7 @@ def get_sorted_data(classes_count_file_name="final_classes_count.p",
         if key in top_sorted_class_keys:
             hierarchy_mapping[key] = hierarchy_mapping_full[key]
 
-            # Save hierarchy_mapping file for only the top labels
+    # Save hierarchy_mapping file for only the top labels
     hierarchy_mapping_file = file(classes_mapping_path, 'wb')
     # Pickle hierarchy_mapping
     cPickle.dump(hierarchy_mapping, hierarchy_mapping_file, protocol=cPickle.HIGHEST_PROTOCOL)
@@ -519,3 +519,122 @@ def process_to_detections(relations, detections_file_name="detections.p", debug=
     # Close the file
     detections_file.close()
     return detections
+
+
+def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entities_file_name="final_entities.p",
+                           predicates_count_file_name="mini_predicates_count.p", nof_objects=150, nof_predicates=50):
+    """
+    This function filtered the entities data by top num of objects and top number of predicates 
+    :return: filtered_module_data which is a dict with entities, hierarchy mapping of objects and hierarchy mapping of 
+                predicates
+    """
+
+    objects_count_path = os.path.join(VisualGenome_PICKLES_PATH, objects_count_file_name)
+    predicates_count_path = os.path.join(VisualGenome_PICKLES_PATH, predicates_count_file_name)
+    entities_path = os.path.join(VisualGenome_PICKLES_PATH, entities_file_name)
+
+    objects_count = cPickle.load(file(objects_count_path, 'rb'))
+    predicate_count = cPickle.load(file(predicates_count_path, 'rb'))
+    entities = np.array(cPickle.load(file(entities_path, 'rb')))
+
+    # Sorting - Extracting the most popular predicates
+    sorted_predicates_count = sorted(predicate_count.items(), key=operator.itemgetter(1), reverse=True)
+    sorted_predicates = sorted_predicates_count[:nof_predicates]
+    predicates_to_be_used = dict(sorted_predicates)
+
+    # Sorting - Extracting the most popular objects
+    sorted_objects_count = sorted(objects_count.items(), key=operator.itemgetter(1), reverse=True)
+    sorted_objects = sorted_objects_count[:nof_objects]
+    objects_to_be_used = dict(sorted_objects)
+
+    # Counts index for relationship id
+    relation_ind = 0
+    object_ind = 0
+    total_object = 0
+    for entity in entities:
+        objects_filtered = []
+
+        for object in entity.objects:
+            total_object += 1
+            # Filter out object
+            if not object.names[0] in objects_to_be_used:
+                continue
+
+            objects_filtered.append(object)
+            object_ind += 1
+
+        # Rewrite objects
+        entity.objects = objects_filtered
+
+        relationship_filtered = []
+        for relation in entity.relationships:
+
+            # Filter out object
+            if not relation.subject.names[0] in objects_to_be_used:
+                continue
+            if not relation.object.names[0] in objects_to_be_used:
+                continue
+
+            # Filter out predicate
+            if not relation.predicate in predicates_to_be_used:
+                continue
+
+            # New filtered Id
+            relation.filtered_id = relation_ind
+            # Increment id
+            relation_ind += 1
+            relationship_filtered.append(relation)
+
+        # Rewrite relationships
+        entity.relationships = relationship_filtered
+
+    print("Number of filtered relations: {}".format(relation_ind))
+    print("Number of filtered objects: {}".format(object_ind))
+    print("Number of  objects: {}".format(total_object))
+
+    object_ids = {}
+    id = 0
+    for object in objects_to_be_used:
+        object_ids[object] = id
+        id += 1
+
+    predicate_ids = {}
+    id = 0
+    for predicate in predicates_to_be_used:
+        predicate_ids[predicate] = id
+        id += 1
+
+    # Create new filtered data
+    filtered_module_data = {"object_ids": object_ids, "predicate_ids": predicate_ids, "entities": entities,
+                            'entities_module': entities[:len(entities)/2],
+                            "entities_visual_module": entities[len(entities)/2:]}
+
+    # Save filtered_module_data file for only the top labels
+    filtered_module_data_file = open(os.path.join(VisualGenome_PICKLES_PATH, "filtered_module_data.p"), 'wb')
+    # Pickle hierarchy_mapping
+    cPickle.dump(filtered_module_data, filtered_module_data_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    filtered_module_data_file.close()
+    return filtered_module_data
+
+
+def get_filtered_data(filtered_data_file_name="filtered_module_data.p"):
+    """
+    This function loads a dict that was created by get_module_filter_data function.
+    The dict contains:
+    * filtered entities by the top 150 objects and top 50 predicates 
+    * hierarchy mapping of objects  
+    * hierarchy mapping of predicates
+    :param filtered_data_file_name: the file name of the filtered data  
+    :return: entities, hierarchy mapping of objects and hierarchy mapping of predicates
+    """
+
+    # The file path
+    filtered_module_data_file = open(os.path.join(VisualGenome_PICKLES_PATH, filtered_data_file_name), 'rb')
+    # The filtered
+    filtered_module_data = cPickle.load(filtered_module_data_file)
+
+    entities = filtered_module_data['entities_visual_module']
+    hierarchy_mapping_objects = filtered_module_data['object_ids']
+    hierarchy_mapping_predicates = filtered_module_data['predicate_ids']
+    return entities, hierarchy_mapping_objects, hierarchy_mapping_predicates
