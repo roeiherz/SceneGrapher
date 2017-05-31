@@ -273,13 +273,14 @@ class RelationshipMapping(object):
         rel_canon  Synset
     """
 
-    def __init__(self, id, subject, predicate, object, synset, url):
+    def __init__(self, id, subject, predicate, object, synset, url, filtered_id):
         self.id = id
         self.subject = subject
         self.predicate = predicate
         self.object = object
         self.synset = synset
         self.url = url
+        self.filtered_id = filtered_id
 
     def __str__(self):
         return "%d: %s %s %s" % (self.id, self.subject, self.predicate, self.object)

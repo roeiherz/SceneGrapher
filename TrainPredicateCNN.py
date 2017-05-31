@@ -145,7 +145,7 @@ def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mappi
                 continue
 
             new_relation_mapping = RelationshipMapping(relation.id, relation.subject, relation.predicate,
-                                                       relation.object, relation.synset, url)
+                                                       relation.object, relation.synset, url, relation.filtered_id)
             # Append the new objectMapping to objects_lst
             objects_lst.append(new_relation_mapping)
 
@@ -234,13 +234,16 @@ if __name__ == '__main__':
     #                                                              entities_file_name="final_entities.p",
     #                                                              nof_labels=NOF_LABELS)
 
-    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name="filtered_module_data.p")
+    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
+                                                                                          "filtered_module_data.p")
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
                                         relation_file_name="filtered_relations.p")
+
     # Process relations to numpy Detections dtype
     detections = process_to_detections(relations, detections_file_name="filtered_detections.p")
+
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
                                                             testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,

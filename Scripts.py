@@ -6,7 +6,7 @@ from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
 from TrainCNN import VisualGenome_PICKLES_PATH
 from keras_frcnn.Utils.Utils import create_folder, VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
     HIERARCHY_MAPPING, plot_graph
-from keras_frcnn.Utils.data import create_mini_data_visual_genome, get_module_filter_data
+from keras_frcnn.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data
 
 
 def check_loading_pickle_time():
@@ -174,8 +174,38 @@ def create_predicate_count(entities_file_read="", entities_file_save=""):
     return predict_count_dict
 
 
+def save_hierarchy_mapping():
+    """
+    This function save hierarchy mapping objects and hierarchy mapping predicates
+    :return: 
+    """
+
+    # Get the hierarchy mapping
+    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
+                                                                                          "filtered_module_data.p")
+    # Save hierarchy_mapping_per_objects file
+    hierarchy_mapping_file = open(os.path.join(
+        "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/VisualModule/Data/VisualGenome/hierarchy_mapping_objects.p"),
+                                  'wb')
+    # Pickle hierarchy_mapping_per_objects
+    cPickle.dump(hierarchy_mapping_objects, hierarchy_mapping_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    hierarchy_mapping_file.close()
+    # Save hierarchy_mapping_per_predicates file
+    hierarchy_mapping_file2 = open(os.path.join(
+        "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/VisualModule/Data/VisualGenome/hierarchy_mapping_predicates.p"),
+                                   'wb')
+    # Pickle hierarchy_mapping_per_objects
+    cPickle.dump(hierarchy_mapping_predicates, hierarchy_mapping_file2, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    hierarchy_mapping_file2.close()
+
+
 if __name__ == '__main__':
 
+    save_hierarchy_mapping()
+
+    exit()
     # Filter the data
     filtered_module_data = get_module_filter_data(objects_count_file_name="mini_classes_count.p",
                                                   entities_file_name="final_entities.p",

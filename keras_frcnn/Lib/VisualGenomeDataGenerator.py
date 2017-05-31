@@ -3,7 +3,7 @@ import numpy as np
 from keras_frcnn.Lib.DataAugmention import augment_visual_genome
 from keras_frcnn.Utils.Boxes import iou, BOX
 from keras_frcnn.Utils.Utils import convert_img_bgr_to_rgb, VG_DATA_PATH, get_mask_from_object, resize_image_zero_pad, \
-    get_img_resize
+    get_img_resize, PROJECT_ROOT
 import cv2
 import os
 from DesignPatterns.Detections import Detections
@@ -516,7 +516,7 @@ def get_img(url):
     """
     try:
         path_lst = url.split('/')
-        img_path = os.path.join(VG_DATA_PATH, path_lst[-2], path_lst[-1])
+        img_path = os.path.join(PROJECT_ROOT, VG_DATA_PATH, path_lst[-2], path_lst[-1])
 
         if not os.path.isfile(img_path):
             print("Error. Image path was not found")

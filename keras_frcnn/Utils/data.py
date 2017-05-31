@@ -458,7 +458,7 @@ def process_to_detections(relations, detections_file_name="detections.p", debug=
     id = 0
     for relation in relations:
         # Update Relation Id
-        detections[id][Detections.Id] = id
+        detections[id][Detections.Id] = relation.filtered_id
         # Update Subject Id
         detections[id][Detections.SubjectId] = relation.subject.id
         # Get the mask: a dict with {x1,x2,y1,y2}
