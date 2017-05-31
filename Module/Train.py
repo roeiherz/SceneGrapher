@@ -6,28 +6,34 @@ from data import *
 from gradcheck import gradcheck_naive
 
 
-def train():
+def train(word_embed_size=50, visual_embed_size=2048):
     """
     Basic function to train language module.
     TBD: improve
-    :return: trained langauge module
+    :return: trained language module
     """
 
     # get data
-    filtered_data, nof_predicates = prepare_data(1000)
-    training_data, test_data = filtered_data.split(0.98)
-    # embedded words module
-    embed = WordEmbd()
+    print "Prepare Data"
+    module_data = prepare_data()
+    training_data = module_data["train"]
+    test_data = module_data["test"]
 
-    # create LangModule
-    nof_objects = 150
-    visual_embed_size = 1
+    # embedded words module
+    print "Load Embed Word"
+    embed = WordEmbd(word_embed_size)
+
+    # create Module
+    print "Create Module"
+    nof_objects = len(module_data["object_ids"])
+    nof_predicates = len(module_data["predicate_ids"])
     module = Module(nof_objects, nof_predicates, embed.vector_dim, visual_embed_size)
 
     # get weights
     weights = module.get_params()
 
     # train
+    print "Train"
     sgd.sgd(lambda x: module_sgd_wrapper(x, training_data, module),
             weights,
             test_func=lambda x: module_sgd_test(x, test_data, module))
@@ -92,30 +98,30 @@ def get_random_data(data, batch_size=1000):
     return [R1, R2]
 
 
-def sanity_check():
+def sanity_check(word_embed_size=50, visual_embed_size=2048):
     """
     Set up fake data and parameters for the neural network, and test using
     gradcheck.
     """
     print "Running sanity check..."
 
+    # get data
+    module_data = prepare_data()
+    training_data = module_data["train"]
+    test_data = module_data["test"]
     # embedded words module
-    embed = WordEmbd()
-
-    # get data - TBD
-    data, nof_predicates = prepare_data(10)
-    data = get_random_data(data)
+    embed = WordEmbd(word_embed_size)
 
     # create LangModule
-    nof_objects = 150
-    visual_embed_size = 10
+    nof_objects = len(module_data["object_ids"])
+    nof_predicates = len(module_data["predicate_ids"])
     module = Module(nof_objects, nof_predicates, embed.vector_dim, visual_embed_size)
 
     # get weights
     params = module.get_params()
 
     gradcheck_naive(lambda x:
-                    module.get_gradient_and_loss(x, data[0], data[1]), params)
+                    module.get_gradient_and_loss(x, training_data[0], training_data[1]), params)
 
 
 if __name__ == "__main__":

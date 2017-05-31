@@ -17,7 +17,7 @@ class VisualModule(object):
         """
 
         # TBD
-
+        relation_ids = R1.relation_ids
         predicate_features = np.ones((len(R1.worda), self.visual_embed_size))
         subject_probabilities = np.ones((len(R1.worda), self.nof_objects))
         object_probabilities = np.ones((len(R1.worda), self.nof_objects))

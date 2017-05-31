@@ -15,12 +15,12 @@ class WordEmbd(object):
 
     # fields
     # GLOVE_FILE_NAME = 'LanguageModule/glove.6B.300d.txt'
-    GLOVE_FILE_NAME = 'glove.6B.50d.txt'
-    EMBED_PICKLE_FILE = 'glove50.p'
-    VOCAB_PICKLE_FILE = 'glove50_vocab.p'
-    WORD_INDEX_PICKLE_FILE = 'glove50_word_index.p'
+    GLOVE_FILE_NAME_50 = 'glove.6B.50d.txt'
+    GLOVE_FILE_NAME_300 = 'glove.6B.300d.txt'
+    EMBED_PICKLE_FILE_50 = 'glove50.p'
+    EMBED_PICKLE_FILE_300 = 'glove300.p'
 
-    def __init__(self):
+    def __init__(self, word_embed_size):
         ## init fields
 
         # number of words in vocabulary
@@ -33,7 +33,7 @@ class WordEmbd(object):
         self.word_index = None
 
         ## load Glove
-        self.loadWordEmbd()
+        self.loadWordEmbd(word_embed_size)
 
 
     def loadGlove(self, filename):
@@ -57,24 +57,25 @@ class WordEmbd(object):
         file.close()
         return vocab, embd, word_index
 
-    def loadWordEmbd(self):
+    def loadWordEmbd(self, word_embed_size):
         """
         Load / prepare Word embedding module
         :return:
         """
-        if os.path.isfile(WordEmbd.EMBED_PICKLE_FILE) and os.path.isfile(WordEmbd.VOCAB_PICKLE_FILE) and os.path.isfile(WordEmbd.WORD_INDEX_PICKLE_FILE):
+        if word_embed_size == 50:
+            glove_file_name = WordEmbd.GLOVE_FILE_NAME_50
+            embed_pickle_file = WordEmbd.EMBED_PICKLE_FILE_50
+        else:
+            glove_file_name = WordEmbd.GLOVE_FILE_NAME_300
+            embed_pickle_file = WordEmbd.EMBED_PICKLE_FILE_300
+
+        if os.path.isfile(embed_pickle_file):
             #if already saved to pickle files, load it
-            embed_file = file(WordEmbd.EMBED_PICKLE_FILE, "rb")
+            embed_file = file(embed_pickle_file, "rb")
             self.embed = cPickle.load(embed_file)
+            self.vocab = cPickle.load(embed_file)
+            self.word_index = cPickle.load(embed_file)
             embed_file.close()
-
-            vocab_file = file(WordEmbd.VOCAB_PICKLE_FILE, "rb")
-            self.vocab = cPickle.load(vocab_file)
-            vocab_file.close()
-
-            word_index_file = file(WordEmbd.WORD_INDEX_PICKLE_FILE, "rb")
-            self.word_index = cPickle.load(word_index_file)
-            word_index_file.close()
 
             self.vocab_size = self.embed.shape[0]
             self.vector_dim = self.embed.shape[1]
@@ -83,7 +84,7 @@ class WordEmbd(object):
             # if pickle files, does not exist - prepare module.
             # load data
             print "Load Data"
-            vocab, embd, word_index = self.loadGlove(WordEmbd.GLOVE_FILE_NAME)
+            vocab, embd, word_index = self.loadGlove(glove_file_name)
             self.vocab_size = len(vocab)
             self.vector_dim = len(embd[0])
 
@@ -94,19 +95,12 @@ class WordEmbd(object):
 
             #Save picke files
             print "Save Embed Words"
-            embed_file = open(WordEmbd.EMBED_PICKLE_FILE, "wb")
+            embed_file = open(embed_pickle_file, "wb")
             cPickle.dump(self.embed, embed_file, 0)
+            cPickle.dump(self.vocab, embed_file, 0)
+            cPickle.dump(self.word_index, embed_file, 0)
             embed_file.close()
 
-            print "Save Vocab"
-            vocab_file = open(WordEmbd.VOCAB_PICKLE_FILE, "wb")
-            cPickle.dump(self.vocab, vocab_file, 0)
-            vocab_file.close()
-
-            print "Save Word Index"
-            word_index_file = open(WordEmbd.WORD_INDEX_PICKLE_FILE, "wb")
-            cPickle.dump(self.word_index, word_index_file, 0)
-            word_index_file.close()
 
     def word2vec(self, word):
         """
@@ -132,15 +126,6 @@ class WordEmbd(object):
 
     def embed_vec_dim(self):
         return self.vector_dim
-
-    def cosine_distance(self, embed_word_a, embed_word_b):
-        """
-        Calc the cosine distance between to embedded words
-        :param embed_word_a:
-        :param embed_word_b:
-        :return:
-        """
-        raise NameError("TBD")
 
 if __name__ == "__main__":
     embed = WordEmbd()
