@@ -30,7 +30,7 @@ class VisualModule(object):
         self.predicates_model_weight_path = os.path.join(PREDICATES_TRAINING_PATH, predicates_training_dir_name, WEIGHTS_NAME)
 
         # Get argument
-        if len(sys.argv) < 3:
+        if len(sys.argv) < 2:
             # Default GPU number
             gpu_num = 0
         else:
