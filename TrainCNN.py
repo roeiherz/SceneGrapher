@@ -1,4 +1,5 @@
 import matplotlib as mpl
+
 mpl.use('Agg')
 from Data.VisualGenome.models import ObjectMapping
 from keras_frcnn.Lib.PascalVocDataGenerator import PascalVocDataGenerator
@@ -194,10 +195,10 @@ if __name__ == '__main__':
     #                                                              entities_file_name="final_entities.p",
     #                                                              nof_labels=NOF_LABELS)
 
-    entities, hierarchy_mapping_objects, _ = get_filtered_data(filtered_data_file_name="filtered_module_data.p")
+    entities, hierarchy_mapping_objects, _ = get_filtered_data(filtered_data_file_name="mini_filtered_module_data.p")
 
     # Get Visual Genome Data objects
-    objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="filtered_objects.p")
+    objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="mini_filtered_objects.p")
 
     # If there is too much data tak only part pf the data
     if len(objects) > MAX_NOF_SAMPLES_THR:
@@ -215,20 +216,23 @@ if __name__ == '__main__':
     number_of_classes = len(hierarchy_mapping_objects)
 
     # Create a data generator for VisualGenome
-    data_gen_train_vg = visual_genome_data_cnn_generator(data=train_imgs, hierarchy_mapping=hierarchy_mapping_objects,
-                                                         config=config, mode='train')
-    data_gen_test_vg = visual_genome_data_cnn_generator(data=test_imgs, hierarchy_mapping=hierarchy_mapping_objects,
-                                                        config=config, mode='test')
-    data_gen_validation_vg = visual_genome_data_cnn_generator(data=val_imgs, hierarchy_mapping=hierarchy_mapping_objects,
-                                                              config=config, mode='validation')
+    # data_gen_train_vg = visual_genome_data_cnn_generator(data=train_imgs, hierarchy_mapping=hierarchy_mapping_objects,
+    #                                                      config=config, mode='train')
+    # data_gen_test_vg = visual_genome_data_cnn_generator(data=test_imgs, hierarchy_mapping=hierarchy_mapping_objects,
+    #                                                     config=config, mode='test')
+    # data_gen_validation_vg = visual_genome_data_cnn_generator(data=val_imgs, hierarchy_mapping=hierarchy_mapping_objects,
+    #                                                           config=config, mode='validation')
 
     # todo: add batch-size
-    # data_gen_train_vg = visual_genome_data_cnn_generator_with_batch(data=train_imgs, hierarchy_mapping=hierarchy_mapping,
-    #                                                         config=config, mode='train')
-    # data_gen_test_vg = visual_genome_data_cnn_generator_with_batch(data=test_imgs, hierarchy_mapping=hierarchy_mapping,
-    #                                                        config=config, mode='test')
-    # data_gen_validation_vg = visual_genome_data_cnn_generator_with_batch(data=val_imgs, hierarchy_mapping=hierarchy_mapping,
-    #                                                              config=config, mode='validation')
+    data_gen_train_vg = visual_genome_data_cnn_generator_with_batch(data=train_imgs,
+                                                                    hierarchy_mapping=hierarchy_mapping_objects,
+                                                                    config=config, mode='train')
+    data_gen_test_vg = visual_genome_data_cnn_generator_with_batch(data=test_imgs,
+                                                                   hierarchy_mapping=hierarchy_mapping_objects,
+                                                                   config=config, mode='test')
+    data_gen_validation_vg = visual_genome_data_cnn_generator_with_batch(data=val_imgs,
+                                                                         hierarchy_mapping=hierarchy_mapping_objects,
+                                                                         config=config, mode='validation')
 
     if K.image_dim_ordering() == 'th':
         input_shape_img = (3, None, None)
@@ -284,12 +288,12 @@ if __name__ == '__main__':
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False)]
 
     print('Starting training')
-    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs), epochs=NUM_EPOCHS,
-                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs),
+    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs)/NUM_BATCHES, epochs=NUM_EPOCHS,
+                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs)/NUM_BATCHES,
                                   callbacks=callbacks, max_q_size=1, workers=1)
 
     # Validating the model
-    test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(val_imgs), max_q_size=1, workers=1)
+    test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(val_imgs)/NUM_BATCHES, max_q_size=1, workers=1)
     # Plot the Score
     print("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
 
