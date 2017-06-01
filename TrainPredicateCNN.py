@@ -6,7 +6,7 @@ from keras.optimizers import Adam
 from Data.VisualGenome.models import ObjectMapping, RelationshipMapping
 from DesignPatterns.Detections import Detections
 from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_generator, \
-    visual_genome_data_parallel_generator, get_img
+    visual_genome_data_parallel_generator, get_img, visual_genome_data_generator_with_batch
 from keras_frcnn.Lib.Zoo import ModelZoo
 from keras.applications.resnet50 import ResNet50
 import os
@@ -34,6 +34,7 @@ TRAINING_PERCENT = 0.75
 VALIDATION_PERCENT = 0.05
 TESTING_PERCENT = 0.2
 NUM_EPOCHS = 90
+NUM_BATCHES = 128
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -201,6 +202,9 @@ if __name__ == '__main__':
         # Get the GPU number from the user
         gpu_num = sys.argv[1]
 
+    # Printing which GPU you have selected
+    print("Selected GPU number: {0}".format(gpu_num))
+
     # Load class config
     config = Config(gpu_num)
 
@@ -234,44 +238,68 @@ if __name__ == '__main__':
     #                                                              entities_file_name="final_entities.p",
     #                                                              nof_labels=NOF_LABELS)
 
+    # Load filtered data
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
                                                                                           "filtered_module_data.p")
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                                        relation_file_name="filtered_relations.p")
+                                        relation_file_name="full_filtered_relations.p")
 
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="filtered_detections.p")
-
+    detections = process_to_detections(relations, detections_file_name="full_filtered_detections.p")
+    exit()
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
                                                             testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
                                                             path=path, config=config)
 
-    # # Get the predicate hierarchy mapping and the number of the predicated classes
+    # Get the predicate hierarchy mapping and the number of the predicated classes
     # predicate_classes_count, predicate_hierarchy_mapping = get_predicate_hierarchy_mapping_from_detections(detections,
     #                                                                                                        path,
     #                                                                                                        config=config)
 
-    # Create a data generator for VisualGenome
-    data_gen_train_vg = visual_genome_data_generator(data=train_imgs,
-                                                     hierarchy_mapping=hierarchy_mapping_predicates,
-                                                     config=config, mode='train',
-                                                     classification=Detections.Predicate, type_box=Detections.UnionBox)
+    # Create a data generator for VisualGenome without batch num
+    # data_gen_train_vg = visual_genome_data_generator(data=train_imgs,
+    #                                                  hierarchy_mapping=hierarchy_mapping_predicates,
+    #                                                  config=config, mode='train',
+    #                                                  classification=Detections.Predicate, type_box=Detections.UnionBox)
+    #
+    # # Create a data generator for VisualGenome
+    # data_gen_test_vg = visual_genome_data_generator(data=test_imgs,
+    #                                                 hierarchy_mapping=hierarchy_mapping_predicates,
+    #                                                 config=config, mode='test', classification=Detections.Predicate,
+    #                                                 type_box=Detections.UnionBox)
+    #
+    # # Create a data generator for VisualGenome
+    # data_gen_validation_vg = visual_genome_data_generator(data=val_imgs,
+    #                                                       hierarchy_mapping=hierarchy_mapping_predicates,
+    #                                                       config=config, mode='valid',
+    #                                                       classification=Detections.Predicate,
+    #                                                       type_box=Detections.UnionBox)
+
+    # Create a data generator for VisualGenome with batch size
+    data_gen_train_vg = visual_genome_data_generator_with_batch(data=train_imgs,
+                                                                hierarchy_mapping=hierarchy_mapping_predicates,
+                                                                config=config, mode='train',
+                                                                classification=Detections.Predicate,
+                                                                type_box=Detections.UnionBox, batch_size=NUM_BATCHES)
 
     # Create a data generator for VisualGenome
-    data_gen_test_vg = visual_genome_data_generator(data=test_imgs,
-                                                    hierarchy_mapping=hierarchy_mapping_predicates,
-                                                    config=config, mode='test', classification=Detections.Predicate,
-                                                    type_box=Detections.UnionBox)
+    data_gen_test_vg = visual_genome_data_generator_with_batch(data=test_imgs,
+                                                               hierarchy_mapping=hierarchy_mapping_predicates,
+                                                               config=config, mode='test',
+                                                               classification=Detections.Predicate,
+                                                               type_box=Detections.UnionBox, batch_size=NUM_BATCHES)
 
     # Create a data generator for VisualGenome
-    data_gen_validation_vg = visual_genome_data_generator(data=val_imgs,
-                                                          hierarchy_mapping=hierarchy_mapping_predicates,
-                                                          config=config, mode='valid',
-                                                          classification=Detections.Predicate,
-                                                          type_box=Detections.UnionBox)
+    data_gen_validation_vg = visual_genome_data_generator_with_batch(data=val_imgs,
+                                                                     hierarchy_mapping=hierarchy_mapping_predicates,
+                                                                     config=config, mode='valid',
+                                                                     classification=Detections.Predicate,
+                                                                     type_box=Detections.UnionBox,
+                                                                     batch_size=NUM_BATCHES)
+
     # Set the number of classes
     number_of_classes = len(hierarchy_mapping_predicates)
 
@@ -315,12 +343,12 @@ if __name__ == '__main__':
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False)]
 
     print('Starting training')
-    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs), epochs=NUM_EPOCHS,
-                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs),
+    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs)/NUM_BATCHES, epochs=NUM_EPOCHS,
+                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs)/NUM_BATCHES,
                                   callbacks=callbacks, max_q_size=1, workers=1)
 
     # Validating the model
-    test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(val_imgs), max_q_size=1, workers=1)
+    test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(val_imgs)/NUM_BATCHES, max_q_size=1, workers=1)
     # Plot the Score
     print("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
 

@@ -162,6 +162,9 @@ if __name__ == '__main__':
         # Get the GPU number from the user
         gpu_num = sys.argv[1]
 
+    # Printing which GPU you have selected
+    print("Selected GPU number: {0}".format(gpu_num))
+
     # Load class config
     config = Config(gpu_num)
 
@@ -195,10 +198,10 @@ if __name__ == '__main__':
     #                                                              entities_file_name="final_entities.p",
     #                                                              nof_labels=NOF_LABELS)
 
-    entities, hierarchy_mapping_objects, _ = get_filtered_data(filtered_data_file_name="mini_filtered_module_data.p")
+    entities, hierarchy_mapping_objects, _ = get_filtered_data(filtered_data_file_name="filtered_module_data.p")
 
     # Get Visual Genome Data objects
-    objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="mini_filtered_objects.p")
+    objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="filtered_objects.p")
 
     # If there is too much data tak only part pf the data
     if len(objects) > MAX_NOF_SAMPLES_THR:
@@ -226,13 +229,14 @@ if __name__ == '__main__':
     # todo: add batch-size
     data_gen_train_vg = visual_genome_data_cnn_generator_with_batch(data=train_imgs,
                                                                     hierarchy_mapping=hierarchy_mapping_objects,
-                                                                    config=config, mode='train')
+                                                                    config=config, mode='train', batch_size=NUM_BATCHES)
     data_gen_test_vg = visual_genome_data_cnn_generator_with_batch(data=test_imgs,
                                                                    hierarchy_mapping=hierarchy_mapping_objects,
-                                                                   config=config, mode='test')
+                                                                   config=config, mode='test', batch_size=NUM_BATCHES)
     data_gen_validation_vg = visual_genome_data_cnn_generator_with_batch(data=val_imgs,
                                                                          hierarchy_mapping=hierarchy_mapping_objects,
-                                                                         config=config, mode='validation')
+                                                                         config=config, mode='validation',
+                                                                         batch_size=NUM_BATCHES)
 
     if K.image_dim_ordering() == 'th':
         input_shape_img = (3, None, None)

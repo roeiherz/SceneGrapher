@@ -2,7 +2,7 @@ from __future__ import print_function
 from Data.VisualGenome.models import ObjectMapping, RelationshipMapping
 from DesignPatterns.Detections import Detections
 from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_generator, \
-    visual_genome_data_parallel_generator, get_img
+    visual_genome_data_parallel_generator, get_img, visual_genome_data_parallel_generator_with_batch
 from keras_frcnn.Lib.Zoo import ModelZoo
 from keras.applications.resnet50 import ResNet50
 import os
@@ -29,7 +29,8 @@ NOF_LABELS = 150
 TRAINING_PERCENT = 0.75
 VALIDATION_PERCENT = 0.05
 TESTING_PERCENT = 0.2
-NUM_EPOCHS = 128
+NUM_EPOCHS = 1
+NUM_BATCHES = 128
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -213,7 +214,7 @@ def load_full_detections(detections_file_name):
 
 
 def get_model(number_of_classes, weight_path, config):
-        """
+    """
         This function loads the model
         :param weight_path: model weights path
         :param number_of_classes: number of classes
@@ -221,40 +222,40 @@ def get_model(number_of_classes, weight_path, config):
         :return: model
         """
 
-        if K.image_dim_ordering() == 'th':
-            input_shape_img = (3, None, None)
-        else:
-            input_shape_img = (config.crop_height, config.crop_width, 3)
+    if K.image_dim_ordering() == 'th':
+        input_shape_img = (3, None, None)
+    else:
+        input_shape_img = (config.crop_height, config.crop_width, 3)
 
-        img_input = Input(shape=input_shape_img, name="image_input")
+    img_input = Input(shape=input_shape_img, name="image_input")
 
-        # Define ResNet50 model Without Top
-        net = ModelZoo()
-        model_resnet50 = net.resnet50_base(img_input, trainable=True)
-        model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
-        output_resnet50 = Dense(number_of_classes, kernel_initializer="he_normal", activation='softmax', name='fc')(
-            model_resnet50)
+    # Define ResNet50 model Without Top
+    net = ModelZoo()
+    model_resnet50 = net.resnet50_base(img_input, trainable=True)
+    model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
+    output_resnet50 = Dense(number_of_classes, kernel_initializer="he_normal", activation='softmax', name='fc')(
+        model_resnet50)
 
-        # Define the model
-        model = Model(inputs=img_input, outputs=output_resnet50, name='resnet50')
-        # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
-        model.summary()
+    # Define the model
+    model = Model(inputs=img_input, outputs=output_resnet50, name='resnet50')
+    # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
+    model.summary()
 
-        # Load pre-trained weights for ResNet50
-        try:
-            print("Start loading Weights")
-            model.load_weights(weight_path, by_name=True)
-            print('Finished successfully loading weights from {}'.format(weight_path))
+    # Load pre-trained weights for ResNet50
+    try:
+        print("Start loading Weights")
+        model.load_weights(weight_path, by_name=True)
+        print('Finished successfully loading weights from {}'.format(weight_path))
 
-        except Exception as e:
-            print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
-                'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
-                'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
-            ))
-            raise Exception(e)
+    except Exception as e:
+        print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
+            'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
+            'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
+        ))
+        raise Exception(e)
 
-        print('Finished successfully loading Model')
-        return model
+    print('Finished successfully loading Model')
+    return model
 
 
 if __name__ == '__main__':
@@ -301,6 +302,9 @@ if __name__ == '__main__':
 
     # Load detections dtype numpy array
     detections = load_full_detections(detections_file_name="mini_filtered_detections.p")
+
+    detections = detections[:380]
+
     # Load hierarchy mappings
     # Get the hierarchy mapping objects
     hierarchy_mapping_objects = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH,
@@ -323,19 +327,16 @@ if __name__ == '__main__':
     number_of_classes_predicates = len(hierarchy_mapping_predicates)
 
     # # Create a data generator for VisualGenome
-    # data_gen_training_vg = visual_genome_data_parallel_generator(data=train_imgs,
-    #                                                              hierarchy_mapping=new_hierarchy_mapping,
-    #                                                              config=config, mode='train')
-    #
-    # # Create a data generator for VisualGenome
-    # data_gen_testing_vg = visual_genome_data_parallel_generator(data=test_imgs,
-    #                                                             hierarchy_mapping=new_hierarchy_mapping,
-    #                                                             config=config, mode='test')
+    # data_gen_validation_vg = visual_genome_data_parallel_generator(data=detections,
+    #                                                                hierarchy_mapping=hierarchy_mapping_objects,
+    #                                                                config=config, mode='valid')
 
     # Create a data generator for VisualGenome
-    data_gen_validation_vg = visual_genome_data_parallel_generator(data=detections,
-                                                                   hierarchy_mapping=hierarchy_mapping_objects,
-                                                                   config=config, mode='valid')
+    data_gen_validation_vg = visual_genome_data_parallel_generator_with_batch(data=detections,
+                                                                              hierarchy_mapping=hierarchy_mapping_objects,
+                                                                              config=config, mode='valid',
+                                                                              batch_size=NUM_BATCHES)
+
     # Get the object and predicate model
     object_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path, config=config)
     predict_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config)
@@ -374,11 +375,22 @@ if __name__ == '__main__':
     #     raise Exception(e)
 
     print('Starting Prediction')
-    probes = object_model.predict_generator(data_gen_validation_vg, steps=len(detections) * 2, max_q_size=1, workers=1)
+
+    # The number of batches per epoch depends if size % batch_size == 0
+    if len(detections) % NUM_BATCHES == 0:
+        num_of_batches_per_epoch = len(detections) / NUM_BATCHES
+    else:
+        num_of_batches_per_epoch = len(detections) / NUM_BATCHES + 1
+
+    # probes = object_model.predict_generator(data_gen_validation_vg, steps=len(detections) * 2, max_q_size=1, workers=1)
+    probes = object_model.predict_generator(data_gen_validation_vg, steps=len(detections) / NUM_BATCHES, max_q_size=1,
+                                            workers=1)
     # Slice the Subject prob (even index)
-    detections[Detections.SubjectConfidence] = probes[::2]
+    # detections[Detections.SubjectConfidence] = probes[::2]
+    detections[Detections.SubjectConfidence] = np.split(probes[::2], len(detections), axis=0)
     # Slice the Object prob (odd index)
-    detections[Detections.ObjectConfidence] = probes[1::2]
+    # detections[Detections.ObjectConfidence] = probes[1::2]
+    detections[Detections.ObjectConfidence] = np.split(probes[1::2], len(detections), axis=0)
     # Get the max probes for each sample
     probes_per_sample = np.max(probes, axis=1)
     # Get the max argument
@@ -462,4 +474,4 @@ if __name__ == '__main__':
     #         # cv2.imwrite("img {}.jpg".format(i), img)
     #     cv2.imwrite("img {}.jpg".format(ind), img)
     #     print('debug')
-        # model.predict_on_batch()
+    # model.predict_on_batch()
