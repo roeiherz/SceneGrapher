@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 from keras_frcnn.Utils.Boxes import find_union_box, BOX
 from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
-    get_img_resize
+    get_img_resize, TRAINING_OBJECTS_CNN_PATH, TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 import cv2
@@ -196,18 +196,82 @@ def get_resize_images_array(detections):
     return np.array(resized_img_lst)
 
 
+def load_full_detections(detections_file_name):
+    """
+    This function gets the whole filtered detections data (with no split between the  modules)
+    :return: detections
+    """
+    # Check if pickles are already created
+    detections_path = os.path.join(VG_VisualModule_PICKLES_PATH, detections_file_name)
+
+    if os.path.isfile(detections_path):
+        print('Detections numpy array is Loading from: {0}'.format(detections_path))
+        detections = cPickle.load(open(detections_path, 'rb'))
+        return detections
+
+    return None
+
+
+def get_model(number_of_classes, weight_path, config):
+        """
+        This function loads the model
+        :param weight_path: model weights path
+        :param number_of_classes: number of classes
+        :param config: config file
+        :return: model
+        """
+
+        if K.image_dim_ordering() == 'th':
+            input_shape_img = (3, None, None)
+        else:
+            input_shape_img = (config.crop_height, config.crop_width, 3)
+
+        img_input = Input(shape=input_shape_img, name="image_input")
+
+        # Define ResNet50 model Without Top
+        net = ModelZoo()
+        model_resnet50 = net.resnet50_base(img_input, trainable=True)
+        model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
+        output_resnet50 = Dense(number_of_classes, kernel_initializer="he_normal", activation='softmax', name='fc')(
+            model_resnet50)
+
+        # Define the model
+        model = Model(inputs=img_input, outputs=output_resnet50, name='resnet50')
+        # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
+        model.summary()
+
+        # Load pre-trained weights for ResNet50
+        try:
+            print("Start loading Weights")
+            model.load_weights(weight_path, by_name=True)
+            print('Finished successfully loading weights from {}'.format(weight_path))
+
+        except Exception as e:
+            print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
+                'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
+                'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
+            ))
+            raise Exception(e)
+
+        print('Finished successfully loading Model')
+        return model
+
+
 if __name__ == '__main__':
 
     # Get argument
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 4:
         # Default GPU number
         gpu_num = 0
-        predict = False
+        objects_training_dir_name = ""
+        predicates_training_dir_name = ""
     else:
         # Get the GPU number from the user
         gpu_num = sys.argv[1]
-        # Prediction for extracting the Confidence and the features for the object and subject
-        predict = sys.argv[2]
+        objects_training_dir_name = sys.argv[2]
+        print("Object training folder parameter is: {}".format(objects_training_dir_name))
+        predicates_training_dir_name = sys.argv[3]
+        print("Predicate training folder parameter is: {}".format(predicates_training_dir_name))
 
     # Load class config
     config = Config(gpu_num)
@@ -215,28 +279,48 @@ if __name__ == '__main__':
     # Define GPU training
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)
 
-    classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
-                                                                 hierarchy_mapping_file_name="final_class_mapping.p",
-                                                                 entities_file_name="entities_example.p",
-                                                                 nof_labels=NOF_LABELS)
+    # classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
+    #                                                              hierarchy_mapping_file_name="final_class_mapping.p",
+    #                                                              entities_file_name="entities_example.p",
+    #                                                              nof_labels=NOF_LABELS)
+    #
+    # # Get Visual Genome Data relations
+    # relations = preprocessing_relations(entities, hierarchy_mapping, relation_file_name="relations.p")
+    # # Process relations to numpy Detections dtype
+    # detections = process_to_detections(relations, detections_file_name="detections.p")
+    # # Split the data to train, test and validate
+    # train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
+    #                                                         testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
+    #                                                         path=VG_VisualModule_PICKLES_PATH)
 
-    # Get Visual Genome Data relations
-    relations = preprocessing_relations(entities, hierarchy_mapping, relation_file_name="relations.p")
-    # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="detections.p")
-    # Split the data to train, test and validate
-    train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
-                                                            testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
-                                                            path=VG_VisualModule_PICKLES_PATH)
+    # # todo: delete my data is only detections. should be change
+    # detections = detections[:10]
+    #
+    # # Set new Hierarchy Mapping
+    # new_hierarchy_mapping = generate_new_hierarchy_mapping(hierarchy_mapping)
 
-    # todo: delete my data is only detections. should be change
-    detections = detections[:10]
+    # Load detections dtype numpy array
+    detections = load_full_detections(detections_file_name="mini_filtered_detections.p")
+    # Load hierarchy mappings
+    # Get the hierarchy mapping objects
+    hierarchy_mapping_objects = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH,
+                                                               "hierarchy_mapping_objects.p")))
+    # Get the hierarchy mapping predicates
+    hierarchy_mapping_predicates = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH,
+                                                                  "hierarchy_mapping_predicates.p")))
 
-    # Set new Hierarchy Mapping
-    new_hierarchy_mapping = generate_new_hierarchy_mapping(hierarchy_mapping)
+    # Check the training folders from which we take the weights aren't empty
+    if not objects_training_dir_name or not predicates_training_dir_name:
+        print("Error: No object training folder or predicate training folder has been given")
+        exit()
+
+    # Load the weight paths
+    objects_model_weight_path = os.path.join(TRAINING_OBJECTS_CNN_PATH, objects_training_dir_name, WEIGHTS_NAME)
+    predicates_model_weight_path = os.path.join(TRAINING_PREDICATE_CNN_PATH, predicates_training_dir_name, WEIGHTS_NAME)
 
     # Set the number of classes
-    number_of_classes = len(classes_count)
+    number_of_classes_objects = len(hierarchy_mapping_objects)
+    number_of_classes_predicates = len(hierarchy_mapping_predicates)
 
     # # Create a data generator for VisualGenome
     # data_gen_training_vg = visual_genome_data_parallel_generator(data=train_imgs,
@@ -248,59 +332,60 @@ if __name__ == '__main__':
     #                                                             hierarchy_mapping=new_hierarchy_mapping,
     #                                                             config=config, mode='test')
 
-    # todo: change data to val_imgs
     # Create a data generator for VisualGenome
     data_gen_validation_vg = visual_genome_data_parallel_generator(data=detections,
-                                                                   hierarchy_mapping=new_hierarchy_mapping,
+                                                                   hierarchy_mapping=hierarchy_mapping_objects,
                                                                    config=config, mode='valid')
+    # Get the object and predicate model
+    object_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path, config=config)
+    predict_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config)
+
     # Make prediction
-
-    if K.image_dim_ordering() == 'th':
-        input_shape_img = (3, None, None)
-    else:
-        input_shape_img = (config.crop_height, config.crop_width, 3)
-
-    img_input = Input(shape=input_shape_img, name="image_input")
-
-    # Define ResNet50 model Without Top
-    net = ModelZoo()
-    model_resnet50 = net.resnet50_base(img_input, trainable=True)
-    model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
-    output_resnet50 = Dense(number_of_classes, kernel_initializer="he_normal", activation='softmax', name='fc')(
-        model_resnet50)
-
-    # Define the model
-    model = Model(inputs=img_input, outputs=output_resnet50, name='resnet50')
-    # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
-    model.summary()
-
-    # Load pre-trained weights for ResNet50
-    try:
-        if config.load_weights:
-            print('loading weights from {}'.format(config.base_net_weights))
-            model.load_weights(config.base_net_weights, by_name=True)
-    except Exception as e:
-        print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
-            'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
-            'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
-        ))
-        raise Exception(e)
+    # if K.image_dim_ordering() == 'th':
+    #     input_shape_img = (3, None, None)
+    # else:
+    #     input_shape_img = (config.crop_height, config.crop_width, 3)
+    #
+    # img_input = Input(shape=input_shape_img, name="image_input")
+    #
+    # # Define ResNet50 model Without Top
+    # net = ModelZoo()
+    # model_resnet50 = net.resnet50_base(img_input, trainable=True)
+    # model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
+    # output_resnet50 = Dense(number_of_classes, kernel_initializer="he_normal", activation='softmax', name='fc')(
+    #     model_resnet50)
+    #
+    # # Define the model
+    # model = Model(inputs=img_input, outputs=output_resnet50, name='resnet50')
+    # # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
+    # model.summary()
+    #
+    # # Load pre-trained weights for ResNet50
+    # try:
+    #     if config.load_weights:
+    #         print("Start loading Weights")
+    #         model.load_weights(config.base_net_weights, by_name=True)
+    #         print('Finished successfully loading weights from {}'.format(weight_path))
+    # except Exception as e:
+    #     print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
+    #         'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
+    #         'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
+    #     ))
+    #     raise Exception(e)
 
     print('Starting Prediction')
-
-    # todo: change the steps to len(val_imgs)
-    probes = model.predict_generator(data_gen_validation_vg, steps=len(detections) * 2, max_q_size=1, workers=1)
+    probes = object_model.predict_generator(data_gen_validation_vg, steps=len(detections) * 2, max_q_size=1, workers=1)
+    # Slice the Subject prob (even index)
+    detections[Detections.SubjectConfidence] = probes[::2]
+    # Slice the Object prob (odd index)
+    detections[Detections.ObjectConfidence] = probes[1::2]
     # Get the max probes for each sample
     probes_per_sample = np.max(probes, axis=1)
-    # Slice the Subject prob (even index)
-    detections[Detections.SubjectConfidence] = probes_per_sample[::2]
-    # Slice the Object prob (odd index)
-    detections[Detections.ObjectConfidence] = probes_per_sample[1::2]
     # Get the max argument
-    index_labels_per_sample = np.argmax(probes, axis=1)
+    index_labels_per_sample = np.argmax(probes_per_sample, axis=1)
 
     # Get the inverse-mapping: int id to str label
-    index_to_label_mapping = {label: id for id, label in new_hierarchy_mapping.iteritems()}
+    index_to_label_mapping = {label: id for id, label in objects_model_weight_path.iteritems()}
     labels_per_sample = np.array([index_to_label_mapping[label] for label in index_labels_per_sample])
 
     # Slice the predicated Subject id (even index)
@@ -309,25 +394,32 @@ if __name__ == '__main__':
     detections[Detections.PredictObjectClassifications] = labels_per_sample[1::2]
 
     # Get the Union-Box Features
-    # union_box_data = detections[Detections.UnionBox]
-    # flatten_boxes = np.concatenate(union_box_data)
-    # union_box_ndarray = flatten_boxes.reshape((len(union_box_data), 4))
-
     resized_img_mat = get_resize_images_array(detections)
-    get_features_output = K.function([model.layers[0].input], [model.layers[-2].output])
+    get_features_output = K.function([predict_model.layers[0].input], [predict_model.layers[-2].output])
     features_model = get_features_output([resized_img_mat])[0]
+    detections[Detections.UnionFeature] = features_model
+
+    print("Finished to predict probabilities and union features")
+    print("Saving predicated_detections")
+    # Save detections
+    detections_filename = open(os.path.join(VG_VisualModule_PICKLES_PATH, "predicated_detections.p"), 'wb')
+    # Pickle detections
+    cPickle.dump(detections, detections_filename, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    detections_filename.close()
+    print("Finished successfully saving predicated_detections")
 
     # resized_img = np.expand_dims(resized_img, axis=0)
     # Get back the ResNet50 base part of a ResNet50 network trained on MS-COCO
-    output_model = ResNet50(weights=None, include_top=False)
-    output_model.load_weights(weights_path)
-    features_model = output_model.predict(resized_img_mat)
+    # output_model = ResNet50(weights=None, include_top=False)
+    # output_model.load_weights(weights_path)
+    # features_model = output_model.predict(resized_img_mat)
 
-    print('debug')
+    # print('debug')
 
     # resized_img = np.expand_dims(resized_img, axis=0)
-    get_features_output = K.function([model.layers[0].input], [model.layers[-2].output])
-    features_model = get_features_output([resized_img_mat])[0]
+    # get_features_output = K.function([model.layers[0].input], [model.layers[-2].output])
+    # features_model = get_features_output([resized_img_mat])[0]
 
     # tmp = model.layers[:]
     # model.layers = model.layers[-2]
@@ -342,32 +434,32 @@ if __name__ == '__main__':
     # layer_output = f([x])[0]
 
     # Debug
-    if config.debug:
-        ind = 0
-        img_url = detections[0][Detections.Url]
-        img = get_img(img_url)
-        for i in range(len(detections)):
-            new_img_url = detections[i][Detections.Url]
-
-            # img = get_img(new_img_url)
-            if not img_url == new_img_url:
-                cv2.imwrite("img {}.jpg".format(i), img)
-                img = get_img(new_img_url)
-                ind += 1
-
-            draw_subject_box = detections[i][Detections.SubjectBox]
-            draw_object_box = detections[i][Detections.ObjectBox]
-            VisualizerDrawer.draw_labeled_box(img, draw_subject_box,
-                                              label=detections[i][Detections.SubjectClassifications] + "/" +
-                                                    labels_per_sample[i],
-                                              rect_color=CvColor.GREEN,
-                                              scale=2000)
-            VisualizerDrawer.draw_labeled_box(img, draw_object_box,
-                                              label=detections[i][Detections.ObjectClassifications] + "/" +
-                                                    labels_per_sample[i],
-                                              rect_color=CvColor.RED,
-                                              scale=2000)
-            # cv2.imwrite("img {}.jpg".format(i), img)
-        cv2.imwrite("img {}.jpg".format(ind), img)
-        print('debug')
+    # if config.debug:
+    #     ind = 0
+    #     img_url = detections[0][Detections.Url]
+    #     img = get_img(img_url)
+    #     for i in range(len(detections)):
+    #         new_img_url = detections[i][Detections.Url]
+    #
+    #         # img = get_img(new_img_url)
+    #         if not img_url == new_img_url:
+    #             cv2.imwrite("img {}.jpg".format(i), img)
+    #             img = get_img(new_img_url)
+    #             ind += 1
+    #
+    #         draw_subject_box = detections[i][Detections.SubjectBox]
+    #         draw_object_box = detections[i][Detections.ObjectBox]
+    #         VisualizerDrawer.draw_labeled_box(img, draw_subject_box,
+    #                                           label=detections[i][Detections.SubjectClassifications] + "/" +
+    #                                                 labels_per_sample[i],
+    #                                           rect_color=CvColor.GREEN,
+    #                                           scale=2000)
+    #         VisualizerDrawer.draw_labeled_box(img, draw_object_box,
+    #                                           label=detections[i][Detections.ObjectClassifications] + "/" +
+    #                                                 labels_per_sample[i],
+    #                                           rect_color=CvColor.RED,
+    #                                           scale=2000)
+    #         # cv2.imwrite("img {}.jpg".format(i), img)
+    #     cv2.imwrite("img {}.jpg".format(ind), img)
+    #     print('debug')
         # model.predict_on_batch()
