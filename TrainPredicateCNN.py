@@ -195,7 +195,7 @@ def get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path):
 if __name__ == '__main__':
 
     # Get argument
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 2:
         # Default GPU number
         gpu_num = 0
     else:
@@ -244,11 +244,10 @@ if __name__ == '__main__':
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                                        relation_file_name="full_filtered_relations.p")
+                                        relation_file_name="mini_filtered_relations.p")
 
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="full_filtered_detections.p")
-    exit()
+    detections = process_to_detections(relations, detections_file_name="mini_filtered_detections.p")
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
                                                             testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,

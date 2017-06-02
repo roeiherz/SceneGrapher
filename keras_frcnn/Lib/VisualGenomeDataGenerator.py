@@ -7,6 +7,7 @@ from keras_frcnn.Utils.Utils import convert_img_bgr_to_rgb, VG_DATA_PATH, get_ma
 import cv2
 import os
 from DesignPatterns.Detections import Detections
+import traceback
 
 __author__ = 'roeih'
 
@@ -30,17 +31,22 @@ def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, co
     else:
         num_of_batches_per_epoch = size / batch_size + 1
 
-    dd = 0
-
+    # Flag for final step
+    flag=True
     while True:
-        imgs = []
-        labels = []
 
         # Batch number
         for batch_num in range(num_of_batches_per_epoch):
             try:
+
                 imgs = []
                 labels = []
+
+                # Check The last step and make sure we are not doing additional step
+                # if not flag:
+                #     yield [np.copy(imgs)], [np.copy(labels)]
+
+                print("Prediction Batch Number is {0}/{1}".format(batch_num + 1, num_of_batches_per_epoch))
 
                 # Define number of samples per batch
                 if batch_size * (batch_num + 1) >= size:
@@ -60,6 +66,9 @@ def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, co
 
                     # detection per index
                     detection = data[ind]
+
+                    # if detection[Detections.Id] == 641647:
+                    #     print('debug')
 
                     img = get_img(detection[Detections.Url])
 
@@ -132,16 +141,20 @@ def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, co
                 if len(imgs) == 0 or len(labels) == 0:
                     continue
 
-                dd += 1
-                print("dd: {}".format(dd))
-
                 # Finished one batch
                 yield np.concatenate(imgs, axis=0), np.concatenate(labels, axis=0)
 
             except Exception as e:
-                print("Exception for image {0} in current batch: {1} and number of samples in batch: {2}".format(
-                    detection[Detections.Url], batch_num, current_index))
+                print("Exception for detection_id: {0}, image: {1}, current batch: {2}".format(detection[Detections.Id],
+                                                                                               detection[Detections.Url],
+                                                                                               batch_num))
                 print(str(e))
+                # traceback.print_exc()
+                # continue
+
+        # Check if it is the last batch
+        # if batch_num + 1 == num_of_batches_per_epoch:
+        #     flag = False
 
 
 def visual_genome_data_parallel_generator(data, hierarchy_mapping, config, mode):
@@ -154,12 +167,15 @@ def visual_genome_data_parallel_generator(data, hierarchy_mapping, config, mode)
     """
 
     correct_labels = hierarchy_mapping.keys()
-
-    dd = 0
+    # For printing
+    ind = 1
+    size = len(data)
 
     while True:
         for detection in data:
             try:
+                print("Prediction Sample is {0}/{1}".format(ind, size))
+
                 img = get_img(detection[Detections.Url])
 
                 if img is None:
@@ -224,11 +240,9 @@ def visual_genome_data_parallel_generator(data, hierarchy_mapping, config, mode)
                     resized_img = np.expand_dims(resized_img, axis=0)
                     y_labels = np.expand_dims(y_labels, axis=0)
 
-                    dd += 1
-                    print("dd: {}".format(dd))
-
                     yield [np.copy(resized_img)], [np.copy(y_labels)]
 
+                ind += 1
             except Exception as e:
                 print("Exception for image {0}".format(detection.url))
                 print(str(e))

@@ -14,7 +14,8 @@ class VisualModule(object):
 
     def __init__(self):
         # Get the whole detections
-        self.full_detections = self.get_detections(detections_file_name="full_filtered_detections.p")
+        # self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections.p")
+        self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections_probes.p")
 
     def extract_features(self, relation_ids):
         """
@@ -24,7 +25,8 @@ class VisualModule(object):
         """
 
         # Sorted detections by their relation_ids
-        detections = self.full_detections[relation_ids]
+        indx = np.where(np.in1d(list(detections[Detections.Id]), relation_ids) == True)
+        detections = self.full_detections[indx]
 
         # Check if loading detections succeed
         if detections is None:
@@ -64,7 +66,7 @@ class VisualModule(object):
 
         return likelihoods
 
-    def get_detections(self, detections_file_name="full_filtered_detections.p"):
+    def get_detections(self, detections_file_name="predicated_mini_detections.p"):
         """
         This function gets the whole filtered detections data (with no split between the  modules)
         :return: detections

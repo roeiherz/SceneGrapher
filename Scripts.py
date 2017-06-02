@@ -1,4 +1,4 @@
-import timeit
+import time
 import cPickle
 import os
 import numpy as np
@@ -7,14 +7,18 @@ from TrainCNN import VisualGenome_PICKLES_PATH
 from keras_frcnn.Utils.Utils import create_folder, VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
     HIERARCHY_MAPPING, plot_graph
 from keras_frcnn.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data
+from PredictVisualModel import get_resize_images_array, load_full_detections
+from keras_frcnn.Utils.Utils import VG_VisualModule_PICKLES_PATH
+from keras_frcnn.Lib.Config import Config
+from DesignPatterns.Detections import Detections
 
 
 def check_loading_pickle_time():
-    start = timeit.timeit()
+    start = time.time()
     print("hello")
     f = cPickle.load(file("keras_frcnn/Data/VisualGenome/final_entities.p", 'rb'))
 
-    end = timeit.timeit()
+    end = time.time()
     print(end - start)
 
 
@@ -201,18 +205,61 @@ def save_hierarchy_mapping():
     hierarchy_mapping_file2.close()
 
 
+def save_union_detections(path="mini_resize_union_detections.p"):
+    """
+    This function save the union detections
+    """
+    config = Config(1)
+
+    detections = load_full_detections(detections_file_name="mini_filtered_detections.p")
+
+    detections = detections[:500]
+
+    print("Saving union predicated_detections")
+    resized_img_mat = get_resize_images_array(detections, config)
+    print("Saving predicated_detections")
+    # Save detections
+    detections_filename = open(os.path.join(VG_VisualModule_PICKLES_PATH, path), 'wb')
+    # Pickle detections
+    cPickle.dump(resized_img_mat, detections_filename, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    detections_filename.close()
+    print("Finished successfully saving predicated_detections")
+
+
+def delete_ind_from_detections():
+    """
+    This function removes detections with specific indices
+    """
+    detections = load_full_detections(detections_file_name="mini_filtered_detections.p")
+
+    idx = np.where((detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2321818.jpg") |
+               (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2334844.jpg"))
+    new_detections = np.delete(detections, idx)
+
+    # Save detections
+    detections_path = os.path.join(VG_VisualModule_PICKLES_PATH, "mini_fixed_filtered_detections.p")
+    detections_filename = open(detections_path, 'wb')
+    # Pickle detections
+    cPickle.dump(new_detections, detections_filename, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    detections_filename.close()
+
 if __name__ == '__main__':
+
+
+    save_union_detections()
+    exit()
+
+    delete_ind_from_detections()
 
     save_hierarchy_mapping()
 
-    exit()
     # Filter the data
     filtered_module_data = get_module_filter_data(objects_count_file_name="mini_classes_count.p",
                                                   entities_file_name="final_entities.p",
                                                   predicates_count_file_name="mini_predicates_count.p", nof_objects=150,
                                                   nof_predicates=50)
-    exit()
-
     # Create mini predicate count
     predict_count_dict = create_predicate_count(entities_file_read="mini_final_entities.p",
                                                 entities_file_save="mini_predicates_count.p")
