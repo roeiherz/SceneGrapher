@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.core.umath_tests import inner1d
+from Utils.Utils import softmax
 
 
 class VisualModule(object):
@@ -21,10 +22,10 @@ class VisualModule(object):
         # todo: Herzig
         # TBD
         # [1000, 2048]
-        predicate_features = np.ones((len(R1.worda), self.visual_embed_size))
+        predicate_features = np.ones((len(relation_ids), self.visual_embed_size))
         # [1000, 150]
-        subject_probabilities = np.ones((len(R1.worda), self.nof_objects))
-        object_probabilities = np.ones((len(R1.worda), self.nof_objects))
+        subject_probabilities = np.ones((len(relation_ids), self.nof_objects))
+        object_probabilities = np.ones((len(relation_ids), self.nof_objects))
 
         return predicate_features, subject_probabilities, object_probabilities
 
@@ -49,3 +50,16 @@ class VisualModule(object):
         likelihoods = subject_likelihoods * predicate_likelihoods * object_likelihoods
 
         return likelihoods
+
+    def predicate_predict(self, predicate_features, z, s):
+        """
+        predict a probability per predicate given visual module params
+        :param predicate_features: visual features extracted
+        :param z: visual module params
+        :param s: visual params
+        :return: probability per predicate
+        """
+        predicate_likelihoods = np.dot(z, predicate_features.T).T + s.flatten().T
+        predicate_probability = softmax(predicate_likelihoods)
+
+        return predicate_probability

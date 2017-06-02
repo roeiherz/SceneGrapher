@@ -11,12 +11,25 @@ class LangModule(object):
     Language module for scene grapher
     """
 
-    def __init__(self):
+    def __init__(self, object_ids, predicate_ids):
         """
         Initialize language module of scene grapher
         """
+        # save input params
+        self.object_ids = object_ids
+        self.inverse_object_ids = {object_ids[object] : object for object in object_ids}
+        self.predicate_ids = predicate_ids
+
         # get singleton instance of word embed object
         self.word_embed_obj = WordEmbd()
+
+        # save embeddings for each object_id
+        self.relations_embed = np.zeros((len(object_ids), len(object_ids), self.word_embed_obj.embed_vec_dim()*2))
+        for i in range(len(object_ids)):
+            for j in range(len(object_ids)):
+                word_embed_i = self.word_embed_obj.word2vec(self.inverse_object_ids[i])
+                word_embed_j = self.word_embed_obj.word2vec(self.inverse_object_ids[j])
+                self.relations_embed[i][j] = np.concatenate((word_embed_i, word_embed_j), axis=0)
 
     def predict(self, word1, word2, w, b):
         """
@@ -206,6 +219,21 @@ class LangModule(object):
 
         return loss, grad
 
+    def predict_all(self, w, b):
+        """
+        predict probability for any given relation (triplet)
+        :param w: language module param
+        :param b: language module param
+        :return: probability for any triplet
+        """
+        # create a tensor of probabilities - dimensions (nof_subjects, nof_predicates, nof_objects)
+        probs = np.zeros((len(self.relations_embed), b.shape[0], len(self.relations_embed)))
+
+        # for each subject and object - calc probability per predicate
+        for i in range(len(self.relations_embed)):
+            probs[i, :, :] = np.dot(w, self.relations_embed[i].T) + b
+
+        return probs
 
 if __name__ == "__main__":
     embed = LangModule(70, 50)

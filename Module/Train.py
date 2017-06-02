@@ -17,7 +17,7 @@ def train(word_embed_size=50, visual_embed_size=2048):
     print "Prepare Data"
     module_data = prepare_data()
     training_data = module_data["train"]
-    test_data = module_data["test"]
+    test_data, _ = module_data["test"].split(0.05)
 
     # embedded words module
     print "Load Embed Word"
@@ -25,9 +25,9 @@ def train(word_embed_size=50, visual_embed_size=2048):
 
     # create Module
     print "Create Module"
-    nof_objects = len(module_data["object_ids"])
-    nof_predicates = len(module_data["predicate_ids"])
-    module = Module(nof_objects, nof_predicates, embed.vector_dim, visual_embed_size)
+    object_ids = module_data["object_ids"]
+    predicate_ids = module_data["predicate_ids"]
+    module = Module(object_ids, predicate_ids, embed.vector_dim, visual_embed_size)
 
     # get weights
     weights = module.get_params()
@@ -70,13 +70,15 @@ def module_sgd_test(x, data, module):
     :param module: the language module
     :return: cost and gradient of batch
     """
-    predict = module.predict(data.worda, data.wordb, x)
-    #predicate_ids = np.argmax(predict, axis=0)
-    correct_ans = np.sum(predict[np.arange(len(data.worda)), data.predicate_ids])
-    print("accuracy {0}".format(str(float(correct_ans) / np.sum(predict))))
+    predict = module.predict(data, x)
+    correct_ans = 0
+    for index in range(len(data.worda)):
+        if predict[index][0] == data.subject_ids[index] and predict[index][1] == data.predicate_ids[index] and predict[index][2] == data.object_ids[index]:
+            correct_ans += 1
+    print("accuracy {0}".format(str(float(correct_ans) / len(predict))))
 
 
-def get_random_data(data, batch_size=1000):
+def get_random_data(data, batch_size=100):
     """
     Randomly select batch from the data
     TBD..
@@ -90,7 +92,7 @@ def get_random_data(data, batch_size=1000):
     R1 = data.get_subset(indices1)
     indices2 = np.random.randint(0, data.worda.shape[0], batch_size)
     R2 = data.get_subset(indices2)
-    # make sure no relation comapred to itself
+    # make sure no relation compared to itself
     while np.sum(np.logical_and(np.logical_and(R1.worda == R2.worda, R1.predicate_ids == R2.predicate_ids), R1.wordb == R2.wordb)):
         indices2 = np.random.randint(0, data.worda.shape[0], batch_size)
         R2 = data.get_subset(indices2)
@@ -113,9 +115,9 @@ def sanity_check(word_embed_size=50, visual_embed_size=2048):
     embed = WordEmbd(word_embed_size)
 
     # create LangModule
-    nof_objects = len(module_data["object_ids"])
-    nof_predicates = len(module_data["predicate_ids"])
-    module = Module(nof_objects, nof_predicates, embed.vector_dim, visual_embed_size)
+    object_ids = len(module_data["object_ids"])
+    predicate_ids = len(module_data["predicate_ids"])
+    module = Module(object_ids, predicate_ids, embed.vector_dim, visual_embed_size)
 
     # get weights
     params = module.get_params()

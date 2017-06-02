@@ -14,7 +14,7 @@ def prepare_data():
 
     # Check if filtered data already exist
     if os.path.isfile("final_module_data.p"):
-        module_data_file = open("filtered_data.p", "rb")
+        module_data_file = open("final_module_data.p", "rb")
         module_data = cPickle.load(module_data_file)
         module_data_file.close()
     else:
@@ -25,7 +25,7 @@ def prepare_data():
 
         object_ids = module_data["object_ids"]
         predicate_ids = module_data["predicate_ids"]
-        entities = module_data["module_entities"]
+        entities = module_data["entities_visual_module"]
 
         # split entities to train, validation and test
         nof_entities = len(entities)
@@ -38,9 +38,13 @@ def prepare_data():
         validation_data = convert_entities_to_data(validation_entities, object_ids, predicate_ids)
         test_data = convert_entities_to_data(test_entities, object_ids, predicate_ids)
 
+        # create data for evaluate
+        for test_entity in test_entities:
+            test_entity.relations = convert_entities_to_data(test_entity, object_ids, predicate_ids)
+
         # save data
         module_data = {"train": train_data, "validation": validation_data, "test": test_data, "object_ids": object_ids,
-                       "predicate_ids": predicate_ids}
+                       "predicate_ids": predicate_ids, "test_entities" : test_entities}
         filtered_data_file = open("final_module_data.p", "wb")
         cPickle.dump(module_data, filtered_data_file, 0)
         filtered_data_file.close()
