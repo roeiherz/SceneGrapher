@@ -1,7 +1,7 @@
-from LangModule import LangModule
-from VisualModule import VisualModule
 import numpy as np
 
+from LangModule import LangModule
+from VisualModule import VisualModule
 
 class Module(object):
     """

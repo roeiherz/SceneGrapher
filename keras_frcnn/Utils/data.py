@@ -297,6 +297,10 @@ def splitting_to_datasets(entities, training_percent, testing_percent, num_epoch
         train_imgs = cPickle.load(open(train_dataset_path, 'rb'))
         test_imgs = cPickle.load(open(test_dataset_path, 'rb'))
         val_imgs = cPickle.load(open(validation_dataset_path, 'rb'))
+
+        print("Debug printing- the number of train samples: {0}, the number of test samples: {1}, "
+              "the number of validation samples: {2}".format(len(train_imgs), len(test_imgs), len(val_imgs)))
+
         return train_imgs, test_imgs, val_imgs
 
     number_of_samples = len(entities)
@@ -458,7 +462,7 @@ def process_to_detections(relations, detections_file_name="detections.p", debug=
     id = 0
     for relation in relations:
         # Update Relation Id
-        detections[id][Detections.Id] = id
+        detections[id][Detections.Id] = relation.filtered_id
         # Update Subject Id
         detections[id][Detections.SubjectId] = relation.subject.id
         # Get the mask: a dict with {x1,x2,y1,y2}
@@ -606,8 +610,8 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
 
     # Create new filtered data
     filtered_module_data = {"object_ids": object_ids, "predicate_ids": predicate_ids, "entities": entities,
-                            'entities_module': entities[:len(entities)/2],
-                            "entities_visual_module": entities[len(entities)/2:]}
+                            'entities_module': entities[:len(entities) / 2],
+                            "entities_visual_module": entities[len(entities) / 2:]}
 
     # Save filtered_module_data file for only the top labels
     filtered_module_data_file = open(os.path.join(VisualGenome_PICKLES_PATH, "filtered_module_data.p"), 'wb')
@@ -635,6 +639,7 @@ def get_filtered_data(filtered_data_file_name="filtered_module_data.p"):
     filtered_module_data = cPickle.load(filtered_module_data_file)
 
     entities = filtered_module_data['entities_visual_module']
+    # entities = filtered_module_data['entities']
     hierarchy_mapping_objects = filtered_module_data['object_ids']
     hierarchy_mapping_predicates = filtered_module_data['predicate_ids']
     return entities, hierarchy_mapping_objects, hierarchy_mapping_predicates

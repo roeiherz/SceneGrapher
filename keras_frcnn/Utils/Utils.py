@@ -9,7 +9,9 @@ from keras.layers import Dense
 
 __author__ = 'roeih'
 
+
 FILE_EXISTS_ERROR = (17, 'File exists')
+PROJECT_ROOT = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/"
 VG_DATA_PATH = "Data/VisualGenome/data"
 VG_PATCH_PATH = "Data/VisualGenome/Patches"
 VG_PICKLES_FOLDER_PATH = "Data/VisualGenome/pickles"
@@ -34,6 +36,7 @@ VALIDATION_DATA_SET = "validation_set.p"
 MINI_IMDB = "mini_imdb_1024.h5"
 TRAINING_OBJECTS_CNN_PATH = "Training/TrainingObjectsCNN"
 TRAINING_PREDICATE_CNN_PATH = "Training/TrainingPredicatesCNN"
+WEIGHTS_NAME = 'model_vg_resnet50.hdf5'
 
 
 def convert_img_bgr_to_rgb(img):
