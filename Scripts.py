@@ -245,11 +245,16 @@ def delete_ind_from_detections():
     # Close the file
     detections_filename.close()
 
+
+def get_mini_url():
+    pass
+
+
 if __name__ == '__main__':
 
-
-    save_union_detections()
+    get_mini_url()
     exit()
+    save_union_detections()
 
     delete_ind_from_detections()
 

@@ -88,13 +88,17 @@ def get_random_data(data, batch_size=100):
     """
     batch = []
 
-    indices1 = np.random.randint(0, data.worda.shape[0], batch_size)
+    # indices1 = np.random.randint(0, data.worda.shape[0], batch_size)
+    indices1 = np.random.choice(data.worda.shape[0], batch_size, replace=False)
+
     R1 = data.get_subset(indices1)
-    indices2 = np.random.randint(0, data.worda.shape[0], batch_size)
+    # indices2 = np.random.randint(0, data.worda.shape[0], batch_size)
+    indices2 = np.random.choice(data.worda.shape[0], batch_size, replace=False)
     R2 = data.get_subset(indices2)
     # make sure no relation compared to itself
     while np.sum(np.logical_and(np.logical_and(R1.worda == R2.worda, R1.predicate_ids == R2.predicate_ids), R1.wordb == R2.wordb)):
-        indices2 = np.random.randint(0, data.worda.shape[0], batch_size)
+        # indices2 = np.random.randint(0, data.worda.shape[0], batch_size)
+        indices2 = np.random.choice(data.worda.shape[0], batch_size, replace=False)
         R2 = data.get_subset(indices2)
 
     return [R1, R2]

@@ -13,13 +13,13 @@ def prepare_data():
     """
 
     # Check if filtered data already exist
-    if os.path.isfile("mini_final_module_data.p"):
-        module_data_file = open("mini_final_module_data.p", "rb")
+    if os.path.isfile("final_module_data.p"):
+        module_data_file = open("final_module_data.p", "rb")
         module_data = cPickle.load(module_data_file)
         module_data_file.close()
     else:
         # load entities and filter it according to most popular classes and predicates
-        module_data_file = open("mini_filtered_module_data.p", "rb")
+        module_data_file = open("filtered_module_data.p", "rb")
         module_data = cPickle.load(module_data_file)
         module_data_file.close()
 
@@ -45,7 +45,7 @@ def prepare_data():
         # save data
         module_data = {"train": train_data, "validation": validation_data, "test": test_data, "object_ids": object_ids,
                        "predicate_ids": predicate_ids, "test_entities" : test_entities}
-        filtered_data_file = open("mini_final_module_data.p", "wb")
+        filtered_data_file = open("final_module_data.p", "wb")
         cPickle.dump(module_data, filtered_data_file, 0)
         filtered_data_file.close()
 
@@ -56,6 +56,19 @@ def prepare_data():
     return module_data
 
 
+def filtered_entities_by_url(url):
+    """
+    This function gets url and return wheter to filter it or not
+    :param url: url string
+    :return: True or False
+    """
+    return url in ["https://cs.stanford.edu/people/rak248/VG_100K/2321818.jpg",
+               "https://cs.stanford.edu/people/rak248/VG_100K/2334844.jpg",
+               "https://cs.stanford.edu/people/rak248/VG_100K_2/3807.jpg",
+               "https://cs.stanford.edu/people/rak248/VG_100K_2/2410658.jpg",
+               "https://cs.stanford.edu/people/rak248/VG_100K/2374264.jpg"]
+
+
 def convert_entities_to_data(entities, object_ids, predicate_ids):
     """
     Creating object of data given list of entities
@@ -64,6 +77,7 @@ def convert_entities_to_data(entities, object_ids, predicate_ids):
     :param predicate_ids: dictionary convert predicate to predicate_id
     :return: instance of data object
     """
+
     worda = []
     wordb = []
     predicate = []
@@ -73,6 +87,11 @@ def convert_entities_to_data(entities, object_ids, predicate_ids):
     data_object_ids = []
     instances = {}
     for entity in entities:
+
+        # filter by url
+        if filtered_entities_by_url(entity.image.url):
+            continue
+
         for R in entity.relationships:
             # filter relationships
             if not object_ids.has_key(R.subject.names[0]):

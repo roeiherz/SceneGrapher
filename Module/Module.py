@@ -3,6 +3,7 @@ import numpy as np
 from LangModule import LangModule
 from VisualModuleLazy import VisualModule
 
+
 class Module(object):
     """
     Module for scene grapher
@@ -313,8 +314,8 @@ class Module(object):
                         continue
                     # extract features and probabilities
                     # FIXME: ask roei to implement this function
-                    predicate_features, subject_prob, object_prob = self.visual.extract_features(
-                        img.obects[subject_index], img.obects[object_index])
+                    predicate_features, subject_prob, object_prob = self.visual.extract_features_for_evaluate \
+                        (img.obects[subject_index], img.obects[object_index])
                     predicate_prob = self.visual.predicate_predict(predicate_features, z, s)
 
                     # calc tensor of probabilities of visual moudle
@@ -340,10 +341,7 @@ class Module(object):
                             index_to_remove = predictions_arr[:, 2].argmin()
                             predictions.remove(predictions[index_to_remove])
 
-
-
             # FIXME: calc how many of the ground truth relatioships included in k highest confidence relationships
             images_score += 0
-
 
         return images_score / len(images)

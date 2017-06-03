@@ -1,8 +1,12 @@
 from numpy.core.umath_tests import inner1d
 import os
 import cPickle
+import sys
+
+sys.path.append("..")
 from DesignPatterns.Detections import Detections
 import numpy as np
+from Utils.Utils import softmax
 
 VG_VisualModule_PICKLES_PATH = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/VisualModule/Data/VisualGenome/"
 
@@ -12,10 +16,11 @@ class VisualModule(object):
     Visual module for scene-grapher
     """
 
-    def __init__(self):
+    def __init__(self, evaluate=False):
         # Get the whole detections
         # self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections.p")
         self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections.p")
+        self.evaluate = evaluate
 
     def extract_features(self, relation_ids):
         """
@@ -23,24 +28,24 @@ class VisualModule(object):
         :param relation_ids: array of relationships ids
         :return: predicate_features, subject_probabilities, object_probabilities
         """
-
         # Sorted detections by their relation_ids
         indx = np.where(np.in1d(list(self.full_detections[Detections.Id]), relation_ids) == True)
         detections = self.full_detections[indx]
 
         # Check if loading detections succeed
-        if detections is None:
-            print("Error: detections wan't loaded")
-            return None, None, None
+        if len(detections) != len(relation_ids):
+            print("Error: not all detections was found")
+            ee = np.where(np.in1d(relation_ids, list(self.full_detections[Detections.Id])) == False)
+            print(relation_ids[ee])
 
         # Subject prob. [nof_samples, 150]
-        subject_probabilities = detections[Detections.SubjectConfidence]
+        subject_probabilities = np.concatenate(detections[Detections.SubjectConfidence])
 
         # Object prob. [nof_samples, 150]
-        object_probabilities = detections[Detections.ObjectConfidence]
+        object_probabilities = np.concatenate(detections[Detections.ObjectConfidence])
 
         # Features [nof_samples, 2048]
-        predicate_features = detections[Detections.UnionFeature]
+        predicate_features = np.concatenate(detections[Detections.UnionFeature])
 
         return predicate_features, subject_probabilities, object_probabilities
 
@@ -81,7 +86,30 @@ class VisualModule(object):
 
         return None
 
+    def predicate_predict(self, predicate_features, z, s):
+        """
+            predict a probability per predicate given visual module params
+            :param predicate_features: visual features extracted
+            :param z: visual module params
+            :param s: visual params
+            :return: probability per predicate
+            """
+        predicate_likelihoods = np.dot(z, predicate_features.T).T + s.flatten().T
+        predicate_probability = softmax(predicate_likelihoods)
+
+        return predicate_probability
+
+    def extract_features_for_evaluate(self, objects, subjects):
+        """
+        This function
+        :param objects: object which is a Object VisualGenome type
+        :param subjects: subject which is a Object VisualGenome type
+        :return: 
+        """
+        pass
+
+
 if __name__ == '__main__':
     # Example
     tt = VisualModule()
-    tt.extract_features(relation_ids=[1, 2, 15, 5, 25, 10])
+    tt.extract_features(relation_ids=np.array([355181, 355198, 355216, 5, 25, 10]))
