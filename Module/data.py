@@ -13,13 +13,13 @@ def prepare_data():
     """
 
     # Check if filtered data already exist
-    if os.path.isfile("final_module_data.p"):
-        module_data_file = open("final_module_data.p", "rb")
+    if os.path.isfile("mini_final_module_data.p"):
+        module_data_file = open("mini_final_module_data.p", "rb")
         module_data = cPickle.load(module_data_file)
         module_data_file.close()
     else:
         # load entities and filter it according to most popular classes and predicates
-        module_data_file = open("filtered_module_data.p", "rb")
+        module_data_file = open("mini_filtered_module_data.p", "rb")
         module_data = cPickle.load(module_data_file)
         module_data_file.close()
 
@@ -39,13 +39,13 @@ def prepare_data():
         test_data = convert_entities_to_data(test_entities, object_ids, predicate_ids)
 
         # create data for evaluate
-        for test_entity in test_entities:
-            test_entity.relations = convert_entities_to_data(test_entity, object_ids, predicate_ids)
+        #for test_entity in test_entities:
+        #    test_entity.relations = convert_entities_to_data(test_entity, object_ids, predicate_ids)
 
         # save data
         module_data = {"train": train_data, "validation": validation_data, "test": test_data, "object_ids": object_ids,
                        "predicate_ids": predicate_ids, "test_entities" : test_entities}
-        filtered_data_file = open("final_module_data.p", "wb")
+        filtered_data_file = open("mini_final_module_data.p", "wb")
         cPickle.dump(module_data, filtered_data_file, 0)
         filtered_data_file.close()
 
