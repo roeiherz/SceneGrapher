@@ -1,7 +1,7 @@
 import numpy as np
 
 from LangModule import LangModule
-from VisualModule import VisualModule
+from VisualModuleLazy import VisualModule
 
 class Module(object):
     """
@@ -29,7 +29,7 @@ class Module(object):
         self.lang = LangModule(object_ids, predicate_ids)
 
         # create visual module
-        self.visual = VisualModule(self.nof_objects, visual_embed_size)
+        self.visual = VisualModule()
 
         # create dimensions for module parameters
         self.w_dimensions = (self.nof_predicates, 2 * lang_embed_size)
