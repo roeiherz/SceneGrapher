@@ -2,7 +2,6 @@ from numpy.core.umath_tests import inner1d
 import os
 import cPickle
 import sys
-
 sys.path.append("..")
 from DesignPatterns.Detections import Detections
 import numpy as np
@@ -19,7 +18,7 @@ class VisualModule(object):
     def __init__(self, evaluate=False):
         # Get the whole detections
         # self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections.p")
-        self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections.p")
+        self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections_url.p")
         self.evaluate = evaluate
 
     def extract_features(self, relation_ids):

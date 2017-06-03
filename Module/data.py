@@ -27,6 +27,22 @@ def prepare_data():
         predicate_ids = module_data["predicate_ids"]
         entities = module_data["entities_visual_module"]
 
+        # Load mini url list which will be filtered
+        mini_url_lst = cPickle.load(open("url_lst_mini.p"))
+
+        # Real entities
+        real_entities = []
+
+        # Filtered entities by their urls
+        for entity in entities:
+            # filter by url
+            if filtered_entities_by_url(entity.image.url) or filtered_by_mini_url(mini_url_lst, entity.image.url):
+                continue
+            real_entities.append(entity)
+
+        # Replace entities
+        entities = real_entities
+
         # split entities to train, validation and test
         nof_entities = len(entities)
         train_entities = entities[:int(0.6 * nof_entities)]
@@ -69,6 +85,16 @@ def filtered_entities_by_url(url):
                "https://cs.stanford.edu/people/rak248/VG_100K/2374264.jpg"]
 
 
+def filtered_by_mini_url(mini_url_lst, url):
+    """
+    This function gets url and return wheter to filter it or not
+    :param url: url string
+    :param mini_url_lst: the mini url list (500 urls)
+    :return: True or False
+    """
+    return url not in mini_url_lst
+
+
 def convert_entities_to_data(entities, object_ids, predicate_ids):
     """
     Creating object of data given list of entities
@@ -87,10 +113,6 @@ def convert_entities_to_data(entities, object_ids, predicate_ids):
     data_object_ids = []
     instances = {}
     for entity in entities:
-
-        # filter by url
-        if filtered_entities_by_url(entity.image.url):
-            continue
 
         for R in entity.relationships:
             # filter relationships

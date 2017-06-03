@@ -247,8 +247,39 @@ def delete_ind_from_detections():
 
 
 def get_mini_url():
-    pass
+    """
+    This function saves in list the urls from mini dataset
+    :return: 
+    """
 
+    # Load entities
+    entities, _, _ = get_filtered_data("mini_filtered_module_data.p")
+
+    # Get Url list from entities
+    url_lst = [entity.image.url for entity in entities]
+
+    # Save mini_filtered_module_data url's list
+    url_file = open(os.path.join(VisualGenome_PICKLES_PATH, "url_lst_mini.p"), 'wb')
+    # Pickle hierarchy_mapping
+    cPickle.dump(url_lst, url_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    url_file.close()
+
+    # Load detections
+    detections_path = os.path.join(VG_VisualModule_PICKLES_PATH, "predicated_mini_fixed_detections.p")
+    detections = cPickle.load(open(detections_path, 'rb'))
+
+    # Filtered detections
+    indx = np.where(np.in1d(list(detections[Detections.Url]), url_lst) == True)
+    filtered_detections = detections[indx]
+
+    # Save filtered detections
+    filtered_detections_file = open(os.path.join(VisualGenome_PICKLES_PATH, "mini_filtered_module_data_url.p"), 'wb')
+    # Pickle hierarchy_mapping
+    cPickle.dump(filtered_detections, filtered_detections_file, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    filtered_detections_file.close()
+    print("debug")
 
 if __name__ == '__main__':
 
