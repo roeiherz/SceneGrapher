@@ -44,6 +44,10 @@ class Module(object):
         b = np.random.randn(*self.b_dimensions)
         z = np.random.randn(*self.z_dimensions)
         s = np.random.randn(*self.s_dimensions)
+	#w = np.zeros(self.w_dimensions)
+        #b = np.zeros(self.b_dimensions)
+        #z = np.zeros(self.z_dimensions)
+        #s = np.zeros(self.s_dimensions)
 
         # encode parameters
         self.params = self.encode_parameters(w, b, z, s)

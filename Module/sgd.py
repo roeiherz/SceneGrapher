@@ -36,7 +36,7 @@ def save_params(iter, params):
 
 
 def sgd(f, x0, step=0.01, iterations=100000, anneal_every = 500,
-        print_every=10, useSaved=True, test_func = None, test_every=1000):
+        print_every=10, useSaved=True, test_func = None, test_every=100):
     """ Stochastic Gradient Descent
 
     Implement the stochastic gradient descent method in this function.
@@ -87,7 +87,7 @@ def sgd(f, x0, step=0.01, iterations=100000, anneal_every = 500,
             # test the model
             test_func(x)
 
-        if iter % SAVE_PARAMS_EVERY == 0:
+        if iter % SAVE_PARAMS_EVERY == 0 and iter != 0:
             save_params(iter, x)
 
         if iter % anneal_every == 0:
