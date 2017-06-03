@@ -180,7 +180,7 @@ def get_resize_images_array(detections, config):
     :param detections: a numpy Detections dtype array
     :return: a numpy array of shape (len(detections), config.crop_width, config.crop_height , 3)
     """
-    resized_img_dict = {}
+    resized_img_lst = []
     ind = 1
 
     for detection in detections:
@@ -199,7 +199,7 @@ def get_resize_images_array(detections, config):
 
         except Exception as e:
             print("Exception for detection_id: {0}, image: {1}".format(detection[Detections.Id],
-                                                                        detection[Detections.Url]))
+                                                                       detection[Detections.Url]))
             print(str(e))
             traceback.print_exc()
             resized_img_lst.append(np.zeros((config.crop_width, config.crop_height, 3)))
@@ -288,9 +288,13 @@ def sort_detections_by_url(detections):
     :return: sorted detections 
     """
     idx = np.where((detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2321818.jpg") |
-               (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2334844.jpg"))
+                   (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2334844.jpg") |
+                   (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K_2/3807.jpg") |
+                   (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K_2/2410658.jpg") |
+                   (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2374264.jpg"))
     new_detections = np.delete(detections, idx)
     return new_detections
+
 
 if __name__ == '__main__':
 
@@ -318,7 +322,7 @@ if __name__ == '__main__':
     # detections = load_full_detections(detections_file_name="mini_fixed_filtered_detections.p")
     # detections = load_full_detections(detections_file_name="predicated_mini_fixed_detections_probes.p")
     detections = load_full_detections(detections_file_name="full_filtered_detections.p")
-    # detections = sort_detections_by_url(detections)
+    detections = sort_detections_by_url(detections)
 
     # Load hierarchy mappings
     # Get the hierarchy mapping objects
@@ -433,12 +437,12 @@ if __name__ == '__main__':
             if ind % 10000 == 0:
                 print("Iteration Number: {}".format(ind))
                 end = time.time()
-                print("Proccessed 10000 detections to union features in time {}s ".format(end-start))
+                print("Proccessed 10000 detections to union features in time {}s ".format(end - start))
                 start = end
 
         except Exception as e:
             print("Exception for detection_id: {0}, image: {1}".format(detection[Detections.Id],
-                                                                        detection[Detections.Url]))
+                                                                       detection[Detections.Url]))
             print(str(e))
             traceback.print_exc()
 
@@ -448,4 +452,3 @@ if __name__ == '__main__':
     print("Saving predicated_detections")
     save_files(detections, name="predicated_fixed_detections.p")
     print("Finished successfully saving predicated_detections")
-
