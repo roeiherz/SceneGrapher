@@ -218,7 +218,7 @@ if __name__ == '__main__':
     # Set the number of classes
     number_of_classes = len(hierarchy_mapping_objects)
 
-    # Create a data generator for VisualGenome
+    # Create a data generator for VisualGenome - old with no batch size
     # data_gen_train_vg = visual_genome_data_cnn_generator(data=train_imgs, hierarchy_mapping=hierarchy_mapping_objects,
     #                                                      config=config, mode='train')
     # data_gen_test_vg = visual_genome_data_cnn_generator(data=test_imgs, hierarchy_mapping=hierarchy_mapping_objects,
@@ -226,7 +226,6 @@ if __name__ == '__main__':
     # data_gen_validation_vg = visual_genome_data_cnn_generator(data=val_imgs, hierarchy_mapping=hierarchy_mapping_objects,
     #                                                           config=config, mode='validation')
 
-    # todo: add batch-size
     data_gen_train_vg = visual_genome_data_cnn_generator_with_batch(data=train_imgs,
                                                                     hierarchy_mapping=hierarchy_mapping_objects,
                                                                     config=config, mode='train', batch_size=NUM_BATCHES)

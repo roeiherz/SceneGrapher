@@ -1,13 +1,13 @@
+import os
 import random
+
+import cv2
 import numpy as np
+
+from DesignPatterns.Detections import Detections
 from keras_frcnn.Lib.DataAugmention import augment_visual_genome
 from keras_frcnn.Utils.Boxes import iou, BOX
-from keras_frcnn.Utils.Utils import convert_img_bgr_to_rgb, VG_DATA_PATH, get_mask_from_object, resize_image_zero_pad, \
-    get_img_resize, PROJECT_ROOT
-import cv2
-import os
-from DesignPatterns.Detections import Detections
-import traceback
+from keras_frcnn.Utils.Utils import VG_DATA_PATH, get_mask_from_object, get_img_resize, get_img
 
 __author__ = 'roeih'
 
@@ -32,7 +32,7 @@ def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, co
         num_of_batches_per_epoch = size / batch_size + 1
 
     # Flag for final step
-    flag=True
+    # flag=True
     while True:
 
         # Batch number
@@ -60,16 +60,9 @@ def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, co
                     # the index
                     ind = batch_num * batch_size + current_index
 
-                    # # Check for upper limit
-                    # if ind >= size:
-                    #     break
-
                     # detection per index
                     detection = data[ind]
-
-                    # if detection[Detections.Id] == 641647:
-                    #     print('debug')
-
+                    # Get image
                     img = get_img(detection[Detections.Url])
 
                     if img is None:
@@ -149,8 +142,6 @@ def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, co
                                                                                                detection[Detections.Url],
                                                                                                batch_num))
                 print(str(e))
-                # traceback.print_exc()
-                # continue
 
         # Check if it is the last batch
         # if batch_num + 1 == num_of_batches_per_epoch:
@@ -594,28 +585,6 @@ def visual_genome_data_cnn_generator(data, hierarchy_mapping, config, mode):
             except Exception as e:
                 print("Exception for image {0}".format(object.url))
                 print(str(e))
-
-
-def get_img(url):
-    """
-    This function read image from VisualGenome dataset as url and returns the image from local hard-driver
-    :param url: url of the image
-    :return: the image
-    """
-    try:
-        path_lst = url.split('/')
-        img_path = os.path.join(PROJECT_ROOT, VG_DATA_PATH, path_lst[-2], path_lst[-1])
-
-        if not os.path.isfile(img_path):
-            print("Error. Image path was not found")
-
-        img = cv2.imread(img_path)
-
-    except Exception as e:
-        print(str(e))
-        return None
-
-    return img
 
 
 # todo not in use
