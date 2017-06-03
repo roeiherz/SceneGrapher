@@ -2,7 +2,7 @@ from numpy.core.umath_tests import inner1d
 import os
 import cPickle
 from DesignPatterns.Detections import Detections
-
+import numpy as np
 
 VG_VisualModule_PICKLES_PATH = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/VisualModule/Data/VisualGenome/"
 
@@ -15,7 +15,7 @@ class VisualModule(object):
     def __init__(self):
         # Get the whole detections
         # self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections.p")
-        self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections_probes.p")
+        self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections.p")
 
     def extract_features(self, relation_ids):
         """
@@ -25,7 +25,7 @@ class VisualModule(object):
         """
 
         # Sorted detections by their relation_ids
-        indx = np.where(np.in1d(list(detections[Detections.Id]), relation_ids) == True)
+        indx = np.where(np.in1d(list(self.full_detections[Detections.Id]), relation_ids) == True)
         detections = self.full_detections[indx]
 
         # Check if loading detections succeed
