@@ -25,7 +25,7 @@ class VisualModule(object):
     Visual module for scene-grapher
     """
 
-    def __init__(self, objects_training_dir_name, predicates_training_dir_name):
+    def __init__(self, objects_training_dir_name=OBJECTS_TRAINING_PATH, predicates_training_dir_name=PREDICATES_TRAINING_PATH):
         self.objects_model_weight_path = os.path.join(OBJECTS_TRAINING_PATH, objects_training_dir_name, WEIGHTS_NAME)
         self.predicates_model_weight_path = os.path.join(PREDICATES_TRAINING_PATH, predicates_training_dir_name, WEIGHTS_NAME)
 
@@ -46,11 +46,9 @@ class VisualModule(object):
         # Get the whole detections
         self.full_detections = self._get_detections(detections_file_name="full_filtered_detections.p")
         # Get the hierarchy mapping objects
-        self.hierarchy_mapping_objects = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH,
-                                                                        "hierarchy_mapping_objects.p")))
+        self.hierarchy_mapping_objects = cPickle.load(open("hierarchy_mapping_objects.p"))
         # Get the hierarchy mapping predicates
-        self.hierarchy_mapping_predicates = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH,
-                                                                           "hierarchy_mapping_predicates.p")))
+        self.hierarchy_mapping_predicates = cPickle.load(open("hierarchy_mapping_predicates.p"))
         # Set the number of classes
         self.number_of_classes = len(self.hierarchy_mapping_objects)
         # Get the object and predicate model

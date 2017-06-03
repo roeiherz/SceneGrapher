@@ -1,7 +1,7 @@
 import numpy as np
 
 from LangModule import LangModule
-from VisualModule import VisualModule
+from VisualModuleLazy import VisualModule
 
 class Module(object):
     """
@@ -9,7 +9,7 @@ class Module(object):
     This module includes visual module and language module
     """
 
-    def __init__(self, nof_objects, nof_predicates, lang_embed_size, visual_embed_size):
+    def __init__(self, object_ids, predicate_ids, lang_embed_size, visual_embed_size):
         """
         Initialize module and create module parameters
         :param nof_objects: number of object classes
@@ -18,22 +18,24 @@ class Module(object):
         :param visual_embed_size: size of features extracted from predicate CNN
         """
         # save input params
-        self.nof_objects = nof_objects
-        self.nof_predicates = nof_predicates
+        self.nof_objects = len(object_ids)
+        self.object_ids = object_ids
+        self.nof_predicates = len(predicate_ids)
+        self.predicate_ids = predicate_ids
         self.lang_embed_size = lang_embed_size
         self.visual_embed_size = visual_embed_size
 
         # create language module
-        self.lang = LangModule()
+        self.lang = LangModule(object_ids, predicate_ids)
 
         # create visual module
-        self.visual = VisualModule(nof_objects, visual_embed_size)
+        self.visual = VisualModule()
 
         # create dimensions for module parameters
-        self.w_dimensions = (nof_predicates, 2 * lang_embed_size)
-        self.b_dimensions = (nof_predicates, 1)
-        self.z_dimensions = (nof_predicates, visual_embed_size)
-        self.s_dimensions = (nof_predicates, 1)
+        self.w_dimensions = (self.nof_predicates, 2 * lang_embed_size)
+        self.b_dimensions = (self.nof_predicates, 1)
+        self.z_dimensions = (self.nof_predicates, visual_embed_size)
+        self.s_dimensions = (self.nof_predicates, 1)
         self.dimensions = [self.w_dimensions, self.b_dimensions, self.z_dimensions, self.s_dimensions]
 
         # create parameters
@@ -197,7 +199,7 @@ class Module(object):
         grad_z_c = np.zeros(z.shape)
         grad_s_c = np.zeros(s.shape)
         C = 0
-        predicate_features, subject_probabilities, object_probabilities = self.visual.extract_features(R1)
+        predicate_features, subject_probabilities, object_probabilities = self.visual.extract_features(R1.relation_ids)
         for index in range(len(R1.worda)):
             r_v = self.visual.likelihood(R1.subject_ids[index], R1.object_ids[index], R1.predicate_ids[index],
                                          predicate_features[index], subject_probabilities[index],
@@ -230,7 +232,8 @@ class Module(object):
                 grad_b_c[R1.predicate_ids[index]] -= r_v / len(R1.worda)
 
                 # z gradient
-                grad_z_c[R2.predicate_ids[r2_max_index]] += predicate_features[index] * r2_f[r2_max_index] / len(R1.worda)
+                grad_z_c[R2.predicate_ids[r2_max_index]] += predicate_features[index] * r2_f[r2_max_index] / len(
+                    R1.worda)
                 grad_z_c[R1.predicate_ids[index]] -= predicate_features[index] * r1_f[index] / len(R1.worda)
 
                 # s gradient
@@ -248,7 +251,99 @@ class Module(object):
 
         return loss, grad
 
-    def predict(self, worda, wordb, params):
+    def predict(self, relations, params):
+        """
+        Predict a relation (triplet) given detection of the objects.
+        :param relations: detection of the objects
+        :param params: module params
+        :return:
+        """
+        # decode module parmas
         w, b, z, s = self.decode_parameters(params)
 
-        return self.lang.predict(worda, wordb, w, b)
+        # extract features from visual module and probabilities for subject, object and predicate
+        predicate_features, subject_prob, object_prob = self.visual.extract_features(relations.relation_ids)
+        predicate_prob = self.visual.predicate_predict(predicate_features, z, s)
+        # get tensor of probabilities (element per any relation - triplet)
+        lang_predict = self.lang.predict_all(w, b)
+
+        # iterate over each relation to predict
+        predictions = []
+        for index in range(len(relations.worda)):
+            # calc tensor of probabilities of visual moudle
+            visual_predict = np.multiply.outer(subject_prob[index],
+                                               np.multiply.outer(predicate_prob[index], object_prob[index]))
+            # calc tensor of probabilities taking into account both visual and language module
+            predict_tensor = visual_predict * lang_predict
+            # get the highset probability
+            predict = np.argmax(predict_tensor)
+            # convert to relation indexes (triplet)
+            predict_triplet = np.unravel_index(predict, predict_tensor.shape)
+            # append to predictions list
+            predictions.append(predict_triplet)
+
+        return predictions
+
+    def r_k_metric(self, images, k, params):
+        """
+        R@K metric measures  the fraction of ground truth relationships triplets
+        that appear among the top k most confident triplet in an image
+        :param images: data per image including the ground truth
+        :param params: module params
+        :return: R@K meric
+        """
+        # decode module parmas
+        w, b, z, s = self.decode_parameters(params)
+
+        # get tensor of probabilities (element per any relation - triplet)
+        lang_predict = self.lang.predict_all(w, b)
+
+        images_score = 0
+        for img in images:
+            k_highest_confidence = []
+            min_predict_confidence = 0
+            # extract features from visual module and probabilities for subject, object and predicate
+
+            # iterate over each relation to predict and find k highest predictions
+            predictions = []
+            for subject_index in range(len(img.obects)):
+                for object_index in range(len(img.obects)):
+                    # filter if subject equals to object
+                    if object_index == subject_index:
+                        continue
+                    # extract features and probabilities
+                    # FIXME: ask roei to implement this function
+                    predicate_features, subject_prob, object_prob = self.visual.extract_features(
+                        img.obects[subject_index], img.obects[object_index])
+                    predicate_prob = self.visual.predicate_predict(predicate_features, z, s)
+
+                    # calc tensor of probabilities of visual moudle
+                    visual_predict = np.multiply.outer(subject_prob, np.multiply.outer(predicate_prob, object_prob))
+
+                    # calc tensor of probabilities taking into account both visual and language module
+                    predict_tensor = visual_predict * lang_predict
+
+                    # get the highset probabilities
+                    predict = np.argmax(predict_tensor)
+                    # convert to relation indexes (triplet)
+                    predict_triplet = np.unravel_index(predict, predict_tensor.shape)
+                    predict_confidence = predict_tensor[predict_triplet]
+                    while predict_confidence > min_predict_confidence:
+                        # append to predictions list
+                        predictions.append((subject_index, object_index), predict_triplet,
+                                           predict_tensor[predict_triplet])
+                        # remove confidence from tensor
+                        predict_tensor[predict_triplet] = 0
+                        # remove lowest confidence
+                        if len(predictions) == k:
+                            predictions_arr = np.asarray(predictions)
+                            index_to_remove = predictions_arr[:, 2].argmin()
+                            predictions.remove(predictions[index_to_remove])
+
+
+
+            # FIXME: calc how many of the ground truth relatioships included in k highest confidence relationships
+            images_score += 0
+
+
+        return images_score / len(images)
