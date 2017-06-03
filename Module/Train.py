@@ -18,6 +18,7 @@ def train(word_embed_size=50, visual_embed_size=2048):
     module_data = prepare_data()
     training_data = module_data["train"]
     test_data, _ = module_data["test"].split(0.05)
+    train_data_to_test, _ = module_data["train"].split(0.01)
 
     # embedded words module
     print "Load Embed Word"
@@ -36,7 +37,7 @@ def train(word_embed_size=50, visual_embed_size=2048):
     print "Train"
     sgd.sgd(lambda x: module_sgd_wrapper(x, training_data, module),
             weights,
-            test_func=lambda x: module_sgd_test(x, test_data, module))
+            test_func=lambda x: module_sgd_test(x, test_data, module, train_data_to_test))
 
     return module
 
@@ -62,7 +63,7 @@ def module_sgd_wrapper(x, data, module):
     return cost, grad
 
 
-def module_sgd_test(x, data, module):
+def module_sgd_test(x, test_data, module, train_data):
     """
     Wrapper for SGD training
     :param x: module parameters
@@ -70,13 +71,17 @@ def module_sgd_test(x, data, module):
     :param module: the language module
     :return: cost and gradient of batch
     """
+    module_sgd_test_data(x, test_data, module, "test")
+    module_sgd_test_data(x, train_data, module, "train")
+
+
+def module_sgd_test_data(x, data, module, name):
     predict = module.predict(data, x)
     correct_ans = 0
     for index in range(len(data.worda)):
         if predict[index][0] == data.subject_ids[index] and predict[index][1] == data.predicate_ids[index] and predict[index][2] == data.object_ids[index]:
             correct_ans += 1
-    print("accuracy {0}".format(str(float(correct_ans) / len(predict))))
-
+    print("{0} accuracy {1}".format(name, str(float(correct_ans) / len(predict))))
 
 def get_random_data(data, batch_size=100):
     """
