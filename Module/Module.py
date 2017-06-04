@@ -44,7 +44,7 @@ class Module(object):
         b = np.random.randn(*self.b_dimensions)
         z = np.random.randn(*self.z_dimensions)
         s = np.random.randn(*self.s_dimensions)
-	#w = np.zeros(self.w_dimensions)
+	    #w = np.zeros(self.w_dimensions)
         #b = np.zeros(self.b_dimensions)
         #z = np.zeros(self.z_dimensions)
         #s = np.zeros(self.s_dimensions)
@@ -93,7 +93,7 @@ class Module(object):
         """
         return self.params
 
-    def get_gradient_and_loss(self, params, R1, R2, coeff_l=0.05, coeff_k=0.002):
+    def get_gradient_and_loss(self, params, R1, R2, coeff_l=0.005, coeff_k=0.0002):
         """
         Calculate the cost and the gradient with respect to model parameters
 
@@ -126,7 +126,9 @@ class Module(object):
 
         # get language likelihood
         r1_f = self.lang.likelihood(r1_embed, w, b, R1.predicate_ids)
+        #r1_f = np.ones(r1_f.shape)
         r2_f = self.lang.likelihood(r2_embed, w, b, R2.predicate_ids)
+        #r2_f = np.ones(r2_f.shape)
 
         # get distance in word2vec space
         dist = self.lang.distance(r1_a_embed, r1_b_embed, r1_pred_embed, r2_a_embed, r2_b_embed, r2_pred_embed)
@@ -206,12 +208,12 @@ class Module(object):
         C = 0
         predicate_features, subject_probabilities, object_probabilities = self.visual.extract_features(R1.relation_ids)
         for index in range(len(R1.worda)):
-            r_v = self.visual.likelihood(R1.subject_ids[index], R1.object_ids[index], R1.predicate_ids[index],
+            r_v, r_sub_prob, r_obj_prob = self.visual.likelihood(R1.subject_ids[index], R1.object_ids[index], R1.predicate_ids[index],
                                          predicate_features[index], subject_probabilities[index],
                                          object_probabilities[index], z, s)
             r_likelihood = r_v * r1_f[index]
 
-            r2_v = self.visual.likelihood(R2.subject_ids, R2.object_ids, R2.predicate_ids,
+            r2_v, r2_sub_prob, r2_obj_prob = self.visual.likelihood(R2.subject_ids, R2.object_ids, R2.predicate_ids,
                                           predicate_features[index], subject_probabilities[index],
                                           object_probabilities[index], z, s)
 
@@ -219,8 +221,9 @@ class Module(object):
 
             # filter relationship that identical to r1
             r2_filter = np.logical_and(
-                np.logical_and(R2.worda == R1.worda[index], R2.predicate_ids == R1.predicate_ids[index]),
-                R2.wordb == R1.wordb[index])
+                np.logical_and(R2.subject_ids == R1.subject_ids[index], R2.predicate_ids == R1.predicate_ids[index]),
+                R2.object_ids == R1.object_ids[index])
+            r2_filter = np.logical_not(r2_filter)
             r2_max_index = np.argmax(np.multiply(r2_likelihood, r2_filter.astype(int)))
 
             # loss
@@ -237,13 +240,12 @@ class Module(object):
                 grad_b_c[R1.predicate_ids[index]] -= r_v / len(R1.worda)
 
                 # z gradient
-                grad_z_c[R2.predicate_ids[r2_max_index]] += predicate_features[index] * r2_f[r2_max_index] / len(
-                    R1.worda)
-                grad_z_c[R1.predicate_ids[index]] -= predicate_features[index] * r1_f[index] / len(R1.worda)
+                grad_z_c[R2.predicate_ids[r2_max_index]] += r2_sub_prob[r2_max_index] * r2_obj_prob[r2_max_index] * predicate_features[index] * r2_f[r2_max_index] / len(R1.worda)
+                grad_z_c[R1.predicate_ids[index]] -= r_sub_prob * r_obj_prob * predicate_features[index] * r1_f[index] / len(R1.worda)
 
                 # s gradient
-                grad_s_c[R2.predicate_ids[r2_max_index]] += r2_f[r2_max_index] / len(R1.worda)
-                grad_s_c[R1.predicate_ids[index]] -= r1_f[index] / len(R1.worda)
+                grad_s_c[R2.predicate_ids[r2_max_index]] += r2_sub_prob[r2_max_index] * r2_obj_prob[r2_max_index]* r2_f[r2_max_index] / len(R1.worda)
+                grad_s_c[R1.predicate_ids[index]] -= r_sub_prob * r_obj_prob * r1_f[index] / len(R1.worda)
 
         ### total loss and grad
         loss = coeff_k * K + coeff_l * L + C
@@ -271,9 +273,11 @@ class Module(object):
         predicate_prob = self.visual.predicate_predict(predicate_features, z, s)
         # get tensor of probabilities (element per any relation - triplet)
         lang_predict = self.lang.predict_all(w, b)
+        # lang_predict = np.ones(lang_predict.shape)
 
         # iterate over each relation to predict
         predictions = []
+        accuracy_percent = []
         for index in range(len(relations.worda)):
             # calc tensor of probabilities of visual moudle
             visual_predict = np.multiply.outer(subject_prob[index],
@@ -286,8 +290,12 @@ class Module(object):
             predict_triplet = np.unravel_index(predict, predict_tensor.shape)
             # append to predictions list
             predictions.append(predict_triplet)
+            #get accuracy percent
+            correct_percent = predict_tensor[relations.subject_ids[index]][relations.predicate_ids[index]][relations.object_ids[index]] / np.sum(predict_tensor)
+            accuracy_percent.append(correct_percent)
+        return predictions, accuracy_percent
 
-        return predictions
+
 
     def r_k_metric(self, images, k, params):
         """

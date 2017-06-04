@@ -7,7 +7,8 @@ from DesignPatterns.Detections import Detections
 import numpy as np
 from Utils.Utils import softmax
 
-VG_VisualModule_PICKLES_PATH = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/VisualModule/Data/VisualGenome/"
+VG_VisualModule_PICKLES_PATH = "../VisualModule/Data/VisualGenome/"
+#VG_VisualModule_PICKLES_PATH = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/VisualModule/Data/VisualGenome/"
 
 
 class VisualModule(object):
@@ -62,13 +63,14 @@ class VisualModule(object):
         :param s: visual module parameters
         :return:
         """
-        predicate_likelihoods = inner1d(z[predicate_ids], predicate_features) + s[predicate_ids].flatten()
-        subject_likelihoods = subject_probabilities[subject_ids]
-        object_likelihoods = object_probabilities[object_ids]
+        predicate_likelihoods = np.dot(z, predicate_features).flatten() + s.flatten()
+        # predicate_prob = softmax(predicate_likelihoods)[predicate_ids]
+        subject_prob = subject_probabilities[subject_ids]
+        object_prob = object_probabilities[object_ids]
 
-        likelihoods = subject_likelihoods * predicate_likelihoods * object_likelihoods
+        likelihoods = subject_prob * predicate_likelihoods[predicate_ids] * object_prob
 
-        return likelihoods
+        return likelihoods, subject_prob, object_prob
 
     def get_detections(self, detections_file_name="predicated_mini_detections.p"):
         """
@@ -94,9 +96,9 @@ class VisualModule(object):
             :return: probability per predicate
             """
         predicate_likelihoods = np.dot(z, predicate_features.T).T + s.flatten().T
-        predicate_probability = softmax(predicate_likelihoods)
+        #predicate_probability = softmax(predicate_likelihoods)
 
-        return predicate_probability
+        return predicate_likelihoods
 
     def extract_features_for_evaluate(self, objects, subjects):
         """

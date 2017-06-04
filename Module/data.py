@@ -2,7 +2,7 @@ import os
 import os.path
 import numpy as np
 import cPickle
-import operator
+import random
 
 
 def prepare_data():
@@ -65,9 +65,9 @@ def prepare_data():
         cPickle.dump(module_data, filtered_data_file, 0)
         filtered_data_file.close()
 
-    module_data["train"] = Data(module_data["train"])
-    module_data["validation"] = Data(module_data["validation"])
-    module_data["test"] = Data(module_data["test"])
+    module_data["train"] = Data(module_data["train"], module_data["object_ids"], module_data["predicate_ids"])
+    module_data["validation"] = Data(module_data["validation"],module_data["object_ids"], module_data["predicate_ids"])
+    module_data["test"] = Data(module_data["test"],module_data["object_ids"], module_data["predicate_ids"])
 
     return module_data
 
@@ -161,10 +161,12 @@ class Data(object):
     Class grouped the list of relationship,, used by language module training.
     """
 
-    def __init__(self, data=None):
+    def __init__(self, data=None, object_dictionary=None, predicate_dictionary=None):
         if data != None:
             # save original input
             self.orig_data = data
+            self.object_dictionary = object_dictionary
+            self.predicate_dictionary = predicate_dictionary
 
             # create class fields
             self.worda = data["subjects"]
@@ -173,7 +175,6 @@ class Data(object):
             self.predicate_ids = data["predicates_ids"]
             self.relation_ids = data["relation_ids"]
             self.subject_ids = data["subject_ids"]
-            self.subject_ids = np.asarray([0] * len(self.worda))
             self.object_ids = data["object_ids"]
 
             self.instances = np.zeros(len(self.predicate))
@@ -223,6 +224,25 @@ class Data(object):
 
         return part1, part2
 
+    def get_random(self, size):
+        rand_data = Data()
+
+        rand_data.worda = np.asarray([random.choice(self.object_dictionary.keys()) for i in range(size)])
+        rand_data.subject_ids = np.asarray([self.object_dictionary[word] for word in rand_data.worda])
+
+        rand_data.wordb = np.asarray([random.choice(self.object_dictionary.keys()) for i in range(size)])
+        rand_data.object_ids = np.asarray([self.object_dictionary[word] for word in rand_data.wordb])
+
+        rand_data.predicate = np.asarray([random.choice(self.predicate_dictionary.keys()) for i in range(size)])
+        rand_data.predicate_ids = np.asarray([self.predicate_dictionary[word] for word in rand_data.predicate])
+
+        rand_data.instances = np.zeros(size)
+        for i in range(size):
+            triple = rand_data.worda[i] + "-" + rand_data.predicate[i] + "-" + rand_data.wordb[i]
+            if triple in self.orig_data["instances"]:
+                rand_data.instances[i] = self.orig_data["instances"][rand_data.worda[i] + "-" + rand_data.predicate[i] + "-" + rand_data.wordb[i]]
+
+        return rand_data
 
 if __name__ == "__main__":
     prepare_data()

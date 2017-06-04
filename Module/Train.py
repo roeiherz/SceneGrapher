@@ -17,8 +17,7 @@ def train(word_embed_size=50, visual_embed_size=2048):
     print "Prepare Data"
     module_data = prepare_data()
     training_data = module_data["train"]
-    test_data, _ = module_data["test"].split(0.05)
-    train_data_to_test, _ = module_data["train"].split(0.01)
+    test_data = module_data["test"]
 
     # embedded words module
     print "Load Embed Word"
@@ -37,7 +36,7 @@ def train(word_embed_size=50, visual_embed_size=2048):
     print "Train"
     sgd.sgd(lambda x: module_sgd_wrapper(x, training_data, module),
             weights,
-            test_func=lambda x: module_sgd_test(x, test_data, module, train_data_to_test))
+            test_func=lambda x: module_sgd_test(x, test_data, module, training_data))
 
     return module
 
@@ -76,17 +75,18 @@ def module_sgd_test(x, test_data, module, train_data):
 
 
 def module_sgd_test_data(x, data, module, name):
-    predict = module.predict(data, x)
+    predict, acc_percent = module.predict(data, x)
     correct_ans = 0
     for index in range(len(data.worda)):
         if predict[index][0] == data.subject_ids[index] and predict[index][1] == data.predicate_ids[index] and predict[index][2] == data.object_ids[index]:
             correct_ans += 1
-    print("{0} accuracy {1}".format(name, str(float(correct_ans) / len(predict))))
+    print("{0} accuracy {1} acc percent {2}".format(name, str(float(correct_ans) / len(predict)), str(float(np.sum(acc_percent)) / len(acc_percent))))
 
-def get_random_data(data, batch_size=100):
+def get_random_data(data, batch_size=128):
     """
     Randomly select batch from the data
     TBD..
+    :type data: Data
     :param batch_size:
     :param data: list of two objects of Data
     :return: list of two objects of Data (batch size)
@@ -98,13 +98,14 @@ def get_random_data(data, batch_size=100):
 
     R1 = data.get_subset(indices1)
     # indices2 = np.random.randint(0, data.worda.shape[0], batch_size)
-    indices2 = np.random.choice(data.worda.shape[0], batch_size, replace=False)
-    R2 = data.get_subset(indices2)
+    # indices2 = np.random.choice(data.worda.shape[0], batch_size, replace=False)
+    R2 = data.get_random(batch_size)
     # make sure no relation compared to itself
     while np.sum(np.logical_and(np.logical_and(R1.worda == R2.worda, R1.predicate_ids == R2.predicate_ids), R1.wordb == R2.wordb)):
         # indices2 = np.random.randint(0, data.worda.shape[0], batch_size)
-        indices2 = np.random.choice(data.worda.shape[0], batch_size, replace=False)
-        R2 = data.get_subset(indices2)
+        R2 = data.get_random(batch_size)
+        #indices2 = np.random.choice(data.worda.shape[0], batch_size, replace=False)
+        #R2 = data.get_subset(indices2)
 
     return [R1, R2]
 
@@ -119,20 +120,21 @@ def sanity_check(word_embed_size=50, visual_embed_size=2048):
     # get data
     module_data = prepare_data()
     training_data = module_data["train"]
+    batch = get_random_data(training_data)
     test_data = module_data["test"]
     # embedded words module
     embed = WordEmbd(word_embed_size)
 
     # create LangModule
-    object_ids = len(module_data["object_ids"])
-    predicate_ids = len(module_data["predicate_ids"])
+    object_ids = module_data["object_ids"]
+    predicate_ids = module_data["predicate_ids"]
     module = Module(object_ids, predicate_ids, embed.vector_dim, visual_embed_size)
 
     # get weights
     params = module.get_params()
 
     gradcheck_naive(lambda x:
-                    module.get_gradient_and_loss(x, training_data[0], training_data[1]), params)
+                    module.get_gradient_and_loss(x, batch[0], batch[1]), params)
 
 
 if __name__ == "__main__":
