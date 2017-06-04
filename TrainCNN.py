@@ -19,7 +19,7 @@ from keras.models import Model
 import sys
 import matplotlib.pyplot as plt
 from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, get_time_and_date, create_folder, \
-    TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE, replace_top_layer
+    TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE, replace_top_layer, get_sorting_url
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 from keras_frcnn.Utils.data import get_sorted_data, splitting_to_datasets, create_data_pascal_voc, \
@@ -61,6 +61,9 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
         objects = cPickle.load(file(objects_path, 'rb'))
         return objects
 
+    # Bad urls which should be sorted out
+    bad_urls = get_sorting_url()
+
     # Get the whole objects from entities
     objects_lst = []
     correct_labels = hierarchy_mapping.keys()
@@ -69,6 +72,11 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
 
         # Get the url image
         url = img.image.url
+
+        # Sorting bad urls
+        if url in bad_urls:
+            continue
+
         # Get the objects per image
         objects = img.objects
         for object in objects:
@@ -152,6 +160,44 @@ def get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path, config=N
     return classes_count_per_objects, hierarchy_mapping_per_objects
 
 
+def sorting_urls(train_imgs, test_imgs, val_imgs):
+    """
+    This function sorting bad urls from the objects data-sets
+    :param train_imgs: train data
+    :param test_imgs: test data
+    :param val_imgs: validation data
+    :return: train, test and validation object list after sorting
+    """
+
+    # Get the bad urls
+    bad_urls = get_sorting_url()
+
+    real_train_imgs = []
+    real_test_imgs = []
+    real_val_imgs = []
+
+    # Remove bad urls
+    for img in train_imgs:
+        if img.url in bad_urls:
+            continue
+        real_train_imgs.append(img)
+
+    for img in test_imgs:
+        if img.url in bad_urls:
+            continue
+        real_test_imgs.append(img)
+
+    for img in val_imgs:
+        if img.url in bad_urls:
+            continue
+        real_val_imgs.append(img)
+
+    print("Debug printing after sorting- the number of train samples: {0}, the number of test samples: {1}, "
+          "the number of validation samples: {2}".format(len(real_train_imgs),
+                                                         len(real_test_imgs),
+                                                         len(real_val_imgs)))
+    return real_val_imgs, real_test_imgs, real_val_imgs
+
 if __name__ == '__main__':
 
     # Get argument
@@ -215,10 +261,13 @@ if __name__ == '__main__':
                                                             testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
                                                             path=path, config=config)
 
+    # Sorting bad urls - should be delete sometime
+    train_imgs, test_imgs, val_imgs = sorting_urls(train_imgs, test_imgs, val_imgs)
+
     # Set the number of classes
     number_of_classes = len(hierarchy_mapping_objects)
 
-    # Create a data generator for VisualGenome
+    # Create a data generator for VisualGenome - old with no batch size
     # data_gen_train_vg = visual_genome_data_cnn_generator(data=train_imgs, hierarchy_mapping=hierarchy_mapping_objects,
     #                                                      config=config, mode='train')
     # data_gen_test_vg = visual_genome_data_cnn_generator(data=test_imgs, hierarchy_mapping=hierarchy_mapping_objects,
@@ -226,7 +275,6 @@ if __name__ == '__main__':
     # data_gen_validation_vg = visual_genome_data_cnn_generator(data=val_imgs, hierarchy_mapping=hierarchy_mapping_objects,
     #                                                           config=config, mode='validation')
 
-    # todo: add batch-size
     data_gen_train_vg = visual_genome_data_cnn_generator_with_batch(data=train_imgs,
                                                                     hierarchy_mapping=hierarchy_mapping_objects,
                                                                     config=config, mode='train', batch_size=NUM_BATCHES)

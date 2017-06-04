@@ -297,3 +297,39 @@ def replace_top_layer(model, num_of_classes):
     # Define the new model
     model = Model(inputs=model.input, outputs=new_output_layer, name='resnet50')
     return model
+
+
+def get_img(url):
+    """
+    This function read image from VisualGenome dataset as url and returns the image from local hard-driver
+    :param url: url of the image
+    :return: the image
+    """
+    try:
+        path_lst = url.split('/')
+        img_path = os.path.join(PROJECT_ROOT, VG_DATA_PATH, path_lst[-2], path_lst[-1])
+
+        if not os.path.isfile(img_path):
+            print("Error. Image path was not found")
+
+        img = cv2.imread(img_path)
+
+    except Exception as e:
+        print(str(e))
+        return None
+
+    return img
+
+
+def get_sorting_url():
+    """
+    This function sorting bad urls
+    :return: a list of bad urls
+    """
+    lst = ["https://cs.stanford.edu/people/rak248/VG_100K/2321818.jpg",
+           "https://cs.stanford.edu/people/rak248/VG_100K/2334844.jpg",
+           "https://cs.stanford.edu/people/rak248/VG_100K_2/3807.jpg",
+           "https://cs.stanford.edu/people/rak248/VG_100K_2/2410658.jpg",
+           "https://cs.stanford.edu/people/rak248/VG_100K/2374264.jpg"]
+
+    return lst

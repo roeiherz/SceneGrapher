@@ -8,12 +8,12 @@ import numpy as np
 import operator
 from Data.VisualGenome.local import GetSceneGraph
 from keras_frcnn.Lib.PascalVoc import PascalVoc
-from keras_frcnn.Lib.VisualGenomeDataGenerator import get_img
 from keras_frcnn.Utils.Boxes import find_union_box
 from keras_frcnn.Utils.Utils import create_folder, VG_PATCH_PATH, DATA_PATH, CLASSES_MAPPING_FILE, CLASSES_COUNT_FILE, \
     TRAIN_IMGS_P, VAL_IMGS_P, VisualGenome_PICKLES_PATH, ENTITIES_FILE, HIERARCHY_MAPPING, PascalVoc_PICKLES_PATH, \
     VALIDATION_DATA_SET, TEST_DATA_SET, TRAIN_DATA_SET, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
-    MINI_VG_DATADET_PATH, MINI_IMDB, get_time_and_date, VG_PICKLES_FOLDER_PATH, VisualGenome_DATASETS_PICKLES_PATH
+    MINI_VG_DATADET_PATH, MINI_IMDB, get_time_and_date, VG_PICKLES_FOLDER_PATH, VisualGenome_DATASETS_PICKLES_PATH, \
+    get_img, get_sorting_url
 from DesignPatterns.Detections import Detections
 from keras_frcnn.Utils.Visualizer import VisualizerDrawer, CvColor
 import cv2
@@ -458,9 +458,15 @@ def process_to_detections(relations, detections_file_name="detections.p", debug=
         detections = cPickle.load(file(detections_path, 'rb'))
         return detections
 
+    bad_urls = get_sorting_url()
     detections = Detections(len(relations))
     id = 0
     for relation in relations:
+
+        # Sorting bad urls
+        if relation.url in bad_urls:
+            continue
+
         # Update Relation Id
         detections[id][Detections.Id] = relation.filtered_id
         # Update Subject Id

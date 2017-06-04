@@ -2,7 +2,7 @@ from __future__ import print_function
 from Data.VisualGenome.models import ObjectMapping, RelationshipMapping
 from DesignPatterns.Detections import Detections
 from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_generator, \
-    visual_genome_data_parallel_generator, get_img, visual_genome_data_parallel_generator_with_batch
+    visual_genome_data_parallel_generator, visual_genome_data_parallel_generator_with_batch
 from keras_frcnn.Lib.Zoo import ModelZoo
 import traceback
 import os
@@ -16,7 +16,7 @@ import sys
 import math
 from keras_frcnn.Utils.Boxes import find_union_box, BOX
 from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
-    get_img_resize, TRAINING_OBJECTS_CNN_PATH, TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME
+    get_img_resize, TRAINING_OBJECTS_CNN_PATH, TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img
 import time
 from keras_frcnn.Utils.data import get_filtered_data
 
