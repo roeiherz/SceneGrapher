@@ -1,6 +1,9 @@
+from __future__ import print_function
 import sys
+import cv2
 
 sys.path.append("..")
+from keras_frcnn.Utils.Visualizer import CvColor, VisualizerDrawer
 from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator_with_batch, \
     visual_genome_data_cnn_generator_with_batch
 from numpy.core.umath_tests import inner1d
@@ -38,7 +41,7 @@ class VisualModule(object):
         self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections_url.p")
 
         # Check if loading detections succeed
-        if not self.full_detections:
+        if self.full_detections is None:
             print("Error: No detections have been found")
             raise Exception
 
@@ -328,13 +331,74 @@ class VisualModule(object):
         print('Finished successfully loading Model')
         return model
 
+    def _debug_detections(self, path="../Pics/"):
+        """
+        This function will print negative patches
+        :param path: name path
+        """
+
+        # Get index of failed prediction of Subject
+        indx = np.where((self.full_detections[Detections.SubjectClassifications] !=
+                         self.full_detections[Detections.PredictSubjectClassifications]) |
+                        (self.full_detections[Detections.ObjectClassifications] !=
+                         self.full_detections[Detections.PredictObjectClassifications]))
+
+        # Define the hierarchy mapping objects and predicates paths
+        hierarchy_mapping_objects_path = os.path.join("..", VG_VisualModule_PICKLES_PATH,
+                                                      "hierarchy_mapping_objects.p")
+        hierarchy_mapping_predicates_path = os.path.join("..", VG_VisualModule_PICKLES_PATH,
+                                                         "hierarchy_mapping_predicates.p")
+
+        # Get the hierarchy mapping objects
+        self.hierarchy_mapping_objects = cPickle.load(open(hierarchy_mapping_objects_path))
+        # Get the hierarchy mapping predicates
+        self.hierarchy_mapping_predicates = cPickle.load(open(hierarchy_mapping_predicates_path))
+
+        for detection in self.full_detections:
+            if (detection[Detections.SubjectClassifications] not in self.hierarchy_mapping_objects or
+                        detection[Detections.SubjectClassifications] not in self.hierarchy_mapping_objects):
+                print(detection)
+
+        # Get the negatives
+        negatives = self.full_detections[indx]
+        img_url = negatives[0][Detections.Url]
+        img = get_img(img_url)
+
+        for negative in negatives:
+
+            id = negative[Detections.Url].split("/")[-1]
+            new_img_url = negative[Detections.Url]
+
+            if not img_url == new_img_url:
+                cv2.imwrite(path + "{}".format(id), img)
+                img = get_img(new_img_url)
+
+            if negative[Detections.SubjectClassifications] != negative[Detections.PredictSubjectClassifications]:
+                draw_subject_box = negative[Detections.SubjectBox]
+                VisualizerDrawer.draw_labeled_box(img, draw_subject_box,
+                                                  label=negative[Detections.PredictSubjectClassifications] + "/" +
+                                                        negative[Detections.SubjectClassifications],
+                                                  rect_color=CvColor.BLACK, scale=500)
+
+            if negative[Detections.ObjectClassifications] != negative[Detections.PredictObjectClassifications]:
+                draw_object_box = negative[Detections.ObjectBox]
+                VisualizerDrawer.draw_labeled_box(img, draw_object_box,
+                                                  label=negative[Detections.PredictObjectClassifications] + "/" +
+                                                        negative[Detections.ObjectClassifications],
+                                                  rect_color=CvColor.BLUE, scale=500)
+
+        cv2.imwrite(path + "{}".format(id), img)
+
 
 if __name__ == '__main__':
     # Example
-    vm = VisualModule(objects_training_dir_name="Thu_Jun__1_18:59:51_2017",
-                      predicates_training_dir_name="Thu_Jun__1_21:31:28_2017")
+    vm = VisualModule(objects_training_dir_name="Fri_Jun__2_19:16:26_2017",
+                      predicates_training_dir_name="Fri_Jun__2_20:00:24_2017")
+
     # vm = VisualModule(objects_training_dir_name="",
     #                   predicates_training_dir_name="")
+
+    vm._debug_detections()
     entities_file_name = os.path.join("..", VisualGenome_PICKLES_PATH, "mini_filtered_module_data.p")
     filtered_module_data = cPickle.load(open(entities_file_name))
     entities = filtered_module_data["entities_visual_module"]

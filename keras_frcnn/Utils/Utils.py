@@ -319,3 +319,17 @@ def get_img(url):
         return None
 
     return img
+
+
+def get_sorting_url():
+    """
+    This function sorting bad urls
+    :return: a list of bad urls
+    """
+    lst = ["https://cs.stanford.edu/people/rak248/VG_100K/2321818.jpg",
+           "https://cs.stanford.edu/people/rak248/VG_100K/2334844.jpg",
+           "https://cs.stanford.edu/people/rak248/VG_100K_2/3807.jpg",
+           "https://cs.stanford.edu/people/rak248/VG_100K_2/2410658.jpg",
+           "https://cs.stanford.edu/people/rak248/VG_100K/2374264.jpg"]
+
+    return lst
