@@ -400,10 +400,16 @@ if __name__ == '__main__':
     #                   predicates_training_dir_name="")
 
     vm._debug_detections()
+    vm.initialize_networks(gpu_num=2, batch_num=1)
+    last_layer_weights = vm.predict_model.layers[-1].get_weights()[0]
+    filename = open(os.path.join("last_layer_weights.p"), 'wb')
+    # Pickle classes_count
+    cPickle.dump(last_layer_weights, filename, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    filename.close()
     entities_file_name = os.path.join("..", VisualGenome_PICKLES_PATH, "mini_filtered_module_data.p")
     filtered_module_data = cPickle.load(open(entities_file_name))
     entities = filtered_module_data["entities_visual_module"]
 
-    vm.initialize_networks(gpu_num=2, batch_num=1)
     vm.extract_features_for_evaluate(subject=entities[0].objects[0], object=entities[0].objects[1],
                                      img_url=entities[0].image.url)
