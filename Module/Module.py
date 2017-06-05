@@ -97,7 +97,7 @@ class Module(object):
         """
         return self.params
 
-    def get_gradient_and_loss(self, params, R1, R2, coeff_l=0.05, coeff_k=0.002):
+    def get_gradient_and_loss(self, params, R1, R2, coeff_l=0.0, coeff_k=0.0):
         """
         Calculate the cost and the gradient with respect to model parameters
 
@@ -256,9 +256,9 @@ class Module(object):
         grad_w = coeff_k * grad_w_k + coeff_l * grad_w_l + grad_w_c
         grad_b = coeff_k * grad_b_k + coeff_l * grad_b_l + grad_b_c
         grad_z = grad_z_c
-        grad_z = np.zeros(grad_z.shape)
+        #grad_z = np.zeros(grad_z.shape)
         grad_s = grad_s_c
-        grad_s = np.zeros(grad_s.shape)
+        #grad_s = np.zeros(grad_s.shape)
         grad = self.encode_parameters(grad_w, grad_b, grad_z, grad_s)
 
         return loss, grad

@@ -98,8 +98,11 @@ class VisualModule(object):
         :return: predicate_features, subject_probabilities, object_probabilities
         """
         # Sorted detections by their relation_ids
-        indx = np.where(np.in1d(list(self.full_detections[Detections.Id]), relation_ids) == True)
-        detections = self.full_detections[indx]
+        detections_indx = np.zeros(len(relation_ids), dtype=int)
+        for indx in range(len(relation_ids)):
+            detections_indx[indx] = \
+            np.where(np.in1d(list(self.full_detections[Detections.Id]), relation_ids[indx]) == True)[0][0]
+        detections = self.full_detections[detections_indx]
 
         # Check if loading detections succeed
         if len(detections) != len(relation_ids):
