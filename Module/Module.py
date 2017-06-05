@@ -2,7 +2,7 @@ import numpy as np
 
 from LangModule import LangModule
 from VisualModuleLazy import VisualModule
-
+import cPickle
 
 class Module(object):
     """
@@ -43,11 +43,15 @@ class Module(object):
         w = np.random.randn(*self.w_dimensions)
         b = np.random.randn(*self.b_dimensions)
         z = np.random.randn(*self.z_dimensions)
-        s = np.random.randn(*self.s_dimensions)
-	    #w = np.zeros(self.w_dimensions)
+        #s = np.random.randn(*self.s_dimensions)
+        # load init paramters to be equal to predicate CNN	
+        file_handle = open("last_layer_weights.p", "rb")
+        z = cPickle.load(file_handle).T
+        file_handle.close()
+        #w = np.zeros(self.w_dimensions)
         #b = np.zeros(self.b_dimensions)
         #z = np.zeros(self.z_dimensions)
-        #s = np.zeros(self.s_dimensions)
+        s = np.zeros(self.s_dimensions)
 
         # encode parameters
         self.params = self.encode_parameters(w, b, z, s)
@@ -93,7 +97,7 @@ class Module(object):
         """
         return self.params
 
-    def get_gradient_and_loss(self, params, R1, R2, coeff_l=0.005, coeff_k=0.0002):
+    def get_gradient_and_loss(self, params, R1, R2, coeff_l=0.05, coeff_k=0.002):
         """
         Calculate the cost and the gradient with respect to model parameters
 
@@ -252,8 +256,9 @@ class Module(object):
         grad_w = coeff_k * grad_w_k + coeff_l * grad_w_l + grad_w_c
         grad_b = coeff_k * grad_b_k + coeff_l * grad_b_l + grad_b_c
         grad_z = grad_z_c
+        grad_z = np.zeros(grad_z.shape)
         grad_s = grad_s_c
-
+        grad_s = np.zeros(grad_s.shape)
         grad = self.encode_parameters(grad_w, grad_b, grad_z, grad_s)
 
         return loss, grad
@@ -273,7 +278,7 @@ class Module(object):
         predicate_prob = self.visual.predicate_predict(predicate_features, z, s)
         # get tensor of probabilities (element per any relation - triplet)
         lang_predict = self.lang.predict_all(w, b)
-        # lang_predict = np.ones(lang_predict.shape)
+        #lang_predict = np.ones(lang_predict.shape)
 
         # iterate over each relation to predict
         predictions = []
