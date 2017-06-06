@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 # Save parameters every a few SGD iterations as fail-safe
+from ModuleLogger import ModuleLogger
+
 SAVE_PARAMS_EVERY = 1000
 import glob
 import random
@@ -9,24 +11,31 @@ import os.path as op
 import cPickle as pickle
 
 
-def load_saved_params():
+def load_saved_params(saved_params_file_name, start_iterations):
     """
     A helper function that loads previously saved parameters and resets
     iteration start.
     """
-    st = 0
-    for f in glob.glob("saved_params_*.npy"):
-        iter = int(op.splitext(op.basename(f))[0].split("_")[2])
-        if (iter > st):
-            st = iter
-
-    if st > 0:
-        with open("saved_params_%d.npy" % st, "r") as f:
+    if saved_params_file_name != None:
+        with open(saved_params_file_name, "r") as f:
             params = pickle.load(f)
             state = pickle.load(f)
-        return st, params, state
+            iter = start_iterations
+            return iter, params, state
     else:
-        return st, None, None
+        st = 0
+        for f in glob.glob("saved_params_*.npy"):
+            iter = int(op.splitext(op.basename(f))[0].split("_")[2])
+            if (iter > st):
+                st = iter
+
+        if st > 0:
+            with open("saved_params_%d.npy" % st, "r") as f:
+                params = pickle.load(f)
+                state = pickle.load(f)
+            return st, params, state
+        else:
+            return st, None, None
 
 
 def save_params(iter, params):
@@ -36,7 +45,8 @@ def save_params(iter, params):
 
 
 def sgd(f, x0, step=0.01, iterations=100000, anneal_every = 1000,
-        print_every=10, useSaved=True, test_func = None, test_every=100):
+        print_every=10, useSaved=True, test_func = None, test_every=100,
+        start_iterations=0, saved_params_file_name=None):
     """ Stochastic Gradient Descent
 
     Implement the stochastic gradient descent method in this function.
@@ -55,8 +65,11 @@ def sgd(f, x0, step=0.01, iterations=100000, anneal_every = 1000,
     Return:
     x -- the parameter value after SGD finishes
     """
+
+    # get logger
+    logger = ModuleLogger()
     if useSaved:
-        start_iter, oldx, state = load_saved_params()
+        start_iter, oldx, state = load_saved_params(saved_params_file_name, start_iterations)
         if start_iter > 0:
             x0 = oldx
             step *= 0.5 ** (start_iter / anneal_every)
@@ -86,7 +99,7 @@ def sgd(f, x0, step=0.01, iterations=100000, anneal_every = 1000,
                 expcost = cost
             else:
                 expcost = .95 * expcost + .05 * cost
-            print "iter %d: expcost %f  -  cost %f" % (iter, expcost, cost)
+            logger.log("iter %d: expcost %f  -  cost %f" % (iter, expcost, cost))
 
         if iter % test_every == 0:
             # test the model

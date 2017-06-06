@@ -1,0 +1,89 @@
+nof_p: 1
+1:
+    name: no_k_l
+    iterations: 1000000
+    start_iterations: 0
+    learning_rate: 0.01
+    learning_rate_steps: 5000
+    test_steps: 100
+    coeff_k: 0.0
+    coeff_l: 0.0
+    saved_params_file_name: best_params.npy
+    word_embed_size: 50
+2:
+    name: no_k
+    iterations: 1000000
+    start_iterations: 0
+    learning_rate: 0.01
+    learning_rate_steps: 5000
+    test_steps: 100
+    coeff_k: 0.0
+    coeff_l: 0.02
+    saved_params_file_name: best_params.npy
+    word_embed_size: 50
+3:
+    name: no_k_2
+    iterations: 1000000
+    start_iterations: 0
+    learning_rate: 0.01
+    learning_rate_steps: 5000
+    test_steps: 100
+    coeff_k: 0.0
+    coeff_l: 0.04
+    saved_params_file_name: best_params.npy
+    word_embed_size: 50
+4:
+    name: no_k_3
+    iterations: 1000000
+    start_iterations: 0
+    learning_rate: 0.01
+    learning_rate_steps: 5000
+    test_steps: 100
+    coeff_k: 0.0
+    coeff_l: 0.06
+    saved_params_file_name: best_params.npy
+    word_embed_size: 50
+5:
+    name: no_k_4
+    iterations: 1000000
+    start_iterations: 0
+    learning_rate: 0.01
+    learning_rate_steps: 5000
+    test_steps: 100
+    coeff_k: 0.0
+    coeff_l: 0.08
+    saved_params_file_name: best_params.npy
+    word_embed_size: 50
+6:
+    name: all
+    iterations: 1000000
+    start_iterations: 0
+    learning_rate: 0.01
+    learning_rate_steps: 5000
+    test_steps: 100
+    coeff_k: 0.005
+    coeff_l: 0.02
+    saved_params_file_name: best_params.npy
+    word_embed_size: 50
+7:
+    name: all_2
+    iterations: 1000000
+    start_iterations: 0
+    learning_rate: 0.01
+    learning_rate_steps: 5000
+    test_steps: 100
+    coeff_k: 0.001
+    coeff_l: 0.02
+    saved_params_file_name: best_params.npy
+    word_embed_size: 50
+8:
+    name: embed_no_k
+    iterations: 1000000
+    start_iterations: 0
+    learning_rate: 0.01
+    learning_rate_steps: 5000
+    test_steps: 100
+    coeff_k: 0.0
+    coeff_l: 0.02
+    saved_params_file_name: best_params.npy
+    word_embed_size: 300

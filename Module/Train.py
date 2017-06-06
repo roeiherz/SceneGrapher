@@ -1,30 +1,53 @@
+from ModuleLogger import ModuleLogger
 from WordEmbd import WordEmbd
 from Module import Module
 import sgd
 import numpy as np
 from data import *
 from gradcheck import gradcheck_naive
+import yaml
+import inspect
 
-
-def train(word_embed_size=50, visual_embed_size=2048):
+def train(
+    name = "none",
+    iterations = 100000,
+    start_iterations = 0,
+    learning_rate = 0.01,
+    learning_rate_steps = 100,
+    test_steps = 100,
+    coeff_k = 0.005,
+    coeff_l = 0.02,
+    saved_params_file_name = "best_params.npy",
+    word_embed_size=50,
+    visual_embed_size=2048):
     """
     Basic function to train language module.
     TBD: improve
     :return: trained language module
     """
+    # create logger
+    logger = ModuleLogger(name)
 
-    # get data
-    print "Prepare Data"
+    # print train params
+    frame = inspect.currentframe()
+    args, _, _, values = inspect.getargvalues(frame)
+    logger.log('function name "%s"' % inspect.getframeinfo(frame)[2])
+    for i in args:
+        logger.log("    %s = %s" % (i, values[i]))
+
+
+    logger.log("Prepare Data")
     module_data = prepare_data()
+    # get data
     training_data = module_data["train"]
     test_data = module_data["test"]
 
     # embedded words module
-    print "Load Embed Word"
+    logger.log("Load Embed Word")
     embed = WordEmbd(word_embed_size)
 
     # create Module
-    print "Create Module"
+    logger.log("Create Module")
     object_ids = module_data["object_ids"]
     predicate_ids = module_data["predicate_ids"]
     module = Module(object_ids, predicate_ids, embed.vector_dim, visual_embed_size)
@@ -33,15 +56,22 @@ def train(word_embed_size=50, visual_embed_size=2048):
     weights = module.get_params()
 
     # train
-    print "Train"
-    sgd.sgd(lambda x: module_sgd_wrapper(x, training_data, module),
+    logger.log("Train")
+    sgd.sgd(lambda x: module_sgd_wrapper(x, training_data, module, coeff_k, coeff_l),
             weights,
-            test_func=lambda x: module_sgd_test(x, test_data, module, training_data))
+            test_func=lambda x: module_sgd_test(x, test_data, module, training_data),
+            step=learning_rate,
+            iterations=iterations,
+            anneal_every=learning_rate_steps,
+            test_every=test_steps,
+            start_iterations=start_iterations,
+            saved_params_file_name=saved_params_file_name)
 
     return module
 
 
-def module_sgd_wrapper(x, data, module):
+
+def module_sgd_wrapper(x, data, module, coeff_k, coeff_l):
     """
     Wrapper for SGD training
     :param x: module parameters
@@ -55,7 +85,7 @@ def module_sgd_wrapper(x, data, module):
 
     for i in xrange(batch_size):
         batch = get_random_data(data)
-        cost_i, grad_i = module.get_gradient_and_loss(x, batch[0], batch[1])
+        cost_i, grad_i = module.get_gradient_and_loss(x, batch[0], batch[1], coeff_k=coeff_k, coeff_l=coeff_l)
         cost += cost_i / batch_size
         grad += grad_i / batch_size
 
@@ -80,7 +110,9 @@ def module_sgd_test_data(x, data, module, name):
     for index in range(len(data.worda)):
         if predict[index][0] == data.subject_ids[index] and predict[index][1] == data.predicate_ids[index] and predict[index][2] == data.object_ids[index]:
             correct_ans += 1
-    print("{0} accuracy {1} acc percent {2}".format(name, str(float(correct_ans) / len(predict)), str(float(np.sum(acc_percent)) / len(acc_percent))))
+
+    logger = ModuleLogger()
+    logger.log("{0} accuracy {1} acc percent {2}".format(name, str(float(correct_ans) / len(predict)), str(float(np.sum(acc_percent)) / len(acc_percent))))
 
 def get_random_data(data, batch_size=128):
     """
@@ -138,5 +170,33 @@ def sanity_check(word_embed_size=50, visual_embed_size=2048):
 
 
 if __name__ == "__main__":
-    train()
+    #train()
     #sanity_check()
+    from multiprocessing import Process
+    stream = file('params.yaml', 'r')
+    params = yaml.load(stream)
+
+    nof_processes = params["nof_p"]
+
+    processes = []
+    for process in range(1, nof_processes + 1):
+        process_params = params[process]
+        name = process_params["name"]
+        learning_rate = process_params["learning_rate"]
+        learning_rate_steps = process_params["learning_rate_steps"]
+        iterations = process_params["iterations"]
+        test_steps = process_params["test_steps"]
+        coeff_k = process_params["coeff_k"]
+        coeff_l = process_params["coeff_l"]
+        saved_params_file_name = process_params["saved_params_file_name"]
+        start_iterations = process_params["start_iterations"]
+        word_embed_size = process_params["word_embed_size"]
+        p = Process(target=train, args=(
+        name, iterations, start_iterations, learning_rate, learning_rate_steps, test_steps, coeff_k,
+        coeff_l, saved_params_file_name, word_embed_size))
+        p.start()
+        processes.append(p)
+
+    # wait until all processes done
+    for p in processes:
+        p.join()
