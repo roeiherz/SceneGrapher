@@ -2,6 +2,7 @@
 
 # Save parameters every a few SGD iterations as fail-safe
 from ModuleLogger import ModuleLogger
+import os
 
 SAVE_PARAMS_EVERY = 1000
 import glob
@@ -16,6 +17,7 @@ def load_saved_params(saved_params_file_name, start_iterations):
     A helper function that loads previously saved parameters and resets
     iteration start.
     """
+
     if saved_params_file_name != None:
         with open(saved_params_file_name, "r") as f:
             params = pickle.load(f)
@@ -38,8 +40,8 @@ def load_saved_params(saved_params_file_name, start_iterations):
             return st, None, None
 
 
-def save_params(iter, params):
-    with open("saved_params_%d.npy" % iter, "w") as f:
+def save_params(iter, params, dir):
+    with open(os.path.join(dir, "saved_params_%d.npy" % iter), "w") as f:
         pickle.dump(params, f)
         pickle.dump(random.getstate(), f)
 
@@ -88,7 +90,7 @@ def sgd(f, x0, step=0.01, iterations=100000, anneal_every = 1000,
     for iter in range(start_iter, iterations + 1):
 
         if iter % SAVE_PARAMS_EVERY == 0 and iter != 0:
-            save_params(iter, x)
+            save_params(iter, x, logger.get_dir())
 
         cost, grad = f(x)
 
