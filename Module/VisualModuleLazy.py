@@ -40,6 +40,13 @@ class VisualModule(object):
         # self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections.p")
         self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections_url.p")
 
+        # Get Mapping dict between Detections.Id to index
+        self.mapping_id_to_ind_dict = {}
+        idx = 0
+        for id in self.full_detections[Detections.Id]:
+            self.mapping_id_to_ind_dict[id] = idx
+            idx += 1
+
         # Check if loading detections succeed
         if self.full_detections is None:
             print("Error: No detections have been found")
@@ -97,12 +104,22 @@ class VisualModule(object):
         :param relation_ids: array of relationships ids
         :return: predicate_features, subject_probabilities, object_probabilities
         """
+
         # Sorted detections by their relation_ids
-        detections_indx = np.zeros(len(relation_ids), dtype=int)
-        for indx in range(len(relation_ids)):
-            detections_indx[indx] = \
-            np.where(np.in1d(list(self.full_detections[Detections.Id]), relation_ids[indx]) == True)[0][0]
+        detections_indx = [self.mapping_id_to_ind_dict[relation] for relation in relation_ids]
         detections = self.full_detections[detections_indx]
+
+        # todo: remove after checking with testing
+        # # Sorted detections by their relation_ids
+        # detections_indx = np.zeros(len(relation_ids), dtype=int)
+        # for indx in range(len(relation_ids)):
+        #     detections_indx[indx] = \
+        #         np.where(np.in1d(list(self.full_detections[Detections.Id]), relation_ids[indx]) == True)[0][0]
+        # detections = self.full_detections[detections_indx]
+        #
+        # # Sorted detections by their relation_ids
+        # indx = np.where(np.in1d(list(self.full_detections[Detections.Id]), relation_ids) == True)
+        # detections = self.full_detections[indx]
 
         # Check if loading detections succeed
         if len(detections) != len(relation_ids):
@@ -169,7 +186,7 @@ class VisualModule(object):
             :return: probability per predicate
             """
         predicate_likelihoods = np.dot(z, predicate_features.T).T + s.flatten().T
-        #predicate_probability = softmax(predicate_likelihoods)
+        # predicate_probability = softmax(predicate_likelihoods)
 
         return predicate_likelihoods
 
@@ -402,6 +419,7 @@ if __name__ == '__main__':
     # vm = VisualModule(objects_training_dir_name="",
     #                   predicates_training_dir_name="")
 
+    vm.extract_features([543455, 543470, 543465, 543485])
     vm._debug_detections()
     vm.initialize_networks(gpu_num=2, batch_num=1)
     last_layer_weights = vm.predict_model.layers[-1].get_weights()[0]
