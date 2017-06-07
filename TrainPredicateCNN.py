@@ -21,7 +21,8 @@ import matplotlib.pyplot as plt
 
 from keras_frcnn.Utils.Boxes import find_union_box, BOX
 from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
-    get_img_resize, get_time_and_date, TRAINING_PREDICATE_CNN_PATH, create_folder, get_img
+    get_img_resize, get_time_and_date, TRAINING_PREDICATE_CNN_PATH, get_img
+from Utils.Utils import create_folder
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 import cv2

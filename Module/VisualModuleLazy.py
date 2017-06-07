@@ -14,7 +14,7 @@ from keras_frcnn.Utils.Utils import VG_VisualModule_PICKLES_PATH, TRAINING_OBJEC
     TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, VisualGenome_PICKLES_PATH, PROJECT_ROOT, get_mask_from_object, get_img
 from DesignPatterns.Detections import Detections
 import numpy as np
-from Utils.Utils import softmax
+from Utils.Utils import softmax, get_detections
 from keras import backend as K
 from keras.models import Model
 from keras_frcnn.Lib.Zoo import ModelZoo
@@ -37,8 +37,8 @@ class VisualModule(object):
         """
 
         # Get the whole detections
-        # self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections.p")
-        self.full_detections = self.get_detections(detections_file_name="predicated_mini_fixed_detections_url.p")
+        # self.full_detections = get_detections(detections_file_name="predicated_mini_fixed_detections.p")
+        self.full_detections = get_detections(detections_file_name="predicated_mini_fixed_detections_url.p")
 
         # Get Mapping dict between Detections.Id to index
         self.mapping_id_to_ind_dict = {}
@@ -160,22 +160,6 @@ class VisualModule(object):
         likelihoods = subject_prob * predicate_likelihoods[predicate_ids] * object_prob
 
         return likelihoods, subject_prob, object_prob
-
-    # todo: this function should be move to Util.data
-    def get_detections(self, detections_file_name="predicated_mini_detections.p"):
-        """
-        This function gets the whole filtered detections data (with no split between the  modules)
-        :return: detections
-        """
-        # Check if pickles are already created
-        detections_path = os.path.join("..", VG_VisualModule_PICKLES_PATH, detections_file_name)
-
-        if os.path.isfile(detections_path):
-            print('Detections numpy array is Loading from: {0}'.format(detections_path))
-            detections = cPickle.load(open(detections_path, 'rb'))
-            return detections
-
-        return None
 
     def predicate_predict(self, predicate_features, z, s):
         """

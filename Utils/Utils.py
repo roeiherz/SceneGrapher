@@ -1,5 +1,10 @@
+import os
+import cPickle
 import numpy as np
 from numpy.core.umath_tests import inner1d
+from keras_frcnn.Utils.Utils import VG_VisualModule_PICKLES_PATH
+
+FILE_EXISTS_ERROR = (17, 'File exists')
 
 
 def cosine_distance(u, v):
@@ -75,3 +80,42 @@ def softmax(x):
 
     assert x.shape == orig_shape
     return x
+
+
+def create_folder(path):
+    """
+    Checks if the path exists, if not creates it.
+    :param path: A valid path that might not exist
+    :return: An indication if the folder was created
+    """
+    folder_missing = not os.path.exists(path)
+
+    if folder_missing:
+        # Using makedirs since the path hierarchy might not fully exist.
+        try:
+            os.makedirs(path)
+        except OSError as e:
+            if (e.errno, e.strerror) == FILE_EXISTS_ERROR:
+                print(e)
+            else:
+                raise
+
+        print('Created folder {0}'.format(path))
+
+    return folder_missing
+
+
+def get_detections(detections_file_name="predicated_mini_detections.p"):
+    """
+    This function gets the whole filtered detections data (with no split between the  modules)
+    :return: detections
+    """
+    # Check if pickles are already created
+    detections_path = os.path.join("..", VG_VisualModule_PICKLES_PATH, detections_file_name)
+
+    if os.path.isfile(detections_path):
+        print('Detections numpy array is Loading from: {0}'.format(detections_path))
+        detections = cPickle.load(open(detections_path, 'rb'))
+        return detections
+
+    return None

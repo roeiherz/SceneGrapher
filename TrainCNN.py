@@ -18,8 +18,8 @@ from keras import backend as K
 from keras.models import Model
 import sys
 import matplotlib.pyplot as plt
-from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, get_time_and_date, create_folder, \
-    TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE, replace_top_layer, get_sorting_url
+from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, get_time_and_date, TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE, replace_top_layer, get_sorting_url
+from Utils.Utils import create_folder
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 from keras_frcnn.Utils.data import get_sorted_data, splitting_to_datasets, create_data_pascal_voc, \
