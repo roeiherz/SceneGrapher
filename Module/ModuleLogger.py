@@ -35,6 +35,7 @@ class ModuleLogger(object):
     def log(self, str):
         self.log_file.write(self.name + ": " + str + "\n")
         self.log_file.flush()
+        print(self.name + ": " + str)
 
     def get_dir(self):
         return self.name
