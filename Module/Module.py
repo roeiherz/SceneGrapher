@@ -179,7 +179,7 @@ class Module(object):
         # l_coeff - 1 if R1 occurs more then R2, -1 of R2 occurs more then R1 and 0 otherwise.
         #
         l_coeff = np.ones(R1.instances.shape).reshape(-1, 1)
-        l_coeff[R1.instances < R2.instances] = -1 * coeff_l
+        l_coeff[R1.instances < R2.instances] = -1
         l_coeff[R1.instances == R2.instances] = 0
 
         #
@@ -190,12 +190,17 @@ class Module(object):
 
         # grad W
         grad_w_l = np.zeros(w.shape)
+        # l_r1_coeffs will be 1/batch_size for every the likelihood of the less popular r is higher
         l_r1_coeffs = np.copy(l_loss)
         l_r1_coeffs[l_r1_coeffs != 0] = 1.0 / l_loss.shape[0]
+        # if R1 is the less popular multiply by -1
         l_r1_coeffs = np.multiply(l_r1_coeffs, -1 * l_coeff)
+
         np.add.at(grad_w_l, R1.predicate_ids, l_r1_coeffs * r1_embed)
+        # l_r1_coeffs will be 1/batch_size for every the likelihood of the less popular r is higher
         l_r2_coeffs = np.copy(l_loss)
         l_r2_coeffs[l_r2_coeffs != 0] = 1.0 / l_loss.shape[0]
+        # if R2 is the less popular multiply by -1
         l_r2_coeffs = np.multiply(l_r2_coeffs, l_coeff)
         np.add.at(grad_w_l, R2.predicate_ids, l_r2_coeffs * r2_embed)
 
@@ -211,45 +216,59 @@ class Module(object):
         grad_s_c = np.zeros(s.shape)
         C = 0
         predicate_features, subject_probabilities, object_probabilities = self.visual.extract_features(R1.relation_ids)
+        predicate_prob = self.visual.predicate_predict(predicate_features, z, s)
+        # get tensor of probabilities (element per any relation - triplet)
+        lang_predict = self.lang.predict_all(w, b)
         for index in range(len(R1.worda)):
-            r_v, r_sub_prob, r_obj_prob = self.visual.likelihood(R1.subject_ids[index], R1.object_ids[index], R1.predicate_ids[index],
-                                         predicate_features[index], subject_probabilities[index],
-                                         object_probabilities[index], z, s)
-            r_likelihood = r_v * r1_f[index]
 
-            r2_v, r2_sub_prob, r2_obj_prob = self.visual.likelihood(R2.subject_ids, R2.object_ids, R2.predicate_ids,
-                                          predicate_features[index], subject_probabilities[index],
-                                          object_probabilities[index], z, s)
+            # calc tensor of probabilities of visual moudle
+            visual_predict = np.multiply.outer(subject_probabilities[index],
+                                               np.multiply.outer(predicate_prob[index], object_probabilities[index]))
+            # calc tensor of probabilities taking into account both visual and language module
+            predict_tensor = visual_predict * lang_predict
+            # copy and delete the true relation and find the next mask
+            r_likelihood = predict_tensor[R1.subject_ids[index]][R1.predicate_ids[index]][R1.object_ids[index]]
+            predict_tensor[R1.subject_ids[index]][R1.predicate_ids[index]][R1.object_ids[index]] = 0
+            # get the highest probability
+            predict = np.argmax(predict_tensor)
+            # convert to relation indexes (triplet)
+            predict_triplet = np.unravel_index(predict, predict_tensor.shape)
 
-            r2_likelihood = r2_v * r2_f.flatten()
-
-            # filter relationship that identical to r1
-            r2_filter = np.logical_and(
-                np.logical_and(R2.subject_ids == R1.subject_ids[index], R2.predicate_ids == R1.predicate_ids[index]),
-                R2.object_ids == R1.object_ids[index])
-            r2_filter = np.logical_not(r2_filter)
-            r2_max_index = np.argmax(np.multiply(r2_likelihood, r2_filter.astype(int)))
+            max_likelihood = predict_tensor[predict_triplet]
 
             # loss
-            c_loss = max(1 + r2_likelihood[r2_max_index] - r_likelihood, 0)
+            c_loss = max(1 + max_likelihood - r_likelihood, 0)
             C += c_loss / len(R1.worda)
             # gradients
             if c_loss != 0:
+                # get parameters for the gradient
+                max_sub_prob = subject_probabilities[index][predict_triplet[0]]
+                max_obj_prob = object_probabilities[index][predict_triplet[2]]
+                true_sub_prob = subject_probabilities[index][R1.subject_ids[index]]
+                true_obj_prob = object_probabilities[index][R1.object_ids[index]]
+                max_f = lang_predict[predict_triplet]
+                true_f = r1_f[index]
+                max_v = visual_predict[predict_triplet]
+                true_v = visual_predict[R1.subject_ids[index]][R1.predicate_ids[index]][R1.object_ids[index]]
+                max_lang_features = self.lang.get_relation_embed(predict_triplet[0], predict_triplet[2])
+                true_lang_features = r1_embed[index]
+                visual_features = predicate_features[index]
+
                 # w gradient
-                grad_w_c[R2.predicate_ids[r2_max_index]] += r2_v[r2_max_index] * r2_embed[r2_max_index] / len(R1.worda)
-                grad_w_c[R1.predicate_ids[index]] -= r_v * r1_embed[index] / len(R1.worda)
+                grad_w_c[predict_triplet[1]] += max_v * max_lang_features / len(R1.worda)
+                grad_w_c[R1.predicate_ids[index]] -= true_v * true_lang_features / len(R1.worda)
 
                 # b gradient
-                grad_b_c[R2.predicate_ids[r2_max_index]] += r2_v[r2_max_index] / len(R1.worda)
-                grad_b_c[R1.predicate_ids[index]] -= r_v / len(R1.worda)
+                grad_b_c[predict_triplet[1]] += max_v / len(R1.worda)
+                grad_b_c[R1.predicate_ids[index]] -= true_v / len(R1.worda)
 
                 # z gradient
-                grad_z_c[R2.predicate_ids[r2_max_index]] += r2_sub_prob[r2_max_index] * r2_obj_prob[r2_max_index] * predicate_features[index] * r2_f[r2_max_index] / len(R1.worda)
-                grad_z_c[R1.predicate_ids[index]] -= r_sub_prob * r_obj_prob * predicate_features[index] * r1_f[index] / len(R1.worda)
+                grad_z_c[predict_triplet[1]] += max_sub_prob * max_obj_prob * visual_features * max_f / len(R1.worda)
+                grad_z_c[R1.predicate_ids[index]] -=  true_sub_prob * true_obj_prob * visual_features * true_f / len(R1.worda)
 
                 # s gradient
-                grad_s_c[R2.predicate_ids[r2_max_index]] += r2_sub_prob[r2_max_index] * r2_obj_prob[r2_max_index]* r2_f[r2_max_index] / len(R1.worda)
-                grad_s_c[R1.predicate_ids[index]] -= r_sub_prob * r_obj_prob * r1_f[index] / len(R1.worda)
+                grad_s_c[predict_triplet[1]] += max_sub_prob * max_obj_prob * max_f / len(R1.worda)
+                grad_s_c[R1.predicate_ids[index]] -= true_sub_prob * true_obj_prob * true_f / len(R1.worda)
 
         ### total loss and grad
         loss = coeff_k * K + coeff_l * L + C

@@ -235,6 +235,16 @@ class LangModule(object):
 
         return probs
 
+    def get_relation_embed(self, subjects_ids, object_ids):
+        """
+        Getting language embedding (features of a relationship)
+        :param subjects_ids: array of object ids
+        :param object_ids: array of subject ids
+        :return: array of embedding of subject and object
+        """
+
+        return self.relations_embed[subjects_ids, object_ids]
+
 if __name__ == "__main__":
     embed = LangModule(70, 50)
     embed.predict("the", "hello")
