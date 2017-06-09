@@ -4,19 +4,23 @@ from LangModule import LangModule
 from VisualModuleLazy import VisualModule
 import cPickle
 
+
 class Module(object):
     """
     Module for scene grapher
     This module includes visual module and language module
     """
 
-    def __init__(self, object_ids, predicate_ids, lang_embed_size, visual_embed_size):
+    def __init__(self, object_ids, predicate_ids, lang_embed_size, visual_embed_size, objects_training_dir_name="",
+                 predicates_training_dir_name=""):
         """
         Initialize module and create module parameters
         :param nof_objects: number of object classes
         :param nof_predicates: number of predicate classes
         :param lang_embed_size: size of embedded word in word2vec space
         :param visual_embed_size: size of features extracted from predicate CNN
+        :param objects_training_dir_name: objects training dir name for taking the weights
+        :param predicates_training_dir_name: predicates training dir name for taking the weights
         """
         # save input params
         self.nof_objects = len(object_ids)
@@ -30,7 +34,8 @@ class Module(object):
         self.lang = LangModule(object_ids, predicate_ids)
 
         # create visual module
-        self.visual = VisualModule()
+        self.visual = VisualModule(predicates_training_dir_name=predicates_training_dir_name,
+                                   objects_training_dir_name=objects_training_dir_name)
 
         # create dimensions for module parameters
         self.w_dimensions = (self.nof_predicates, 2 * lang_embed_size)
@@ -43,14 +48,14 @@ class Module(object):
         w = np.random.randn(*self.w_dimensions)
         b = np.random.randn(*self.b_dimensions)
         z = np.random.randn(*self.z_dimensions)
-        #s = np.random.randn(*self.s_dimensions)
+        # s = np.random.randn(*self.s_dimensions)
         # load init paramters to be equal to predicate CNN	
         file_handle = open("last_layer_weights.p", "rb")
         z = cPickle.load(file_handle).T
         file_handle.close()
-        #w = np.zeros(self.w_dimensions)
-        #b = np.zeros(self.b_dimensions)
-        #z = np.zeros(self.z_dimensions)
+        # w = np.zeros(self.w_dimensions)
+        # b = np.zeros(self.b_dimensions)
+        # z = np.zeros(self.z_dimensions)
         s = np.zeros(self.s_dimensions)
 
         # encode parameters
@@ -97,7 +102,15 @@ class Module(object):
         """
         return self.params
 
-    def get_gradient_and_loss(self, params, R1, R2, coeff_l=0.0, coeff_k=0.0):
+    def set_weights(self, params):
+        """
+        Set module parameters
+        :param params:
+        :return: None
+        """
+        self.params = params
+
+    def get_gradient_and_loss(self, params, R1, R2, coeff_l=0.0, coeff_k=0.0, coeff_reg_visual=0.001):
         """
         Calculate the cost and the gradient with respect to model parameters
 
@@ -130,9 +143,9 @@ class Module(object):
 
         # get language likelihood
         r1_f = self.lang.likelihood(r1_embed, w, b, R1.predicate_ids)
-        #r1_f = np.ones(r1_f.shape)
+        # r1_f = np.ones(r1_f.shape)
         r2_f = self.lang.likelihood(r2_embed, w, b, R2.predicate_ids)
-        #r2_f = np.ones(r2_f.shape)
+        # r2_f = np.ones(r2_f.shape)
 
         # get distance in word2vec space
         dist = self.lang.distance(r1_a_embed, r1_b_embed, r1_pred_embed, r2_a_embed, r2_b_embed, r2_pred_embed)
@@ -264,20 +277,29 @@ class Module(object):
 
                 # z gradient
                 grad_z_c[predict_triplet[1]] += max_sub_prob * max_obj_prob * visual_features * max_f / len(R1.worda)
-                grad_z_c[R1.predicate_ids[index]] -=  true_sub_prob * true_obj_prob * visual_features * true_f / len(R1.worda)
+                grad_z_c[R1.predicate_ids[index]] -= true_sub_prob * true_obj_prob * visual_features * true_f / len(
+                    R1.worda)
 
                 # s gradient
                 grad_s_c[predict_triplet[1]] += max_sub_prob * max_obj_prob * max_f / len(R1.worda)
                 grad_s_c[R1.predicate_ids[index]] -= true_sub_prob * true_obj_prob * true_f / len(R1.worda)
 
+        ### loss and gradient of regularization
+        #   reg_visual = Sum(Z ** Z)
+        #   gradient_z(reg_visual) = 2*Z
+        #   gradient_s(reg_visual) = 2*S
+        grad_z_reg = 2 * z
+        grad_s_reg = 2 * s
+        REG_VIS = np.sum(np.multiply(z, z)) + np.sum(np.multiply(s, s))
+
         ### total loss and grad
-        loss = coeff_k * K + coeff_l * L + C
+        loss = coeff_k * K + coeff_l * L + C + coeff_reg_visual * REG_VIS
         grad_w = coeff_k * grad_w_k + coeff_l * grad_w_l + grad_w_c
         grad_b = coeff_k * grad_b_k + coeff_l * grad_b_l + grad_b_c
-        grad_z = grad_z_c
-        #grad_z = np.zeros(grad_z.shape)
-        grad_s = grad_s_c
-        #grad_s = np.zeros(grad_s.shape)
+        grad_z = grad_z_c + coeff_reg_visual * grad_z_reg
+        # grad_z = np.zeros(grad_z.shape)
+        grad_s = grad_s_c + coeff_reg_visual * grad_s_reg
+        # grad_s = np.zeros(grad_s.shape)
         grad = self.encode_parameters(grad_w, grad_b, grad_z, grad_s)
 
         return loss, grad
@@ -297,7 +319,7 @@ class Module(object):
         predicate_prob = self.visual.predicate_predict(predicate_features, z, s)
         # get tensor of probabilities (element per any relation - triplet)
         lang_predict = self.lang.predict_all(w, b)
-        #lang_predict = np.ones(lang_predict.shape)
+        # lang_predict = np.ones(lang_predict.shape)
 
         # iterate over each relation to predict
         predictions = []
@@ -314,12 +336,11 @@ class Module(object):
             predict_triplet = np.unravel_index(predict, predict_tensor.shape)
             # append to predictions list
             predictions.append(predict_triplet)
-            #get accuracy percent
-            correct_percent = predict_tensor[relations.subject_ids[index]][relations.predicate_ids[index]][relations.object_ids[index]] / np.sum(predict_tensor)
+            # get accuracy percent
+            correct_percent = predict_tensor[relations.subject_ids[index]][relations.predicate_ids[index]][
+                                  relations.object_ids[index]] / np.sum(predict_tensor)
             accuracy_percent.append(correct_percent)
         return predictions, accuracy_percent
-
-
 
     def r_k_metric(self, images, k, params):
         """
@@ -349,9 +370,8 @@ class Module(object):
                     if object_index == subject_index:
                         continue
                     # extract features and probabilities
-                    # FIXME: ask roei to implement this function
                     predicate_features, subject_prob, object_prob = self.visual.extract_features_for_evaluate \
-                        (img.obects[subject_index], img.obects[object_index])
+                        (img.obects[subject_index], img.obects[object_index], img.image.url)
                     predicate_prob = self.visual.predicate_predict(predicate_features, z, s)
 
                     # calc tensor of probabilities of visual moudle
@@ -377,7 +397,7 @@ class Module(object):
                             index_to_remove = predictions_arr[:, 2].argmin()
                             predictions.remove(predictions[index_to_remove])
 
-            # FIXME: calc how many of the ground truth relatioships included in k highest confidence relationships
+            # FIXME: calc how many of the ground truth relationships included in k highest confidence relationships
             images_score += 0
 
         return images_score / len(images)
