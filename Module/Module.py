@@ -31,7 +31,7 @@ class Module(object):
         self.visual_embed_size = visual_embed_size
 
         # create language module
-        self.lang = LangModule(object_ids, predicate_ids)
+        self.lang = LangModule(object_ids, predicate_ids, lang_embed_size)
 
         # create visual module
         self.visual = VisualModule(predicates_training_dir_name=predicates_training_dir_name,
@@ -110,7 +110,7 @@ class Module(object):
         """
         self.params = params
 
-    def get_gradient_and_loss(self, params, R1, R2, coeff_l=0.0, coeff_k=0.0, coeff_reg_visual=0.001):
+    def get_gradient_and_loss(self, params, R1, R2, coeff_l=0.0, coeff_k=0.0, coeff_reg_visual=0.001, coeff_reg_lang=0.001):
         """
         Calculate the cost and the gradient with respect to model parameters
 
@@ -288,14 +288,17 @@ class Module(object):
         #   reg_visual = Sum(Z ** Z)
         #   gradient_z(reg_visual) = 2*Z
         #   gradient_s(reg_visual) = 2*S
+        #   ...
+        grad_w_reg = 2 * w
+        grad_b_reg = 2 * b
         grad_z_reg = 2 * z
         grad_s_reg = 2 * s
         REG_VIS = np.sum(np.multiply(z, z)) + np.sum(np.multiply(s, s))
-
+        REG_LANG = np.sum(np.multiply(w, w) + np.sum(np.multiply(b, b)))
         ### total loss and grad
-        loss = coeff_k * K + coeff_l * L + C + coeff_reg_visual * REG_VIS
-        grad_w = coeff_k * grad_w_k + coeff_l * grad_w_l + grad_w_c
-        grad_b = coeff_k * grad_b_k + coeff_l * grad_b_l + grad_b_c
+        loss = coeff_k * K + coeff_l * L + C + coeff_reg_visual * REG_VIS + coeff_reg_lang * REG_LANG
+        grad_w = coeff_k * grad_w_k + coeff_l * grad_w_l + grad_w_c + coeff_reg_lang * grad_w_reg
+        grad_b = coeff_k * grad_b_k + coeff_l * grad_b_l + grad_b_c + coeff_reg_lang * grad_b_reg
         grad_z = grad_z_c + coeff_reg_visual * grad_z_reg
         # grad_z = np.zeros(grad_z.shape)
         grad_s = grad_s_c + coeff_reg_visual * grad_s_reg

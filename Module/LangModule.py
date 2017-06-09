@@ -11,7 +11,7 @@ class LangModule(object):
     Language module for scene grapher
     """
 
-    def __init__(self, object_ids, predicate_ids):
+    def __init__(self, object_ids, predicate_ids, word_embed_size):
         """
         Initialize language module of scene grapher
         """
@@ -21,7 +21,7 @@ class LangModule(object):
         self.predicate_ids = predicate_ids
 
         # get singleton instance of word embed object
-        self.word_embed_obj = WordEmbd()
+        self.word_embed_obj = WordEmbd(word_embed_size)
 
         # save embeddings for each object_id
         self.relations_embed = np.zeros((len(object_ids), len(object_ids), self.word_embed_obj.embed_vec_dim()*2))

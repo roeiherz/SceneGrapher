@@ -76,35 +76,48 @@ def prepare_eval_data():
     Prepare data for evaluate
     :return: visual genome entities (filtered to be similar to ou base line model)
     """
-    module_data_file = open("filtered_module_data.p", "rb")
-    module_data = cPickle.load(module_data_file)
-    module_data_file.close()
+    if os.path.isfile("eval_module_data.p"):
+        module_data_file = open("eval_module_data.p", "rb")
+        test_entities = cPickle.load(module_data_file)
+        object_ids = cPickle.load(module_data_file)
+        predicate_ids = cPickle.load(module_data_file)
+        module_data_file.close()
+    else:
+        module_data_file = open("filtered_module_data.p", "rb")
+        module_data = cPickle.load(module_data_file)
+        module_data_file.close()
 
-    object_ids = module_data["object_ids"]
-    predicate_ids = module_data["predicate_ids"]
-    entities = module_data["entities_visual_module"]
+        object_ids = module_data["object_ids"]
+        predicate_ids = module_data["predicate_ids"]
+        entities = module_data["entities_visual_module"]
 
-    # Load mini url list which will be filtered
-    mini_url_lst = cPickle.load(open("url_lst_mini.p"))
+        # Load mini url list which will be filtered
+        mini_url_lst = cPickle.load(open("url_lst_mini.p"))
 
-    # Real entities
-    real_entities = []
+        # Real entities
+        real_entities = []
 
-    # Filtered entities by their urls
-    for entity in entities:
-        # filter by url
-        if filtered_entities_by_url(entity.image.url) or filtered_by_mini_url(mini_url_lst, entity.image.url):
-            continue
-        real_entities.append(entity)
+        # Filtered entities by their urls
+        for entity in entities:
+            # filter by url
+            if filtered_entities_by_url(entity.image.url) or filtered_by_mini_url(mini_url_lst, entity.image.url):
+                continue
+            real_entities.append(entity)
 
-    # Replace entities
-    entities = real_entities
+        # Replace entities
+        entities = real_entities
 
-    # split entities to train, validation and test
-    nof_entities = len(entities)
-    train_entities = entities[:int(0.6 * nof_entities)]
-    validation_entities = entities[int(0.6 * nof_entities):int(0.8 * nof_entities)]
-    test_entities = entities[int(0.8 * nof_entities):]
+        # split entities to train, validation and test
+        nof_entities = len(entities)
+        train_entities = entities[:int(0.6 * nof_entities)]
+        validation_entities = entities[int(0.6 * nof_entities):int(0.8 * nof_entities)]
+        test_entities = entities[int(0.8 * nof_entities):]
+
+        eval_data_file = open("eval_module_data.p", "w")
+        cPickle.dump(test_entities, eval_data_file, 0)
+        cPickle.dump(object_ids, eval_data_file, 0)
+        cPickle.dump(predicate_ids, eval_data_file, 0)
+        eval_data_file.close()
 
     return test_entities, object_ids, predicate_ids
 

@@ -18,6 +18,7 @@ def train(
     coeff_k = 0.005,
     coeff_l = 0.02,
     coeff_reg_visual = 0.001,
+    coeff_reg_lang = 0.001,
     saved_params_file_name = "best_params.npy",
     word_embed_size=50,
     visual_embed_size=2048):
@@ -58,7 +59,7 @@ def train(
 
     # train
     logger.log("Train")
-    sgd.sgd(lambda x: module_sgd_wrapper(x, training_data, module, coeff_k, coeff_l, coeff_reg_visual),
+    sgd.sgd(lambda x: module_sgd_wrapper(x, training_data, module, coeff_k, coeff_l, coeff_reg_visual, coeff_reg_lang),
             weights,
             test_func=lambda x: module_sgd_test(x, test_data, module, training_data),
             step=learning_rate,
@@ -72,7 +73,7 @@ def train(
 
 
 
-def module_sgd_wrapper(x, data, module, coeff_k, coeff_l, coeff_reg_visual):
+def module_sgd_wrapper(x, data, module, coeff_k, coeff_l, coeff_reg_visual, coeff_reg_lang):
     """
     Wrapper for SGD training
     :param x: module parameters
@@ -87,7 +88,9 @@ def module_sgd_wrapper(x, data, module, coeff_k, coeff_l, coeff_reg_visual):
     for i in xrange(batch_size):
         batch = get_random_data(data)
         cost_i, grad_i = module.get_gradient_and_loss(x, batch[0], batch[1],
-                                                      coeff_k=coeff_k, coeff_l=coeff_l, coeff_reg_visual=coeff_reg_visual)
+                                                      coeff_k=coeff_k, coeff_l=coeff_l,
+                                                      coeff_reg_visual=coeff_reg_visual,
+                                                      coeff_reg_lang=coeff_reg_lang)
         cost += cost_i / batch_size
         grad += grad_i / batch_size
 
@@ -191,12 +194,13 @@ if __name__ == "__main__":
         coeff_k = process_params["coeff_k"]
         coeff_l = process_params["coeff_l"]
         coeff_reg_visual = process_params["coeff_reg_visual"]
+        coeff_reg_lang = process_params["coeff_reg_lang"]
         saved_params_file_name = process_params["saved_params_file_name"]
         start_iterations = process_params["start_iterations"]
         word_embed_size = process_params["word_embed_size"]
         p = Process(target=train, args=(
         name, iterations, start_iterations, learning_rate, learning_rate_steps, test_steps, coeff_k,
-        coeff_l, coeff_reg_visual, saved_params_file_name, word_embed_size))
+        coeff_l, coeff_reg_visual, coeff_reg_lang, saved_params_file_name, word_embed_size))
         p.start()
         processes.append(p)
 
