@@ -81,6 +81,10 @@ def softmax(x):
     assert x.shape == orig_shape
     return x
 
+def softmax_multi_dim(x):
+    """Compute softmax values for a multidim array"""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
 
 def create_folder(path):
     """

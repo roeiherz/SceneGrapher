@@ -8,9 +8,7 @@ import numpy
 from keras.engine import Model
 from keras.layers import Dense
 
-__author__ = 'roeih'
-
-PROJECT_ROOT = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/"
+PROJECT_ROOT = ".."
 VG_DATA_PATH = "Data/VisualGenome/data"
 VG_PATCH_PATH = "Data/VisualGenome/Patches"
 VG_PICKLES_FOLDER_PATH = "Data/VisualGenome/pickles"

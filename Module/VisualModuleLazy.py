@@ -197,8 +197,8 @@ class VisualModule(object):
                                                                              config=self.config, mode='validation',
                                                                              batch_size=1)
         # Start prediction
-        print('Starting Prediction')
-        print('Predicting Probabilities')
+        # print('Starting Prediction')
+        # print('Predicting Probabilities')
 
         # Calculating Probabilities from objects [2 , 150]
         probes = self.object_model.predict_generator(data_gen_validation_vg, steps=2, max_q_size=1, workers=1)
@@ -209,7 +209,7 @@ class VisualModule(object):
         # Get Object Probabilities - [1, 150]
         object_probabilities = probes[1]
 
-        print('Calculating Union-Box Features')
+        # print('Calculating Union-Box Features')
         # Define the function
         get_features_output_func = K.function([self.predict_model.layers[0].input],
                                               [self.predict_model.layers[-2].output])

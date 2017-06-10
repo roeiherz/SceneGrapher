@@ -42,7 +42,7 @@ def train(
     module_data = prepare_data()
     # get data
     training_data = module_data["train"]
-    test_data = module_data["test"]
+    validation_data = module_data["validation"]
 
     # embedded words module
     logger.log("Load Embed Word")
@@ -61,7 +61,7 @@ def train(
     logger.log("Train")
     sgd.sgd(lambda x: module_sgd_wrapper(x, training_data, module, coeff_k, coeff_l, coeff_reg_visual, coeff_reg_lang),
             weights,
-            test_func=lambda x: module_sgd_test(x, test_data, module, training_data),
+            test_func=lambda x: module_sgd_test(x, validation_data, module, training_data),
             step=learning_rate,
             iterations=iterations,
             anneal_every=learning_rate_steps,

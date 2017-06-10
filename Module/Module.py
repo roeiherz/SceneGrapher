@@ -3,6 +3,7 @@ import numpy as np
 from LangModule import LangModule
 from VisualModuleLazy import VisualModule
 import cPickle
+from Utils.Utils import softmax_multi_dim
 
 
 class Module(object):
@@ -359,48 +360,92 @@ class Module(object):
         # get tensor of probabilities (element per any relation - triplet)
         lang_predict = self.lang.predict_all(w, b)
 
-        images_score = 0
+        # scores
+        total_gt_relationships = 0
+        total_score = 0
+
         for img in images:
-            k_highest_confidence = []
+            # filter images with no relationships
+            if len(img.relationships) == 0:
+                continue
+
             min_predict_confidence = 0
             # extract features from visual module and probabilities for subject, object and predicate
 
             # iterate over each relation to predict and find k highest predictions
-            predictions = []
-            for subject_index in range(len(img.obects)):
-                for object_index in range(len(img.obects)):
+            top_predictions = np.zeros((0,))
+            top_likelihoods = np.zeros((0,))
+            top_k_global_subject_ids = np.zeros((0,))
+            top_k_global_object_ids = np.zeros((0,))
+            for subject_index in range(len(img.objects)):
+                for object_index in range(len(img.objects)):
                     # filter if subject equals to object
-                    if object_index == subject_index:
+                    if (subject_index == object_index):
                         continue
+                    #for relation in img.relationships:
+
+                    #subject = relation.subject
+                    #object = relation.object
+
+                    subject = img.objects[subject_index]
+                    object = img.objects[object_index]
+
                     # extract features and probabilities
-                    predicate_features, subject_prob, object_prob = self.visual.extract_features_for_evaluate \
-                        (img.obects[subject_index], img.obects[object_index], img.image.url)
+                    subject_prob, object_prob, predicate_features = self.visual.extract_features_for_evaluate \
+                        (subject, object, img.image.url)
+
+                    #predicate_features, subject_prob, object_prob = self.visual.extract_features([relation.filtered_id])
+                    #predicate_features = predicate_features[0]; subject_prob = subject_prob[0]; object_prob = object_prob[0]
+
                     predicate_prob = self.visual.predicate_predict(predicate_features, z, s)
 
                     # calc tensor of probabilities of visual moudle
-                    visual_predict = np.multiply.outer(subject_prob, np.multiply.outer(predicate_prob, object_prob))
+                    visual_predict = np.multiply.outer(subject_prob, np.multiply.outer(predicate_prob.flatten(), object_prob))
 
                     # calc tensor of probabilities taking into account both visual and language module
                     predict_tensor = visual_predict * lang_predict
-
+                    predict_tensor = softmax_multi_dim(predict_tensor)
                     # get the highset probabilities
-                    predict = np.argmax(predict_tensor)
-                    # convert to relation indexes (triplet)
-                    predict_triplet = np.unravel_index(predict, predict_tensor.shape)
-                    predict_confidence = predict_tensor[predict_triplet]
-                    while predict_confidence > min_predict_confidence:
-                        # append to predictions list
-                        predictions.append((subject_index, object_index), predict_triplet,
-                                           predict_tensor[predict_triplet])
-                        # remove confidence from tensor
-                        predict_tensor[predict_triplet] = 0
-                        # remove lowest confidence
-                        if len(predictions) == k:
-                            predictions_arr = np.asarray(predictions)
-                            index_to_remove = predictions_arr[:, 2].argmin()
-                            predictions.remove(predictions[index_to_remove])
+                    max_k_predictions = np.argsort(predict_tensor.flatten())[-k:]
+                    max_k_predictions_triplets = np.unravel_index(max_k_predictions, predict_tensor.shape)
+                    max_k_subjects = max_k_predictions_triplets[0]
+                    max_k_predicates = max_k_predictions_triplets[1]
+                    max_k_objects = max_k_predictions_triplets[2]
+                    max_k_likelihoods = predict_tensor[max_k_subjects, max_k_predicates, max_k_objects]
 
-            # FIXME: calc how many of the ground truth relationships included in k highest confidence relationships
-            images_score += 0
+                    # append to the list of highest predictions
+                    top_predictions = np.concatenate((top_predictions, max_k_predictions))
+                    top_likelihoods = np.concatenate((top_likelihoods, max_k_likelihoods))
 
-        return images_score / len(images)
+                    # store the relevant subject and object
+                    max_k_global_subject_ids = np.ones(max_k_likelihoods.shape) * subject.id
+                    max_k_global_object_ids = np.ones(max_k_likelihoods.shape) * object.id
+                    top_k_global_subject_ids = np.concatenate((top_k_global_subject_ids, max_k_global_subject_ids))
+                    top_k_global_object_ids = np.concatenate((top_k_global_object_ids, max_k_global_object_ids))
+
+            # get k highest confidence
+            top_k_indices = np.argsort(top_likelihoods)[-k:]
+            predictions = top_predictions[top_k_indices]
+            global_sub_ids = top_k_global_subject_ids[top_k_indices]
+            global_obj_ids = top_k_global_object_ids[top_k_indices]
+            img_score = 0
+            for relation in img.relationships:
+                sub_id = self.lang.object_ids[relation.subject.names[0]]
+                obj_id = self.lang.object_ids[relation.object.names[0]]
+                predicate_id = self.lang.predicate_ids[relation.predicate]
+                gt_relation = np.ravel_multi_index((sub_id, predicate_id, obj_id), predict_tensor.shape)
+
+                # filter the predictions for the specific subject
+                sub_predictions_indices = set(np.where(global_sub_ids == relation.subject.id)[0])
+                obj_predictions_indices = set(np.where(global_obj_ids == relation.object.id)[0])
+                relation_indices = set(np.where(predictions == gt_relation)[0])
+
+                indices = sub_predictions_indices & obj_predictions_indices & relation_indices
+                if len(indices) != 0:
+                    img_score += 1
+            total_score += img_score
+            total_gt_relationships += len(img.relationships)
+            score = float(total_score) / total_gt_relationships
+            print(str(score))
+
+        #return images_score / len(images)
