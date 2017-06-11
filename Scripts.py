@@ -284,22 +284,25 @@ def get_mini_url():
 
 if __name__ == '__main__':
 
-    get_mini_url()
+    # Filter the data
+    filtered_module_data = get_module_filter_data(objects_count_file_name="mini_classes_count.p",
+                                                  entities_file_name="mini_final_entities.p",
+                                                  predicates_count_file_name="mini_predicates_count.p", nof_objects=150,
+                                                  nof_predicates=50)
     exit()
+    # Create mini predicate count
+    predict_count_dict = create_predicate_count(entities_file_read="mini_final_entities.p",
+                                                entities_file_save="mini_predicates_count.p")
+
+    # Filter mini urls
+    get_mini_url()
     save_union_detections()
 
     delete_ind_from_detections()
 
     save_hierarchy_mapping()
 
-    # Filter the data
-    filtered_module_data = get_module_filter_data(objects_count_file_name="mini_classes_count.p",
-                                                  entities_file_name="final_entities.p",
-                                                  predicates_count_file_name="mini_predicates_count.p", nof_objects=150,
-                                                  nof_predicates=50)
-    # Create mini predicate count
-    predict_count_dict = create_predicate_count(entities_file_read="mini_final_entities.p",
-                                                entities_file_save="mini_predicates_count.p")
+
 
     # Check intersection of two hierarchies mapping
     hp_mini_path = "/home/roeih/SceneGrapher/Training/TrainingObjectsCNN/Sun_May_28_21:21:47_2017/class_mapping.p"

@@ -7,6 +7,7 @@ import random
 import numpy as np
 import operator
 from Data.VisualGenome.local import GetSceneGraph
+from Data.VisualGenome.models import Relationship
 from keras_frcnn.Lib.PascalVoc import PascalVoc
 from keras_frcnn.Utils.Boxes import find_union_box
 from keras_frcnn.Utils.Utils import VG_PATCH_PATH, DATA_PATH, CLASSES_MAPPING_FILE, CLASSES_COUNT_FILE, \
@@ -14,7 +15,6 @@ from keras_frcnn.Utils.Utils import VG_PATCH_PATH, DATA_PATH, CLASSES_MAPPING_FI
     VALIDATION_DATA_SET, TEST_DATA_SET, TRAIN_DATA_SET, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
     MINI_VG_DATADET_PATH, MINI_IMDB, get_time_and_date, VG_PICKLES_FOLDER_PATH, VisualGenome_DATASETS_PICKLES_PATH, \
     get_img, get_sorting_url
-from Utils.Utils import create_folder
 from DesignPatterns.Detections import Detections
 from keras_frcnn.Utils.Visualizer import VisualizerDrawer, CvColor
 import cv2
@@ -596,8 +596,41 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
             relation_ind += 1
             relationship_filtered.append(relation)
 
-        # Rewrite relationships
+        # Rewrite relations
         entity.relationships = relationship_filtered
+
+        # Find negative relations by checking that subject and object that don't have a relation
+        negative_relations = []
+        relation_id = 8000000
+        for subject in entity.objects:
+            for object in entity.objects:
+
+                # Make sure it isn't the same object
+                if object == subject:
+                    continue
+
+                negative_flag = True
+                # Check if object and subject are not
+                for relation in entity.relationships:
+
+                    # Negative is a subject and object that don't have a relation
+                    # Check if the subject or object are in relations.
+                    if relation.subject == subject and relation.object == object:
+                        negative_flag = False
+                        break
+
+                    if relation.subject == object and relation.object == subject:
+                        negative_flag = False
+                        break
+
+                if negative_flag:
+                    neg_relation = Relationship(id=relation_id, subject=subject, predicate="neg", object=object,
+                                                synset=[])
+                    negative_relations.append(neg_relation)
+                    relation_id += 1
+
+        # Rewrite relationships
+        entity.relationships += negative_relations
 
     print("Number of filtered relations: {}".format(relation_ind))
     print("Number of filtered objects: {}".format(object_ind))
@@ -621,7 +654,7 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
                             "entities_visual_module": entities[len(entities) / 2:]}
 
     # Save filtered_module_data file for only the top labels
-    filtered_module_data_file = open(os.path.join(VisualGenome_PICKLES_PATH, "filtered_module_data.p"), 'wb')
+    filtered_module_data_file = open(os.path.join(VisualGenome_PICKLES_PATH, "filtered_module_data_with_neg.p"), 'wb')
     # Pickle hierarchy_mapping
     cPickle.dump(filtered_module_data, filtered_module_data_file, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
