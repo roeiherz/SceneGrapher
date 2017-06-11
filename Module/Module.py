@@ -379,10 +379,12 @@ class Module(object):
             top_k_global_object_ids = np.zeros((0,))
             for subject_index in range(len(img.objects)):
                 for object_index in range(len(img.objects)):
+            #for subject_index in [1]:
+                #for relation in img.relationships:
+
                     # filter if subject equals to object
                     if (subject_index == object_index):
                         continue
-                    #for relation in img.relationships:
 
                     #subject = relation.subject
                     #object = relation.object

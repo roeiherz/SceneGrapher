@@ -10,7 +10,7 @@ import inspect
 import cPickle
 
 
-def eval(model_filename="best_params.npy", word_embed_size=50, visual_embed_size=2048):
+def eval(model_filename="best_params_for_eval.npy", word_embed_size=300, visual_embed_size=2048):
     """
     Evaluate the module using TBD metrics
     :return:
