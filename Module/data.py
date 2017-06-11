@@ -25,7 +25,7 @@ def prepare_data():
 
         object_ids = module_data["object_ids"]
         predicate_ids = module_data["predicate_ids"]
-        entities = module_data["entities_visual_module"]
+        entities = module_data["entities_module"]
 
         # Load mini url list which will be filtered
         mini_url_lst = cPickle.load(open("url_lst_mini.p"))
