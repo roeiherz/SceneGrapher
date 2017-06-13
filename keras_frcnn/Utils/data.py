@@ -641,7 +641,7 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
         id += 1
 
     # Add negative id
-    predicate_ids[u'neg'] = id + 1
+    predicate_ids[u'neg'] = id
 
     # Create new filtered data
     filtered_module_data = {"object_ids": object_ids, "predicate_ids": predicate_ids, "entities": entities,
