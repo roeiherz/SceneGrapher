@@ -5,7 +5,7 @@ import numpy as np
 from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
 from TrainCNN import VisualGenome_PICKLES_PATH
 from keras_frcnn.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
-    HIERARCHY_MAPPING, plot_graph
+    HIERARCHY_MAPPING, plot_graph, POSITIVE_NEGATIVE_RATIO
 from Utils.Utils import create_folder
 from keras_frcnn.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data
 from PredictVisualModel import get_resize_images_array, load_full_detections
@@ -254,18 +254,19 @@ def get_mini_url():
     """
 
     # Load entities
-    entities, _, _ = get_filtered_data("mini_filtered_module_data.p")
+    entities, _, _ = get_filtered_data("filtered_module_data_with_neg.p", category='entities')
 
     # Get Url list from entities
     url_lst = [entity.image.url for entity in entities]
 
     # Save mini_filtered_module_data url's list
-    url_file = open(os.path.join(VisualGenome_PICKLES_PATH, "url_lst_mini.p"), 'wb')
+    url_file = open(os.path.join(VisualGenome_PICKLES_PATH, "full_url_lst_mini.p"), 'wb')
     # Pickle hierarchy_mapping
     cPickle.dump(url_lst, url_file, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
     url_file.close()
 
+    exit()
     # Load detections
     detections_path = os.path.join(VG_VisualModule_PICKLES_PATH, "predicated_mini_fixed_detections.p")
     detections = cPickle.load(open(detections_path, 'rb'))
@@ -288,21 +289,22 @@ if __name__ == '__main__':
     filtered_module_data = get_module_filter_data(objects_count_file_name="mini_classes_count.p",
                                                   entities_file_name="mini_final_entities.p",
                                                   predicates_count_file_name="mini_predicates_count.p", nof_objects=150,
-                                                  nof_predicates=50)
+                                                  nof_predicates=50, create_negative=True,
+                                                  positive_negative_ratio=POSITIVE_NEGATIVE_RATIO)
+
+    # Filter mini urls
+    get_mini_url()
     exit()
+
     # Create mini predicate count
     predict_count_dict = create_predicate_count(entities_file_read="mini_final_entities.p",
                                                 entities_file_save="mini_predicates_count.p")
 
-    # Filter mini urls
-    get_mini_url()
     save_union_detections()
 
     delete_ind_from_detections()
 
     save_hierarchy_mapping()
-
-
 
     # Check intersection of two hierarchies mapping
     hp_mini_path = "/home/roeih/SceneGrapher/Training/TrainingObjectsCNN/Sun_May_28_21:21:47_2017/class_mapping.p"

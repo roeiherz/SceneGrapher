@@ -14,7 +14,7 @@ from keras_frcnn.Utils.Utils import VG_PATCH_PATH, DATA_PATH, CLASSES_MAPPING_FI
     TRAIN_IMGS_P, VAL_IMGS_P, VisualGenome_PICKLES_PATH, ENTITIES_FILE, HIERARCHY_MAPPING, PascalVoc_PICKLES_PATH, \
     VALIDATION_DATA_SET, TEST_DATA_SET, TRAIN_DATA_SET, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
     MINI_VG_DATADET_PATH, MINI_IMDB, get_time_and_date, VG_PICKLES_FOLDER_PATH, VisualGenome_DATASETS_PICKLES_PATH, \
-    get_img, get_sorting_url
+    get_img, get_sorting_url, POSITIVE_NEGATIVE_RATIO
 from DesignPatterns.Detections import Detections
 from keras_frcnn.Utils.Visualizer import VisualizerDrawer, CvColor
 import cv2
@@ -533,7 +533,8 @@ def process_to_detections(relations, detections_file_name="detections.p", debug=
 
 
 def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entities_file_name="final_entities.p",
-                           predicates_count_file_name="mini_predicates_count.p", nof_objects=150, nof_predicates=50):
+                           predicates_count_file_name="mini_predicates_count.p", nof_objects=150, nof_predicates=50,
+                           create_negative=False, positive_negative_ratio=POSITIVE_NEGATIVE_RATIO):
     """
     This function filtered the entities data by top num of objects and top number of predicates 
     :return: filtered_module_data which is a dict with entities, hierarchy mapping of objects and hierarchy mapping of 
@@ -562,6 +563,10 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
     relation_ind = 0
     object_ind = 0
     total_object = 0
+    total_relations = 0
+    total_negatives = 0
+    relation_id = 10000000
+    entity_curr = 0
     for entity in entities:
         objects_filtered = []
 
@@ -596,45 +601,31 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
             relation_ind += 1
             relationship_filtered.append(relation)
 
-        # Rewrite relations
-        entity.relationships = relationship_filtered
+        # Rewrite relations - the slice is for copy the list
+        entity.relationships = relationship_filtered[:]
 
-        # Find negative relations by checking that subject and object that don't have a relation
-        negative_relations = []
-        relation_id = 8000000
-        for subject in entity.objects:
-            for object in entity.objects:
-
-                # Make sure it isn't the same object
-                if object == subject:
-                    continue
-
-                negative_flag = True
-                # Check if object and subject are not
-                for relation in entity.relationships:
-
-                    # Negative is a subject and object that don't have a relation
-                    # Check if the subject or object are in relations.
-                    if relation.subject == subject and relation.object == object:
-                        negative_flag = False
-                        break
-
-                    if relation.subject == object and relation.object == subject:
-                        negative_flag = False
-                        break
-
-                if negative_flag:
-                    neg_relation = Relationship(id=relation_id, subject=subject, predicate="neg", object=object,
-                                                synset=[])
-                    negative_relations.append(neg_relation)
-                    relation_id += 1
-
-        # Rewrite relationships
-        entity.relationships += negative_relations
+        # Check the relationship_filtered list is not empty
+        if create_negative and relationship_filtered:
+            # Create Negatives
+            negative_relations, relation_ind, relation_id = create_negative_relations(entity, relation_id, relation_ind,
+                                                                                      positive_negative_ratio=positive_negative_ratio)
+            # Rewrite relationships
+            entity.relationships += negative_relations
+            # Increment
+            entity_curr += 1
+            total_negatives += len(negative_relations)
+            # Print
+            print("Number of (negatives, positive) relations ({0}, {1}) in Entity number: {2}".format(
+                len(negative_relations), len(relationship_filtered), entity_curr))
+        else:
+            print("bug")
+        total_relations += len(entity.relationships)
 
     print("Number of filtered relations: {}".format(relation_ind))
     print("Number of filtered objects: {}".format(object_ind))
-    print("Number of  objects: {}".format(total_object))
+    print("Number of total objects: {}".format(total_object))
+    print("Number of total relations: {}".format(total_relations))
+    print("Number of total negatives: {}".format(total_negatives))
 
     object_ids = {}
     id = 0
@@ -647,6 +638,9 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
     for predicate in predicates_to_be_used:
         predicate_ids[predicate] = id
         id += 1
+
+    # Add negative id
+    predicate_ids[u'neg'] = id + 1
 
     # Create new filtered data
     filtered_module_data = {"object_ids": object_ids, "predicate_ids": predicate_ids, "entities": entities,
@@ -662,14 +656,128 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
     return filtered_module_data
 
 
-def get_filtered_data(filtered_data_file_name="filtered_module_data.p"):
+def create_negative_relations(entity, relation_id, filtered_id, positive_negative_ratio=POSITIVE_NEGATIVE_RATIO):
+    """
+    Find negative relations by checking that subject and object that don't have a familiar relation
+    :param filtered_id: the filtered id which is a unique and incremental id that we give for each relation
+    :param positive_negative_ratio: positive to negative ratio. default is 3
+    :param entity: entity object of image in Visual Genome data-set
+    :param relation_id: a new relation_id for negative relationship
+    :return: negative_relations is a list of a negative relations , filtered_id is the id which we incremented
+    for-each relation and relation_id is the fake id which we give for each relation
+    """
+    # Shuffle entities
+    objects = np.copy(entity.objects)
+    np.random.shuffle(objects)
+
+    # Create random (subject, object) tuples
+    sub_obj_lst = create_random_tuples(entity, positive_negative_ratio)
+
+    negative_relations = []
+    # We are create negatives with a positive negative ratio
+    for tup in sub_obj_lst:
+
+        # Get the (subject, object) tuple
+        subject = objects[tup[0]]
+        object = objects[tup[1]]
+
+        # Make sure it isn't the same object
+        if object == subject:
+            print('Strange')
+            continue
+
+        negative_flag = True
+        # Check if object and subject are not already in
+        for relation in entity.relationships:
+
+            # Negative is a subject and object that don't have a relation
+            # Check if the subject or object are in relations.
+            if relation.subject == subject and relation.object == object:
+                negative_flag = False
+                break
+
+            if relation.subject == object and relation.object == subject:
+                negative_flag = False
+                break
+
+        # If subject and object that don't have a relation then it can be updated to negative relation
+        if negative_flag:
+
+            update = True
+            # Check we don't have a symmetry negative relations
+            for relation in negative_relations:
+                if relation.subject == subject and relation.object == object:
+                    update = False
+                    break
+
+                if relation.subject == object and relation.object == subject:
+                    update = False
+                    break
+
+            # Update for a new negative relation
+            if update:
+                neg_relation = Relationship(id=relation_id, subject=subject, predicate="neg", object=object,
+                                            synset=[])
+                # New filtered Id
+                neg_relation.filtered_id = filtered_id
+                negative_relations.append(neg_relation)
+                relation_id += 1
+                filtered_id += 1
+
+            # Check if are in the positive negative ratio
+            if len(negative_relations) >= len(entity.relationships) * positive_negative_ratio:
+                return negative_relations, filtered_id, relation_id
+
+    return negative_relations, filtered_id, relation_id
+
+
+def create_random_tuples(entity, positive_negative_ratio):
+    """
+    This function create random tuples with the same tuple and without symmetry
+    :param entity: entity Visual Genome
+    :param positive_negative_ratio: the threshold which we check if we created enough tuples
+    :return: list of tuples
+    """
+    # List of object and subject tuples of pairs
+    sub_obj_lst = []
+
+    for i in range(len(entity.objects)):
+        for j in range(len(entity.objects)):
+            # Don't generate the same number in the tuple e.g (5,5)
+            if i == j:
+                continue
+
+            # Don't generate the symmetry tuple in the tuple e.g (7,5)
+            if (j, i) in sub_obj_lst:
+                continue
+
+            # Create new tuple
+            new_tup = (i, j)
+
+            # Append (subject, object) tuple only if it not exits
+            if new_tup not in sub_obj_lst:
+                sub_obj_lst.append(new_tup)
+
+    # Check the length of number of tuples
+    if len(sub_obj_lst) < len(entity.relationships) * positive_negative_ratio:
+        print(
+            "Error: too few (subject, object) tuples than expected - {0} - in entity {1}. \nJust {2} number of objects and {3} number of relations".format(
+                len(sub_obj_lst), entity.image.url, len(entity.objects), len(entity.relationships)))
+
+    # Shuffle the data
+    np.random.shuffle(sub_obj_lst)
+    return sub_obj_lst
+
+
+def get_filtered_data(filtered_data_file_name="filtered_module_data.p", category='entities_visual_module'):
     """
     This function loads a dict that was created by get_module_filter_data function.
     The dict contains:
     * filtered entities by the top 150 objects and top 50 predicates 
     * hierarchy mapping of objects  
     * hierarchy mapping of predicates
-    :param filtered_data_file_name: the file name of the filtered data  
+    :param category: category is 'entities_visual_module' (only 1/2 entities) or 'entities' (all entities)
+    :param filtered_data_file_name: the file name of the filtered data
     :return: entities, hierarchy mapping of objects and hierarchy mapping of predicates
     """
 
@@ -678,7 +786,7 @@ def get_filtered_data(filtered_data_file_name="filtered_module_data.p"):
     # The filtered
     filtered_module_data = cPickle.load(filtered_module_data_file)
 
-    entities = filtered_module_data['entities_visual_module']
+    entities = filtered_module_data[category]
     # entities = filtered_module_data['entities']
     hierarchy_mapping_objects = filtered_module_data['object_ids']
     hierarchy_mapping_predicates = filtered_module_data['predicate_ids']

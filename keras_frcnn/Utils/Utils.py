@@ -34,6 +34,7 @@ MINI_IMDB = "mini_imdb_1024.h5"
 TRAINING_OBJECTS_CNN_PATH = "Training/TrainingObjectsCNN"
 TRAINING_PREDICATE_CNN_PATH = "Training/TrainingPredicatesCNN"
 WEIGHTS_NAME = 'model_vg_resnet50.hdf5'
+POSITIVE_NEGATIVE_RATIO = 3
 
 
 def convert_img_bgr_to_rgb(img):

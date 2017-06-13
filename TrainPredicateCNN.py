@@ -1,4 +1,5 @@
 import matplotlib as mpl
+
 mpl.use('Agg')
 from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger
 from keras.optimizers import Adam
@@ -21,7 +22,7 @@ import matplotlib.pyplot as plt
 
 from keras_frcnn.Utils.Boxes import find_union_box, BOX
 from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
-    get_img_resize, get_time_and_date, TRAINING_PREDICATE_CNN_PATH, get_img
+    get_img_resize, get_time_and_date, TRAINING_PREDICATE_CNN_PATH, get_img, get_sorting_url
 from Utils.Utils import create_folder
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
@@ -124,8 +125,13 @@ def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mappi
     objects_lst = []
     correct_object_labels = hierarchy_mapping_objects.keys()
     correct_predicates_labels = hierarchy_mapping_predicates.keys()
+    bad_urls = get_sorting_url()
     idx = 0
     for img in img_data:
+
+        # Sorting bad urls
+        if img.image.url in bad_urls:
+            continue
 
         # Get the url image
         url = img.image.url
@@ -241,14 +247,15 @@ if __name__ == '__main__':
 
     # Load filtered data
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                          "filtered_module_data.p")
+                                                                                          "filtered_module_data_with_neg.p",
+                                                                                          category='entities')
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                                        relation_file_name="mini_filtered_relations.p")
+                                        relation_file_name="full_mini_filtered_relations.p")
 
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="mini_filtered_detections.p")
+    detections = process_to_detections(relations, detections_file_name="full_mini_filtered_detections.p")
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
                                                             testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
@@ -343,12 +350,13 @@ if __name__ == '__main__':
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False)]
 
     print('Starting training')
-    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs)/NUM_BATCHES, epochs=NUM_EPOCHS,
-                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs)/NUM_BATCHES,
+    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
+                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_BATCHES,
                                   callbacks=callbacks, max_q_size=1, workers=1)
 
     # Validating the model
-    test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(val_imgs)/NUM_BATCHES, max_q_size=1, workers=1)
+    test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(val_imgs) / NUM_BATCHES, max_q_size=1,
+                                          workers=1)
     # Plot the Score
     print("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
 
