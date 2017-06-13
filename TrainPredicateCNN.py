@@ -279,7 +279,7 @@ if __name__ == '__main__':
     detections = process_to_detections(relations, detections_file_name="mini_visual_filtered_detections_with_neg.p")
 
     # Get new negative - positive ratio
-    # detections = pick_different_negative_sample_ratio(detections, ratio=1)
+    detections = pick_different_negative_sample_ratio(detections, ratio=1)
 
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
