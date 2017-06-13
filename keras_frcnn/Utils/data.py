@@ -618,6 +618,7 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
             print("Number of (negatives, positive) relations ({0}, {1}) in Entity number: {2}".format(
                 len(negative_relations), len(relationship_filtered), entity_curr))
         else:
+            # todo: need to check
             print("bug")
         total_relations += len(entity.relationships)
 
