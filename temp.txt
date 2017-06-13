@@ -1,13 +1,10 @@
-THE FULL FILE:
+THE MINI FILE (ONLY 1000):
+------------------------------
 SceneGrapher/keras_frcnn/Data/VisualGenome/mini_filtered_module_data_with_neg.p
 
-THE URL (1000 urls):
+THE MINI URL (1000 urls):
+-----------------------------
 SceneGrapher/keras_frcnn/Data/VisualGenome/full_url_lst_mini.p
-
-FOR FULL (ALL 1000)
--------------------------
-relations: full_mini_filtered_relations_with_neg
-detections: full_mini_filtered_detections_with_neg.p
 
 VISUAL FILES (herzig - 500 entities)
 -------------------------
@@ -16,7 +13,20 @@ detections: mini_visual_filtered_detections_with_neg.p
 
 MODULE FILES (shiko - 500 entities)
 -------------------------
-relations: mini_visual_filtered_relations_with_neg
-detections: mini_visual_filtered_detections_with_neg.p
+relations: mini_module_filtered_relations_with_neg
+detections: mini_module_filtered_detections_with_neg.p
 
 
+MODULE + VISUAL FILES (shiko + herzig - 1000 entities)
+-------------------------
+relations: mini_all_filtered_relations_with_neg.p
+detections: mini_all_filtered_detections_with_neg.p
+
+
+os.environ["CUDA_VISIBLE_DEVICES"]=0 its mapping to GPU number 3
+os.environ["CUDA_VISIBLE_DEVICES"]=1 its mapping to GPU number 2
+os.environ["CUDA_VISIBLE_DEVICES"]=2 its mapping to GPU number 1
+
+PREDICT (ONLY SHIKO - 500 entities)
+------------------
+detections="mini_module_filtered_detections_with_neg.p"

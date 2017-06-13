@@ -199,6 +199,27 @@ def get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path):
     return classes_count_per_objects, hierarchy_mapping_per_objects
 
 
+def pick_different_negative_sample_ratio(detections, ratio=1):
+    """
+    This function take the detection and decides on a different negative ratio
+    :param ratio: the ratio between positive to negative
+    :param detections: a Detections dtype array
+    :return: 
+    """
+    # Get positive indices
+    pos_indices = np.where(detections[Detections.Predicate] != u'neg')[0]
+    # Get negative indices
+    neg_indices = np.where(detections[Detections.Predicate] == u'neg')[0]
+    # Shuffle randomly negative indices
+    np.random.shuffle(neg_indices)
+    # Take only the wanted negative ratio
+    nof_positive = len(detections) - len(neg_indices)
+    chosen_indices = neg_indices[:nof_positive * ratio]
+    # Append the positive and the negative indices
+    all_indice = np.append(pos_indices, chosen_indices)
+    return detections[all_indice]
+
+
 if __name__ == '__main__':
 
     # Get argument
@@ -256,6 +277,9 @@ if __name__ == '__main__':
 
     # Process relations to numpy Detections dtype
     detections = process_to_detections(relations, detections_file_name="mini_visual_filtered_detections_with_neg.p")
+
+    # Get new negative - positive ratio
+    # detections = pick_different_negative_sample_ratio(detections, ratio=1)
 
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,

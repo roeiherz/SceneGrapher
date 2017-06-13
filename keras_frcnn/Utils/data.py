@@ -777,7 +777,8 @@ def get_filtered_data(filtered_data_file_name="filtered_module_data.p", category
     * filtered entities by the top 150 objects and top 50 predicates 
     * hierarchy mapping of objects  
     * hierarchy mapping of predicates
-    :param category: category is 'entities_visual_module' (only 1/2 entities) or 'entities' (all entities)
+    :param category: category is 'entities_visual_module' (only second - 1/2 entities) or 'entities' (all entities) or 
+            'entities_module' (only first - 1/2 entities/ shiko)
     :param filtered_data_file_name: the file name of the filtered data
     :return: entities, hierarchy mapping of objects and hierarchy mapping of predicates
     """

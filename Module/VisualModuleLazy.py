@@ -37,8 +37,8 @@ class VisualModule(object):
         """
 
         # Get the whole detections
-        # self.full_detections = get_detections(detections_file_name="predicated_mini_fixed_detections.p")
-        self.full_detections = get_detections(detections_file_name="predicated_mini_fixed_detections_url.p")
+        # self.full_detections = get_detections(detections_file_name="predicated_mini_fixed_detections_url.p")
+        self.full_detections = get_detections(detections_file_name="mini_predicated_fixed_detections_with_neg.p")
 
         # Get Mapping dict between Detections.Id to index
         self.mapping_id_to_ind_dict = {}

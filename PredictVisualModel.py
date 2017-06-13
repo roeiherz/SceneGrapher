@@ -318,19 +318,29 @@ if __name__ == '__main__':
     # Define GPU training
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)
 
+    # region
     # Load detections dtype numpy array
-    # detections = load_full_detections(detections_file_name="mini_fixed_filtered_detections.p")
-    # detections = load_full_detections(detections_file_name="predicated_mini_fixed_detections_probes.p")
-    detections = load_full_detections(detections_file_name="full_filtered_detections.p")
+    # detections = load_full_detections(detections_file_name="full_filtered_detections.p")
+    # ONLY MODULE
+    detections = load_full_detections(detections_file_name="mini_module_filtered_detections_with_neg.p")
+    # BOTH MODULE + VISUAL
+    detections = load_full_detections(detections_file_name="mini_all_filtered_detections_with_neg.p")
     detections = sort_detections_by_url(detections)
 
     # Load hierarchy mappings
     # Get the hierarchy mapping objects
-    hierarchy_mapping_objects = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH,
-                                                               "hierarchy_mapping_objects.p")))
+    # hierarchy_mapping_objects = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH,
+    #                                                            "hierarchy_mapping_objects.p")))
     # Get the hierarchy mapping predicates
-    hierarchy_mapping_predicates = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH,
-                                                                  "hierarchy_mapping_predicates.p")))
+    # hierarchy_mapping_predicates = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH,
+    #                                                               "hierarchy_mapping_predicates.p")))
+    # endregion
+
+    # Load detections dtype numpy array and hierarchy mappings
+    _, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
+                                                                                   "mini_filtered_module_data_with_neg.p",
+                                                                                   category='entities_module')
+    detections = sort_detections_by_url(detections)
 
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
@@ -369,7 +379,7 @@ if __name__ == '__main__':
                                             steps=int(math.ceil(len(detections) / float(NUM_BATCHES))),
                                             max_q_size=1, workers=1)
     print("Saving Probabilities")
-    save_files(probes, name="full_probes.p")
+    save_files(probes, name="full_probes_with_neg.p")
     print("Finished successfully saving Probabilities")
 
     # Check for duality
@@ -407,7 +417,7 @@ if __name__ == '__main__':
 
     # Save detections
     print("Saving predicated_detections")
-    save_files(detections, name="predicated_fixed_detections.p")
+    save_files(detections, name="mini_predicated_fixed_detections_with_neg.p")
     print("Finished successfully saving predicated_detections")
 
     # Get the Union-Box Features
@@ -450,5 +460,5 @@ if __name__ == '__main__':
 
     # Save detections
     print("Saving predicated_detections")
-    save_files(detections, name="predicated_fixed_detections.p")
+    save_files(detections, name="mini_predicated_fixed_detections_with_neg.p")
     print("Finished successfully saving predicated_detections")
