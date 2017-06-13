@@ -649,7 +649,7 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
                             "entities_visual_module": entities[len(entities) / 2:]}
 
     # Save filtered_module_data file for only the top labels
-    filtered_module_data_file = open(os.path.join(VisualGenome_PICKLES_PATH, "filtered_module_data_with_neg.p"), 'wb')
+    filtered_module_data_file = open(os.path.join(VisualGenome_PICKLES_PATH, "mini_filtered_module_data_with_neg.p"), 'wb')
     # Pickle hierarchy_mapping
     cPickle.dump(filtered_module_data, filtered_module_data_file, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file

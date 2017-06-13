@@ -265,7 +265,10 @@ if __name__ == '__main__':
     train_imgs, test_imgs, val_imgs = sorting_urls(train_imgs, test_imgs, val_imgs)
 
     # Set the number of classes
-    number_of_classes = len(hierarchy_mapping_objects)
+    if config.replace_top:
+        number_of_classes = config.nof_classes
+    else:
+        number_of_classes = len(hierarchy_mapping_objects)
 
     # Create a data generator for VisualGenome - old with no batch size
     # data_gen_train_vg = visual_genome_data_cnn_generator(data=train_imgs, hierarchy_mapping=hierarchy_mapping_objects,
@@ -327,7 +330,7 @@ if __name__ == '__main__':
         model.layers[-1].set_weights(last_layer_weights)
 
         # Replace the last top layer with a new Dense layer
-        # model = replace_top_layer(model, number_of_classes)
+        # model = replace_top_layer(model, len(hierarchy_mapping_predicates))
         # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
         # model.summary()
 

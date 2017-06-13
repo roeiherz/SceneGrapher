@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 from keras_frcnn.Utils.Boxes import find_union_box, BOX
 from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
-    get_img_resize, get_time_and_date, TRAINING_PREDICATE_CNN_PATH, get_img, get_sorting_url
+    get_img_resize, get_time_and_date, TRAINING_PREDICATE_CNN_PATH, get_img, get_sorting_url, replace_top_layer
 from Utils.Utils import create_folder
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
@@ -309,7 +309,10 @@ if __name__ == '__main__':
                                                                      batch_size=NUM_BATCHES)
 
     # Set the number of classes
-    number_of_classes = len(hierarchy_mapping_predicates)
+    if config.replace_top:
+        number_of_classes = config.nof_classes
+    else:
+        number_of_classes = len(hierarchy_mapping_predicates)
 
     if K.image_dim_ordering() == 'th':
         input_shape_img = (3, None, None)
@@ -341,6 +344,16 @@ if __name__ == '__main__':
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
         ))
         raise Exception(e)
+
+    # Replace the last layer
+    if config.replace_top:
+        # Set the new initialized weights
+        # model.layers[-1].set_weights(last_layer_weights)
+
+        # Replace the last top layer with a new Dense layer
+        model = replace_top_layer(model, len(hierarchy_mapping_predicates))
+        # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
+        model.summary()
 
     optimizer = Adam(1e-6)
     model.compile(optimizer=optimizer,

@@ -11,7 +11,7 @@ import os
 import cPickle
 from keras_frcnn.Lib.Config import Config
 from keras_frcnn.Utils.Utils import VG_VisualModule_PICKLES_PATH, TRAINING_OBJECTS_CNN_PATH, \
-    TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, VisualGenome_PICKLES_PATH, PROJECT_ROOT, get_mask_from_object, get_img
+    TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, VisualGenome_PICKLES_PATH, get_mask_from_object, get_img
 from DesignPatterns.Detections import Detections
 import numpy as np
 from Utils.Utils import softmax, get_detections
