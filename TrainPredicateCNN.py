@@ -247,15 +247,16 @@ if __name__ == '__main__':
 
     # Load filtered data
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                          "filtered_module_data_with_neg.p",
-                                                                                          category='entities')
+                                                                                          "mini_filtered_module_data_with_neg.p",
+                                                                                          category='entities_visual_module')
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                                        relation_file_name="full_mini_filtered_relations.p")
+                                        relation_file_name="mini_visual_filtered_relations_with_neg.p")
 
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="full_mini_filtered_detections.p")
+    detections = process_to_detections(relations, detections_file_name="mini_visual_filtered_detections_with_neg.p")
+
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
                                                             testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,

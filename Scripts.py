@@ -285,6 +285,7 @@ def get_mini_url():
 
 if __name__ == '__main__':
 
+
     # Filter the data
     filtered_module_data = get_module_filter_data(objects_count_file_name="mini_classes_count.p",
                                                   entities_file_name="mini_final_entities.p",
@@ -295,6 +296,7 @@ if __name__ == '__main__':
     # Filter mini urls
     get_mini_url()
     exit()
+
 
     # Create mini predicate count
     predict_count_dict = create_predicate_count(entities_file_read="mini_final_entities.p",

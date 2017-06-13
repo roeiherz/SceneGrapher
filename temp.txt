@@ -1,0 +1,22 @@
+THE FULL FILE:
+SceneGrapher/keras_frcnn/Data/VisualGenome/mini_filtered_module_data_with_neg.p
+
+THE URL (1000 urls):
+SceneGrapher/keras_frcnn/Data/VisualGenome/full_url_lst_mini.p
+
+FOR FULL (ALL 1000)
+-------------------------
+relations: full_mini_filtered_relations_with_neg
+detections: full_mini_filtered_detections_with_neg.p
+
+VISUAL FILES (herzig - 500 entities)
+-------------------------
+relations: mini_visual_filtered_relations_with_neg
+detections: mini_visual_filtered_detections_with_neg.p
+
+MODULE FILES (shiko - 500 entities)
+-------------------------
+relations: mini_visual_filtered_relations_with_neg
+detections: mini_visual_filtered_detections_with_neg.p
+
+

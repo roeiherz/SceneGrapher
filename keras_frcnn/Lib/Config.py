@@ -14,11 +14,11 @@ class Config:
         self.loading_model_folder = "Training/TrainingObjectsCNN/Fri_Jun__2_19:16:26_2017"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
-        self.use_cache_dir = True
+        self.use_cache_dir = False
         # Load weights
         self.load_weights = True
         # Replace the Dense layer
-        self.replace_top = False
+        self.replace_top = True
 
         # location of pre-trained weights for the base network
         # weight files can be found at:

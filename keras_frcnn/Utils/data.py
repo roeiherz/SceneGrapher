@@ -603,6 +603,8 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
 
         # Rewrite relations - the slice is for copy the list
         entity.relationships = relationship_filtered[:]
+        # Increment
+        entity_curr += 1
 
         # Check the relationship_filtered list is not empty
         if create_negative and relationship_filtered:
@@ -611,15 +613,13 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
                                                                                       positive_negative_ratio=positive_negative_ratio)
             # Rewrite relationships
             entity.relationships += negative_relations
-            # Increment
-            entity_curr += 1
             total_negatives += len(negative_relations)
             # Print
             print("Number of (negatives, positive) relations ({0}, {1}) in Entity number: {2}".format(
                 len(negative_relations), len(relationship_filtered), entity_curr))
         else:
-            # todo: need to check
-            print("bug")
+            print("Warning: No relations in Entity: {}".format(entity_curr))
+
         total_relations += len(entity.relationships)
 
     print("Number of filtered relations: {}".format(relation_ind))
@@ -762,7 +762,7 @@ def create_random_tuples(entity, positive_negative_ratio):
     # Check the length of number of tuples
     if len(sub_obj_lst) < len(entity.relationships) * positive_negative_ratio:
         print(
-            "Error: too few (subject, object) tuples than expected - {0} - in entity {1}. \nJust {2} number of objects and {3} number of relations".format(
+            "Warning: too few (subject, object) tuples than expected - {0} - in entity {1}. \nJust {2} number of objects and {3} number of relations".format(
                 len(sub_obj_lst), entity.image.url, len(entity.objects), len(entity.relationships)))
 
     # Shuffle the data
