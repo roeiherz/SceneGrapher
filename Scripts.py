@@ -288,7 +288,8 @@ if __name__ == '__main__':
 
     # Filter the data
     filtered_module_data = get_module_filter_data(objects_count_file_name="mini_classes_count.p",
-                                                  entities_file_name="mini_final_entities.p",
+                                                  # entities_file_name="mini_final_entities.p",
+                                                  entities_file_name="final_entities.p",
                                                   predicates_count_file_name="mini_predicates_count.p", nof_objects=150,
                                                   nof_predicates=50, create_negative=True,
                                                   positive_negative_ratio=POSITIVE_NEGATIVE_RATIO)
