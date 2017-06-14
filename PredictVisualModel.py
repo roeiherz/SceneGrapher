@@ -377,7 +377,7 @@ if __name__ == '__main__':
                                             steps=int(math.ceil(len(detections) / float(NUM_BATCHES))),
                                             max_q_size=1, workers=1)
     print("Saving Probabilities")
-    save_files(probes, name="full_probes_with_neg.p")
+    save_files(probes, name="mini_probes_with_neg_ratio3.p")
     print("Finished successfully saving Probabilities")
 
     # region
@@ -415,7 +415,7 @@ if __name__ == '__main__':
 
     # Save detections
     print("Saving predicated_detections")
-    save_files(detections, name="mini_predicated_fixed_detections_with_neg.p")
+    save_files(detections, name="mini_predicated_detections_with_neg_ratio3.p")
     print("Finished successfully saving predicated_detections")
 
     # Get the Union-Box Features
