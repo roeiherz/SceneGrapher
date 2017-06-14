@@ -347,9 +347,9 @@ if __name__ == '__main__':
         exit()
 
     # Load the weight paths
-    objects_model_weight_path = os.path.join(PROJECT_ROOT, TRAINING_OBJECTS_CNN_PATH, objects_training_dir_name,
+    objects_model_weight_path = os.path.join(TRAINING_OBJECTS_CNN_PATH, objects_training_dir_name,
                                              WEIGHTS_NAME)
-    predicates_model_weight_path = os.path.join(PROJECT_ROOT, TRAINING_PREDICATE_CNN_PATH, predicates_training_dir_name,
+    predicates_model_weight_path = os.path.join(TRAINING_PREDICATE_CNN_PATH, predicates_training_dir_name,
                                                 WEIGHTS_NAME)
 
     # Set the number of classes
