@@ -254,13 +254,15 @@ def get_mini_url():
     """
 
     # Load entities
-    entities, _, _ = get_filtered_data("filtered_module_data_with_neg.p", category='entities')
+    # entities, _, _ = get_filtered_data("filtered_module_data_with_neg.p", category='entities')
+    entities, _, _ = get_filtered_data("final_filtered_module_data_with_neg.p", category='entities')
 
     # Get Url list from entities
     url_lst = [entity.image.url for entity in entities]
 
     # Save mini_filtered_module_data url's list
-    url_file = open(os.path.join(VisualGenome_PICKLES_PATH, "full_url_lst_mini.p"), 'wb')
+    # url_file = open(os.path.join(VisualGenome_PICKLES_PATH, "full_url_lst_mini.p"), 'wb')
+    url_file = open(os.path.join(VisualGenome_PICKLES_PATH, "final_full_url_lst_mini.p"), 'wb')
     # Pickle hierarchy_mapping
     cPickle.dump(url_lst, url_file, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
@@ -285,7 +287,6 @@ def get_mini_url():
 
 if __name__ == '__main__':
 
-
     # Filter the data
     filtered_module_data = get_module_filter_data(objects_count_file_name="mini_classes_count.p",
                                                   # entities_file_name="mini_final_entities.p",
@@ -297,7 +298,6 @@ if __name__ == '__main__':
     # Filter mini urls
     get_mini_url()
     exit()
-
 
     # Create mini predicate count
     predict_count_dict = create_predicate_count(entities_file_read="mini_final_entities.p",
