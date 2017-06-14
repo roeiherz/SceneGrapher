@@ -1,23 +1,32 @@
-THE MINI FILE (ONLY 1000):
+Scripts - get_module_filter_data function
+------------------------------------------------
+entities_file_name="mini_final_entities.p"
+entities_file_name="final_entities.p"
+
+THE MINI DATA (ONLY 1000 entities):
 ------------------------------
-SceneGrapher/keras_frcnn/Data/VisualGenome/mini_filtered_module_data_with_neg.p
+detections=SceneGrapher/keras_frcnn/Data/VisualGenome/mini_filtered_module_data_with_neg.p
+
+THE FULL DATA (108000 entities - all entities)
+------------------
+detections="final_filtered_module_data_with_neg.p"
 
 THE MINI URL (1000 urls):
 -----------------------------
 SceneGrapher/keras_frcnn/Data/VisualGenome/full_url_lst_mini.p
 
-VISUAL FILES (herzig - 500 entities)
+MINI VISUAL FILES (herzig - 500 entities)
 -------------------------
 relations: mini_visual_filtered_relations_with_neg
 detections: mini_visual_filtered_detections_with_neg.p
 
-MODULE FILES (shiko - 500 entities)
+MINI MODULE FILES (shiko - 500 entities)
 -------------------------
 relations: mini_module_filtered_relations_with_neg
 detections: mini_module_filtered_detections_with_neg.p
 
 
-MODULE + VISUAL FILES (shiko + herzig - 1000 entities)
+MINI MODULE + VISUAL FILES (shiko + herzig - 1000 entities)
 -------------------------
 relations: mini_all_filtered_relations_with_neg.p
 detections: mini_all_filtered_detections_with_neg.p
@@ -27,6 +36,8 @@ os.environ["CUDA_VISIBLE_DEVICES"]=0 its mapping to GPU number 3
 os.environ["CUDA_VISIBLE_DEVICES"]=1 its mapping to GPU number 2
 os.environ["CUDA_VISIBLE_DEVICES"]=2 its mapping to GPU number 1
 
-PREDICT (ONLY SHIKO - 500 entities)
-------------------
-detections="mini_module_filtered_detections_with_neg.p"
+MINI VISUAL FILES (herzig - 500 entities)
+-------------------------
+relations: final_visual_filtered_relations_with_neg.p
+detections: final_visual_filtered_detections_with_neg.p
+
