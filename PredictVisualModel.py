@@ -318,15 +318,16 @@ if __name__ == '__main__':
     # Define GPU training
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)
 
-    # region
     # Load detections dtype numpy array
     # detections = load_full_detections(detections_file_name="full_filtered_detections.p")
+
     # ONLY MODULE
-    detections = load_full_detections(detections_file_name="mini_module_filtered_detections_with_neg.p")
+    # detections = load_full_detections(detections_file_name="mini_module_filtered_detections_with_neg.p")
     # BOTH MODULE + VISUAL
     detections = load_full_detections(detections_file_name="mini_all_filtered_detections_with_neg.p")
     detections = sort_detections_by_url(detections)
 
+    # region
     # Load hierarchy mappings
     # Get the hierarchy mapping objects
     # hierarchy_mapping_objects = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH,
@@ -340,8 +341,6 @@ if __name__ == '__main__':
     _, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
                                                                                    "mini_filtered_module_data_with_neg.p",
                                                                                    category='entities_module')
-    detections = sort_detections_by_url(detections)
-
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
         print("Error: No object training folder or predicate training folder has been given")
@@ -373,7 +372,6 @@ if __name__ == '__main__':
     print('Starting Prediction')
     print('Predicting Probabilities')
     # probes = object_model.predict_generator(data_gen_validation_vg, steps=len(detections) * 2, max_q_size=1, workers=1)
-
     # Probabilities: [nof_detections * 2, 150]
     probes = object_model.predict_generator(data_gen_validation_vg,
                                             steps=int(math.ceil(len(detections) / float(NUM_BATCHES))),
@@ -382,6 +380,7 @@ if __name__ == '__main__':
     save_files(probes, name="full_probes_with_neg.p")
     print("Finished successfully saving Probabilities")
 
+    # region
     # Check for duality
     # s = set()
     # for j in range(probes.shape[0]):
@@ -391,12 +390,11 @@ if __name__ == '__main__':
     #         if np.alltrue(probes[j] == probes[i]):
     #             s.add((j, i))
     # print(s)
-
     # detections[Detections.SubjectConfidence] = probes[::2]
     # detections[Detections.ObjectConfidence] = probes[1::2]
+    # endregion
 
     # Slice the Subject prob (even index)
-
     detections[Detections.SubjectConfidence] = np.split(probes[::2], len(detections), axis=0)
     # Slice the Object prob (odd index)
     detections[Detections.ObjectConfidence] = np.split(probes[1::2], len(detections), axis=0)
