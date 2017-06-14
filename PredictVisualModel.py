@@ -16,7 +16,7 @@ import sys
 import math
 from keras_frcnn.Utils.Boxes import find_union_box, BOX
 from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
-    get_img_resize, TRAINING_OBJECTS_CNN_PATH, TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img
+    get_img_resize, TRAINING_OBJECTS_CNN_PATH, TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img, PROJECT_ROOT
 import time
 from keras_frcnn.Utils.data import get_filtered_data
 
@@ -347,8 +347,10 @@ if __name__ == '__main__':
         exit()
 
     # Load the weight paths
-    objects_model_weight_path = os.path.join(TRAINING_OBJECTS_CNN_PATH, objects_training_dir_name, WEIGHTS_NAME)
-    predicates_model_weight_path = os.path.join(TRAINING_PREDICATE_CNN_PATH, predicates_training_dir_name, WEIGHTS_NAME)
+    objects_model_weight_path = os.path.join(PROJECT_ROOT, TRAINING_OBJECTS_CNN_PATH, objects_training_dir_name,
+                                             WEIGHTS_NAME)
+    predicates_model_weight_path = os.path.join(PROJECT_ROOT, TRAINING_PREDICATE_CNN_PATH, predicates_training_dir_name,
+                                                WEIGHTS_NAME)
 
     # Set the number of classes
     number_of_classes_objects = len(hierarchy_mapping_objects)
