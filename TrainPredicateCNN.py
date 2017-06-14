@@ -281,7 +281,7 @@ if __name__ == '__main__':
     print("Exit")
     exit()
     # Get new negative - positive ratio
-    detections = pick_different_negative_sample_ratio(detections, ratio=1)
+    detections = pick_different_negative_sample_ratio(detections, ratio=2)
 
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
