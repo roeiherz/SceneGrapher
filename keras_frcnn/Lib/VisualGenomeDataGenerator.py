@@ -240,9 +240,10 @@ def visual_genome_data_parallel_generator(data, hierarchy_mapping, config, mode)
 
 
 def visual_genome_data_generator_with_batch(data, hierarchy_mapping, config, mode, classification, type_box,
-                                            batch_size=128):
+                                            batch_size=128, evaluate=False):
     """
     This function is a generator for Detections with batch-size
+    :param evaluate: A flag which indicates if we evaluate in PredictVisualModule 
     :param batch_size: batch size
     :param type_box: Detections.SubjectBox ('subject_box') or Detections.ObjectBox ('object_box') or
                      Detection.UnionBox ('union_box')
@@ -265,6 +266,9 @@ def visual_genome_data_generator_with_batch(data, hierarchy_mapping, config, mod
             try:
                 imgs = []
                 labels = []
+
+                if evaluate:
+                    print("Prediction Batch Number is {0}/{1}".format(batch_num + 1, num_of_batches_per_epoch))
 
                 # Start one batch
                 for current_index in range(batch_size):

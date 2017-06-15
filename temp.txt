@@ -41,3 +41,11 @@ MINI VISUAL FILES (herzig - 500 entities)
 relations: final_visual_filtered_relations_with_neg.p
 detections: final_visual_filtered_detections_with_neg.p
 
+PREDIT PREDICATES FOR STATS
+--------------------------------
+
+ratio 1.5:
+mini_predicated_predicates_with_neg_ratio1andhalf_Wed_Jun_14_18:00:57_2017.p
+
+ratio 1:
+mini_predicated_predicates_with_neg_ratio1_Wed_Jun_14_20:25:16_2017.p

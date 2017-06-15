@@ -2,7 +2,8 @@ from __future__ import print_function
 from Data.VisualGenome.models import ObjectMapping, RelationshipMapping
 from DesignPatterns.Detections import Detections
 from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_generator, \
-    visual_genome_data_parallel_generator, visual_genome_data_parallel_generator_with_batch
+    visual_genome_data_parallel_generator, visual_genome_data_parallel_generator_with_batch, \
+    visual_genome_data_generator_with_batch
 from keras_frcnn.Lib.Zoo import ModelZoo
 import traceback
 import os
@@ -296,11 +297,35 @@ def sort_detections_by_url(detections):
     return new_detections
 
 
-if __name__ == '__main__':
+def load_predicts(file_name=""):
+    """
+    This function load the detection after predicated predicates and check for some statistics
+    :return: 
+    """
 
-    # detections_new = load_full_detections(detections_file_name="mini_predicated_detections_with_neg_ratio3.p")
-    # detections_old = load_full_detections(detections_file_name="predicated_mini_fixed_detections_url.p")
-    # np.array_equal(detections_old[0][Detections.UnionBox], detections_new[10697][Detections.UnionBox])
+    # load file
+    detections_file = open(os.path.join(VG_VisualModule_PICKLES_PATH, file_name))
+    # Pickle detections
+    detections = cPickle.load(detections_file)
+
+    tt = np.where((detections[Detections.PredictSubjectClassifications] == detections[Detections.Predicate]) &
+                  (detections[Detections.Predicate] != u'neg'))
+    print('debug')
+
+
+def save_weights(predict_model, file_name=""):
+    """
+    This function save the weights of the last layer of Predicate Networks for late initialization in full training model
+    :param predict_model: the predict model
+    :param file_name: file name string which will be saved
+    :return: 
+    """
+    weights = predict_model.layers[-1].get_weights()[0] # [2048, nof_classes=51]
+    save_files(weights, file_name)
+    print("Saved the last layer weights [2048,51] ")
+
+
+if __name__ == '__main__':
 
     # Get argument
     if len(sys.argv) < 4:
@@ -328,9 +353,8 @@ if __name__ == '__main__':
     # ONLY MODULE
     # detections = load_full_detections(detections_file_name="mini_module_filtered_detections_with_neg.p")
     # BOTH MODULE + VISUAL
-    detections = load_full_detections(detections_file_name="mini_predicated_fixed_detections_with_neg.p")
+    detections = load_full_detections(detections_file_name="mini_all_filtered_detections_with_neg.p")
     detections = sort_detections_by_url(detections)
-
     # region
     # Load hierarchy mappings
     # Get the hierarchy mapping objects
@@ -344,7 +368,7 @@ if __name__ == '__main__':
     # Load detections dtype numpy array and hierarchy mappings
     _, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
                                                                                    "mini_filtered_module_data_with_neg.p",
-                                                                                   category='entities_module')
+                                                                                   category='entities')
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
         print("Error: No object training folder or predicate training folder has been given")
@@ -365,26 +389,66 @@ if __name__ == '__main__':
     #                                                                hierarchy_mapping=hierarchy_mapping_objects,
     #                                                                config=config, mode='valid')
 
-    # Create a data generator for VisualGenome
-    data_gen_validation_vg = visual_genome_data_parallel_generator_with_batch(data=detections,
-                                                                              hierarchy_mapping=hierarchy_mapping_objects,
-                                                                              config=config, mode='valid',
-                                                                              batch_size=NUM_BATCHES)
+    # Create a data generator for VisualGenome for OBJECTS
+    data_gen_val_objects_vg = visual_genome_data_parallel_generator_with_batch(data=detections,
+                                                                               hierarchy_mapping=hierarchy_mapping_objects,
+                                                                               config=config, mode='valid',
+                                                                               batch_size=NUM_BATCHES)
+
+    # Create a data generator for VisualGenome for PREDICATES
+    data_gen_val_predicates_vg = visual_genome_data_generator_with_batch(data=detections,
+                                                                         hierarchy_mapping=hierarchy_mapping_predicates,
+                                                                         config=config, mode='valid',
+                                                                         classification=Detections.Predicate,
+                                                                         type_box=Detections.UnionBox,
+                                                                         batch_size=NUM_BATCHES,
+                                                                         evaluate=True)
 
     # Get the object and predicate model
     object_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path, config=config)
     predict_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config)
 
+    # Save Weights
+    save_weights(predict_model, file_name="last_layer_ratio3_weights.p")
+
     print('Starting Prediction')
-    print('Predicting Probabilities')
+    # region
+
+    # # Load Predicates
+    # # load_predicts(file_name="mini_predicated_predicates_with_neg_ratio1_Wed_Jun_14_20:25:16_2017.p")
+    #
+    # # Predict Predicates for some statistics
+    # print('Predicting Probabilities - Predicates')
+    # predicted_objects = predict_model.predict_generator(data_gen_val_predicates_vg,
+    #                                                     steps=int(math.ceil(len(detections) / float(NUM_BATCHES))),
+    #                                                     max_q_size=1, workers=1)
+    # print("Saving Predicates Probabilities")
+    # save_files(predicted_objects, name="mini_predicated_predicates_with_neg_ratio1_Wed_Jun_14_20:25:16_2017.p")
+    # print("Finished successfully saving Predicates Probabilities")
+    # # Get the max argument
+    # index_predicates_labels_per_sample = np.argmax(predicted_objects, axis=1)
+    # # Get the inverse-mapping: int id to str label
+    # index_to_label_mapping_predicates = {label: id for id, label in hierarchy_mapping_predicates.iteritems()}
+    # labels_per_sample = np.array([index_to_label_mapping_predicates[label] for label in index_predicates_labels_per_sample])
+    # # Save detections in PredictSubjectClassifications
+    # detections[Detections.PredictSubjectClassifications] = labels_per_sample[:len(detections)]
+    # # Save detections
+    # print("Saving predicates detections")
+    # save_files(detections, name="mini_predicated_predicates_with_neg_ratio1_Wed_Jun_14_20:25:16_2017.p")
+    # print("Finished successfully saving predicated_detections")
+    #
+    # exit()
+
+    # endregion
+    print('Predicting Probabilities - Objects')
     # probes = object_model.predict_generator(data_gen_validation_vg, steps=len(detections) * 2, max_q_size=1, workers=1)
     # Probabilities: [nof_detections * 2, 150]
-    probes = object_model.predict_generator(data_gen_validation_vg,
-                                            steps=int(math.ceil(len(detections) / float(NUM_BATCHES))),
-                                            max_q_size=1, workers=1)
-    print("Saving Probabilities")
-    save_files(probes, name="mini_probes_with_neg_ratio3.p")
-    print("Finished successfully saving Probabilities")
+    objects_probes = object_model.predict_generator(data_gen_val_objects_vg,
+                                                    steps=int(math.ceil(len(detections) / float(NUM_BATCHES))),
+                                                    max_q_size=1, workers=1)
+    print("Saving Objects Probabilities")
+    save_files(objects_probes, name="mini_probes_with_neg_ratio1.p")
+    print("Finished successfully saving Objects Probabilities")
 
     # region
     # Check for duality
@@ -401,13 +465,13 @@ if __name__ == '__main__':
     # endregion
 
     # Slice the Subject prob (even index)
-    detections[Detections.SubjectConfidence] = np.split(probes[::2], len(detections), axis=0)
+    detections[Detections.SubjectConfidence] = np.split(objects_probes[::2], len(detections), axis=0)
     # Slice the Object prob (odd index)
-    detections[Detections.ObjectConfidence] = np.split(probes[1::2], len(detections), axis=0)
+    detections[Detections.ObjectConfidence] = np.split(objects_probes[1::2], len(detections), axis=0)
     # Get the max probes for each sample
-    probes_per_sample = np.max(probes, axis=1)
+    probes_per_sample = np.max(objects_probes, axis=1)
     # Get the max argument
-    index_labels_per_sample = np.argmax(probes, axis=1)
+    index_labels_per_sample = np.argmax(objects_probes, axis=1)
 
     # Get the inverse-mapping: int id to str label
     index_to_label_mapping = {label: id for id, label in hierarchy_mapping_objects.iteritems()}
@@ -421,7 +485,7 @@ if __name__ == '__main__':
 
     # Save detections
     print("Saving predicated_detections")
-    save_files(detections, name="mini_predicated_detections_with_neg_ratio3.p")
+    save_files(detections, name="mini_predicated_detections_with_neg_ratio1.p")
     print("Finished successfully saving predicated_detections")
 
     # Get the Union-Box Features
@@ -464,5 +528,5 @@ if __name__ == '__main__':
 
     # Save detections
     print("Saving predicated_detections")
-    save_files(detections, name="mini_predicated_detections_with_neg_ratio3.p")
+    save_files(detections, name="mini_predicated_detections_with_neg_ratio1.p")
     print("Finished successfully saving predicated_detections")
