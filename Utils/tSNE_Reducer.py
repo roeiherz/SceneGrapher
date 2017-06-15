@@ -16,7 +16,8 @@ NOF_SAMPLES = 1000
 if __name__ == '__main__':
     print('tSNE_Test')
     data_directory = ''
-    detections = get_detections(detections_file_name="predicated_mini_fixed_detections_url.p")
+    # detections = get_detections(detections_file_name="predicated_mini_fixed_detections_url.p")
+    detections = get_detections(detections_file_name="mini_predicated_detections_with_neg_ratio3.p")
 
     # Create a numpy array of indices of the data
     # indices = np.arange(len(detections))
@@ -26,7 +27,7 @@ if __name__ == '__main__':
     # Get the counts of the labels
     counts = collections.Counter(detections[Detections.Predicate])
     # Get the top K occurrences labels
-    occurrences = [key for key, val in counts.most_common(4)]
+    occurrences = [key for key, val in counts.most_common(5)]
     # Get the lowest K occurrences labels
     # occurrences = sorted(counts)[-4:]
 

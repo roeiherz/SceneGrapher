@@ -298,6 +298,10 @@ def sort_detections_by_url(detections):
 
 if __name__ == '__main__':
 
+    # detections_new = load_full_detections(detections_file_name="mini_predicated_detections_with_neg_ratio3.p")
+    # detections_old = load_full_detections(detections_file_name="predicated_mini_fixed_detections_url.p")
+    # np.array_equal(detections_old[0][Detections.UnionBox], detections_new[10697][Detections.UnionBox])
+
     # Get argument
     if len(sys.argv) < 4:
         # Default GPU number
@@ -324,7 +328,7 @@ if __name__ == '__main__':
     # ONLY MODULE
     # detections = load_full_detections(detections_file_name="mini_module_filtered_detections_with_neg.p")
     # BOTH MODULE + VISUAL
-    detections = load_full_detections(detections_file_name="mini_all_filtered_detections_with_neg.p")
+    detections = load_full_detections(detections_file_name="mini_predicated_fixed_detections_with_neg.p")
     detections = sort_detections_by_url(detections)
 
     # region
@@ -460,5 +464,5 @@ if __name__ == '__main__':
 
     # Save detections
     print("Saving predicated_detections")
-    save_files(detections, name="mini_predicated_fixed_detections_with_neg.p")
+    save_files(detections, name="mini_predicated_detections_with_neg_ratio3.p")
     print("Finished successfully saving predicated_detections")
