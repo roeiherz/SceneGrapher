@@ -267,10 +267,14 @@ if __name__ == '__main__':
     #                                                              nof_labels=NOF_LABELS)
 
     # Load filtered data
-    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
+    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name="final_filtered_module_data_with_neg.p",
                                                                                           # "mini_filtered_module_data_with_neg.p",
-                                                                                          "final_filtered_module_data_with_neg.p",
-                                                                                          category='entities_visual_module')
+                                                                                          category='entities_visual_module'
+                                                                                          )
+
+    # entities = None
+    # hierarchy_mapping_objects = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH, "hierarchy_mapping_objects.p")))
+    # hierarchy_mapping_predicates = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH, "hierarchy_mapping_predicates.p")))
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
@@ -280,7 +284,7 @@ if __name__ == '__main__':
     detections = process_to_detections(relations, detections_file_name="final_visual_filtered_detections_with_neg.p")
 
     # Get new negative - positive ratio
-    detections = pick_different_negative_sample_ratio(detections, ratio=1)
+    detections = pick_different_negative_sample_ratio(detections, ratio=1.0/10)
 
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
