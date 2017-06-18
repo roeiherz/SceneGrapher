@@ -36,7 +36,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]=0 its mapping to GPU number 3
 os.environ["CUDA_VISIBLE_DEVICES"]=1 its mapping to GPU number 2
 os.environ["CUDA_VISIBLE_DEVICES"]=2 its mapping to GPU number 1
 
-MINI VISUAL FILES (herzig - 500 entities)
+MINI VISUAL FILES (herzig - 50000 entities)
 -------------------------
 relations: final_visual_filtered_relations_with_neg.p
 detections: final_visual_filtered_detections_with_neg.p
