@@ -272,10 +272,6 @@ if __name__ == '__main__':
                                                                                           category='entities_visual_module'
                                                                                           )
 
-    # entities = None
-    # hierarchy_mapping_objects = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH, "hierarchy_mapping_objects.p")))
-    # hierarchy_mapping_predicates = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH, "hierarchy_mapping_predicates.p")))
-
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
                                         relation_file_name="final_visual_filtered_relations_with_neg.p")
