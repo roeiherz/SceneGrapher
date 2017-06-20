@@ -1,5 +1,6 @@
 import numpy as np
-
+import sys
+sys.path.append("..")
 from keras_frcnn.Utils.Boxes import find_union_box
 from keras_frcnn.Utils.Utils import get_mask_from_object
 
@@ -63,9 +64,9 @@ class DetectionsStats(np.ndarray):
     def set_detections(filtered_id, vg_subject, vg_object, predicted_subject, predicted_object, predicted_predicate, predicate_gt,
                        top_k_index, is_gt, relation_confidence, url, detection_stats):
         """
-        This function set the following inputs for 
-        :param filtered_id: 
-        :param predicate_gt: 
+        This function set the following inputs for a DetectionsStats object
+        :param filtered_id: A filtered id
+        :param predicate_gt: A predicate gt class9
         :param vg_subject: Subject which is a Visual Genome class
         :param vg_object: Object which is a Visual Genome class
         :param predicted_subject: A string which is a prediction to Subject  
@@ -105,13 +106,21 @@ class DetectionsStats(np.ndarray):
         detection_stats[DetectionsStats.Url] = url
         # Update Predicate
         detection_stats[DetectionsStats.Predicate] = predicate_gt
-
+        # Update UnionBox
         detection_stats[DetectionsStats.UnionBox] = find_union_box(subject_box, object_box)
+        # Update Predicted Subject
+        detection_stats[DetectionsStats.PredictSubjectClassifications] = predicted_subject
+        # Update Predicted Object
+        detection_stats[DetectionsStats.PredictObjectClassifications] = predicted_object
+        # Update Predicted Predicate
+        detection_stats[DetectionsStats.PredictPredicate] = predicted_predicate
+        # Update Top-K index
+        detection_stats[DetectionsStats.TopKIndex] = top_k_index
+        # Update a flag Is it a GT
+        detection_stats[DetectionsStats.IsGT] = is_gt
+        # Update the relation confidence
+        detection_stats[DetectionsStats.RelationConfidence] = relation_confidence
 
-        #
-        # TopKIndex = "top_k_index"
-        # IsGT = "is_gt"
-        # RelationConfidence = "relation_confidence"
 
 if __name__ == '__main__':
 
