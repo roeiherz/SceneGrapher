@@ -50,7 +50,7 @@ class Module(object):
         w = np.random.randn(*self.w_dimensions)
         b = np.random.randn(*self.b_dimensions)
         z = np.random.randn(*self.z_dimensions)
-        # s = np.random.randn(*self.s_dimensions)
+        s = np.random.randn(*self.s_dimensions)
         # load init paramters to be equal to predicate CNN	
         file_handle = open("last_layer_weights.p", "rb")
         z = cPickle.load(file_handle).T
@@ -58,7 +58,7 @@ class Module(object):
         # w = np.zeros(self.w_dimensions)
         # b = np.zeros(self.b_dimensions)
         # z = np.zeros(self.z_dimensions)
-        s = np.zeros(self.s_dimensions)
+        # s = np.zeros(self.s_dimensions)
 
         # encode parameters
         self.params = self.encode_parameters(w, b, z, s)
@@ -381,7 +381,7 @@ class Module(object):
             for subject_index in range(len(img.objects)):
                 for object_index in range(len(img.objects)):
             #for subject_index in [1]:
-                #for relation in img.relationships:
+            #    for relation in img.relationships:
 
                     # filter if subject equals to object
                     if (subject_index == object_index):
@@ -467,3 +467,4 @@ class Module(object):
             print(str(score))
 
         #return images_score / len(images)
+

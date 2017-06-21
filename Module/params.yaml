@@ -1,55 +1,55 @@
-nof_p: 8
+nof_p: 6
 1:
-    name: reg
+    name: reg_pre
     iterations: 1000000
     start_iterations: 1000
     learning_rate: 0.01
     learning_rate_steps: 1000
-    test_steps: 100
+    test_steps: 1000
     coeff_k: 0.0
-    coeff_l: 0.02
-    coeff_reg_visual: 0.2 
-    coeff_reg_lang: 0.1
-    saved_params_file_name: best_params_reg.npy
+    coeff_l: 0.0
+    coeff_reg_visual: 0.01
+    coeff_reg_lang: 0.01
+    saved_params_file_name: best_params_reg_neg.npy
     word_embed_size: 300
 2:
     name: reg_2
     iterations: 1000000
     start_iterations: 1000
-    learning_rate: 0.1
-    learning_rate_steps: 1000
-    test_steps: 100
+    learning_rate: 0.01
+    learning_rate_steps: 10000
+    test_steps: 1000
     coeff_k: 0.0
-    coeff_l: 0.02
-    coeff_reg_visual: 0.1
-    coeff_reg_lang: 0.2 
-    saved_params_file_name: best_params_reg.npy
+    coeff_l: 0.0
+    coeff_reg_visual: 0.01
+    coeff_reg_lang: 0.1 
+    saved_params_file_name: best_params_reg_neg.npy
     word_embed_size: 300
 3:
     name: reg_3
     iterations: 1000000
     start_iterations: 1000
-    learning_rate: 0.01
+    learning_rate: 0.04
     learning_rate_steps: 1000
-    test_steps: 100
+    test_steps: 1000
     coeff_k: 0.0
-    coeff_l: 0.02
-    coeff_reg_visual: 0.15
+    coeff_l: 0.0
+    coeff_reg_visual: 0.05
     coeff_reg_lang: 0.1 
-    saved_params_file_name: best_params_reg.npy
+    saved_params_file_name: best_params_reg_neg.npy
     word_embed_size: 300
 4:
     name: reg_4
     iterations: 1000000
     start_iterations: 1000
-    learning_rate: 0.01
+    learning_rate: 0.04
     learning_rate_steps: 1000
-    test_steps: 100
+    test_steps: 1000
     coeff_k: 0.0
-    coeff_l: 0.02
+    coeff_l: 0.0
     coeff_reg_visual: 0.1
-    coeff_reg_lang: 0.15
-    saved_params_file_name: best_params_reg.npy
+    coeff_reg_lang: 0.05
+    saved_params_file_name: best_params_reg_neg.npy
     word_embed_size: 300
 5:
     name: reg_l
@@ -59,10 +59,10 @@ nof_p: 8
     learning_rate_steps: 1000
     test_steps: 100
     coeff_k: 0.0
-    coeff_l: 0.02
+    coeff_l: 0.0
     coeff_reg_visual: 0.15
     coeff_reg_lang: 0.15
-    saved_params_file_name: best_params_reg.npy
+    saved_params_file_name: best_params_reg_neg.npy
     word_embed_size: 300
 6:
     name: all
@@ -72,10 +72,10 @@ nof_p: 8
     learning_rate_steps: 1000
     test_steps: 100
     coeff_k: 0.000001
-    coeff_l: 0.02
+    coeff_l: 0.0
     coeff_reg_visual: 0.1
     coeff_reg_lang: 0.1
-    saved_params_file_name: best_params_reg.npy
+    saved_params_file_name: best_params_reg_neg.npy
     word_embed_size: 300
 7:
     name: all_2
@@ -88,7 +88,7 @@ nof_p: 8
     coeff_l: 0.02
     coeff_reg_visual: 0.1
     coeff_reg_lang: 0.0
-    saved_params_file_name: best_params_reg.npy
+    saved_params_file_name: best_params_reg_neg.npy
     word_embed_size: 300
 8:
     name: all_3

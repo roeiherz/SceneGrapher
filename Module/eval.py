@@ -10,7 +10,7 @@ import inspect
 import cPickle
 
 
-def eval(model_filename="best_params_for_eval.npy", word_embed_size=300, visual_embed_size=2048):
+def eval(model_filename="best_params_for_eval2.npy", word_embed_size=300, visual_embed_size=2048):
     """
     Evaluate the module using TBD metrics
     :return:
@@ -23,8 +23,8 @@ def eval(model_filename="best_params_for_eval.npy", word_embed_size=300, visual_
     print("Create Module")
     module = Module(object_ids, predicate_ids, word_embed_size, visual_embed_size,
                     objects_training_dir_name="Fri_Jun__2_19:16:26_2017",
-                    predicates_training_dir_name="Fri_Jun__2_20:00:24_2017")
-    module.visual.initialize_networks(gpu_num=2, batch_num=1)
+                    predicates_training_dir_name="Wed_Jun_14_20:25:16_2017")
+    module.visual.initialize_networks(gpu_num=0, batch_num=1)
 
     print("Load module weights")
     with open(model_filename, "r") as f:

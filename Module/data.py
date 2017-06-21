@@ -13,13 +13,13 @@ def prepare_data():
     """
 
     # Check if filtered data already exist
-    if os.path.isfile("final_module_data.p"):
-        module_data_file = open("final_module_data.p", "rb")
+    if os.path.isfile("mini_final_module_data_neg.p"):
+        module_data_file = open("mini_final_module_data_neg.p", "rb")
         module_data = cPickle.load(module_data_file)
         module_data_file.close()
     else:
         # load entities and filter it according to most popular classes and predicates
-        module_data_file = open("filtered_module_data.p", "rb")
+        module_data_file = open("mini_filtered_module_data_with_neg.p", "rb")
         module_data = cPickle.load(module_data_file)
         module_data_file.close()
 
@@ -28,7 +28,7 @@ def prepare_data():
         entities = module_data["entities_module"]
 
         # Load mini url list which will be filtered
-        mini_url_lst = cPickle.load(open("url_lst_mini.p"))
+        mini_url_lst = cPickle.load(open("url_lst_mini_neg.p"))
 
         # Real entities
         real_entities = []
@@ -38,7 +38,21 @@ def prepare_data():
             # filter by url
             if filtered_entities_by_url(entity.image.url) or filtered_by_mini_url(mini_url_lst, entity.image.url):
                 continue
-            real_entities.append(entity)
+            # filter some of the negative relationships to get 1x1 
+            relationship_filtered = []
+	    neg_id = 0
+            for relation in entity.relationships:
+                if relation.predicate == "neg":
+                    if neg_id % 3 == 0:
+                        relationship_filtered.append(relation)
+		    neg_id += 1
+                else:
+                    relationship_filtered.append(relation)
+
+            # Rewrite relations - the slice is for copy the list
+            entity.relationships = relationship_filtered[:]
+
+	    real_entities.append(entity)
 
         # Replace entities
         entities = real_entities
@@ -61,7 +75,7 @@ def prepare_data():
         # save data
         module_data = {"train": train_data, "validation": validation_data, "test": test_data, "object_ids": object_ids,
                        "predicate_ids": predicate_ids, "test_entities" : test_entities}
-        filtered_data_file = open("final_module_data.p", "wb")
+        filtered_data_file = open("mini_final_module_data_neg.p", "wb")
         cPickle.dump(module_data, filtered_data_file, 0)
         filtered_data_file.close()
 
@@ -76,23 +90,23 @@ def prepare_eval_data():
     Prepare data for evaluate
     :return: visual genome entities (filtered to be similar to ou base line model)
     """
-    if os.path.isfile("eval_module_data.p"):
-        module_data_file = open("eval_module_data.p", "rb")
+    if os.path.isfile("mini_eval_module_data_neg.p"):
+        module_data_file = open("mini_eval_module_data_neg.p", "rb")
         test_entities = cPickle.load(module_data_file)
         object_ids = cPickle.load(module_data_file)
         predicate_ids = cPickle.load(module_data_file)
         module_data_file.close()
     else:
-        module_data_file = open("filtered_module_data.p", "rb")
+        module_data_file = open("mini_filtered_module_data_with_neg.p", "rb")
         module_data = cPickle.load(module_data_file)
         module_data_file.close()
 
         object_ids = module_data["object_ids"]
         predicate_ids = module_data["predicate_ids"]
-        entities = module_data["entities_visual_module"]
+        entities = module_data["entities_module"]
 
         # Load mini url list which will be filtered
-        mini_url_lst = cPickle.load(open("url_lst_mini.p"))
+        mini_url_lst = cPickle.load(open("url_lst_mini_neg.p"))
 
         # Real entities
         real_entities = []
@@ -102,7 +116,9 @@ def prepare_eval_data():
             # filter by url
             if filtered_entities_by_url(entity.image.url) or filtered_by_mini_url(mini_url_lst, entity.image.url):
                 continue
+
             real_entities.append(entity)
+            
 
         # Replace entities
         entities = real_entities
@@ -113,7 +129,7 @@ def prepare_eval_data():
         validation_entities = entities[int(0.6 * nof_entities):int(0.8 * nof_entities)]
         test_entities = entities[int(0.8 * nof_entities):]
 
-        eval_data_file = open("eval_module_data.p", "w")
+        eval_data_file = open("mini_eval_module_data_neg.p", "w")
         cPickle.dump(test_entities, eval_data_file, 0)
         cPickle.dump(object_ids, eval_data_file, 0)
         cPickle.dump(predicate_ids, eval_data_file, 0)
