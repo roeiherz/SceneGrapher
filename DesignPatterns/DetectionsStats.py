@@ -121,10 +121,3 @@ class DetectionsStats(np.ndarray):
         # Update the relation confidence
         detection_stats[DetectionsStats.RelationConfidence] = relation_confidence
 
-
-if __name__ == '__main__':
-
-    print('test')
-    tt = DetectionsStats(5)
-
-    print('end')
