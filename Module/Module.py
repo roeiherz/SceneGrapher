@@ -2,6 +2,7 @@ import numpy as np
 
 from LangModule import LangModule
 from VisualModuleLazy import VisualModule
+from ModuleDetection import ModuleDetection
 import cPickle
 from Utils.Utils import softmax_multi_dim
 
@@ -369,8 +370,8 @@ class Module(object):
             if len(img.relationships) == 0:
                 continue
 
-            min_predict_confidence = 0
-            # extract features from visual module and probabilities for subject, object and predicate
+            # create module detections
+            detections = ModuleDetection(img, self)
 
             # iterate over each relation to predict and find k highest predictions
             top_predictions = np.zeros((0,))
@@ -407,6 +408,8 @@ class Module(object):
                     # calc tensor of probabilities taking into account both visual and language module
                     predict_tensor = visual_predict * lang_predict
                     predict_tensor = softmax_multi_dim(predict_tensor)
+                    # remove negative probabilties
+                    predict_tensor[:,self.predicate_ids["neg"] ,:] = 0
                     # get the highset probabilities
                     max_k_predictions = np.argsort(predict_tensor.flatten())[-k:]
                     max_k_predictions_triplets = np.unravel_index(max_k_predictions, predict_tensor.shape)
@@ -430,8 +433,21 @@ class Module(object):
             predictions = top_predictions[top_k_indices]
             global_sub_ids = top_k_global_subject_ids[top_k_indices]
             global_obj_ids = top_k_global_object_ids[top_k_indices]
+            likelihoods = top_likelihoods[top_k_indices]
+            for i in range(k):
+                triplets = np.unravel_index(max_k_predictions, predict_tensor.shape)
+                detections.add_detection(global_sub_ids[i], global_obj_ids[i],
+                                         triplets[0], triplets[2], triplets[1],
+                                         i, likelihoods[i])
+
             img_score = 0
+            nof_pos_relationship = 0
             for relation in img.relationships:
+                # filter negative relationship
+                if relation.predicate == "neg":
+                    continue
+                nof_pos_relationship += 1
+
                 sub_id = self.lang.object_ids[relation.subject.names[0]]
                 obj_id = self.lang.object_ids[relation.object.names[0]]
                 predicate_id = self.lang.predicate_ids[relation.predicate]
@@ -446,7 +462,7 @@ class Module(object):
                 if len(indices) != 0:
                     img_score += 1
             total_score += img_score
-            total_gt_relationships += len(img.relationships)
+            total_gt_relationships += nof_pos_relationship
             score = float(total_score) / total_gt_relationships
             print(str(score))
 

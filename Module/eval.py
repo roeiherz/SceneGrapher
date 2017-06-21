@@ -34,6 +34,8 @@ def eval(model_filename="best_params_for_eval.npy", word_embed_size=300, visual_
     print("Evaluate")
     module.r_k_metric(test_data, 100, params)
 
+
+
 if __name__ == "__main__":
     eval()
 
