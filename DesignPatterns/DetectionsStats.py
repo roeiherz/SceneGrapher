@@ -15,7 +15,6 @@ class DetectionsStats(np.ndarray):
     ObjectId = 'object_id'
     Predicate = 'predicate'
     PredictPredicate = 'predict_predicate'
-    # UnionFeature = 'union_feature'
     UnionBox = 'union_box'
     SubjectClassifications = 'subject_classifications'
     PredictSubjectClassifications = 'predict_subject_classifications'

@@ -1,14 +1,17 @@
 import math
 import os
+import threading
 import time
-
+import urllib
 import cv2
 import matplotlib.pyplot as plt
 import numpy
 from keras.engine import Model
 from keras.layers import Dense
 
+# todo: when moving to nova remove it
 PROJECT_ROOT = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/"
+PROJECT_ROOT = "/home/roeih/SceneGrapher/"
 # PROJECT_ROOT = ".."
 VG_DATA_PATH = "Data/VisualGenome/data"
 VG_PATCH_PATH = "Data/VisualGenome/Patches"
@@ -275,9 +278,10 @@ def replace_top_layer(model, num_of_classes):
     return model
 
 
-def get_img(url):
+def get_img(url, download=False):
     """
     This function read image from VisualGenome dataset as url and returns the image from local hard-driver
+    :param download: A flag if we want to download the image
     :param url: url of the image
     :return: the image
     """
@@ -287,6 +291,9 @@ def get_img(url):
 
         if not os.path.isfile(img_path):
             print("Error. Image path was not found")
+            # Download the image
+            if download:
+                downloadProbe(img_path, url)
 
         img = cv2.imread(img_path)
 
@@ -309,3 +316,66 @@ def get_sorting_url():
            "https://cs.stanford.edu/people/rak248/VG_100K/2374264.jpg"]
 
     return lst
+
+
+def url_exists(url):
+    """
+    Returns True if url exists and False otherwise.
+    :param url:
+    :return:
+    """
+    if url is None:
+        return False
+
+    return urllib.urlopen(url).code == 200
+
+
+def downloadProbe(probe_full_path, probe_url):
+        """
+        Downloads the image and stores it locally.
+        :param probe_url:
+        :param probe_full_path:
+        :return: A boolean indication if the probe is stored locally (success of the operation).
+        """
+
+        # First we start by checking if the file is already stored locally. If so there is no need try and access
+        # remote resources.
+        if os.path.isfile(probe_full_path):
+            print('Probe image already exists in: ' + probe_full_path)
+        elif url_exists(probe_url):
+            print('Downloading probe: {} from {}'.format(probe_full_path, probe_url))
+
+            try:
+                num_try = 1
+                timeout_interval = 30
+                while num_try < 4:
+                    t = threading.Thread(name='urlretrieve thread', target=urllib.urlretrieve,
+                                         args=(probe_url, probe_full_path))
+                    t.start()
+                    t.join(timeout=timeout_interval)
+                    if t.is_alive():
+                        print('Time-out over {} seconds'.format(timeout_interval))
+                        print(
+                            'Num of try for downloading: {}. End Threading - the thread is still alive'.format(num_try))
+                        num_try += 1
+                        continue
+                    else:
+                        break
+                # After 3 tries stop downloading
+                if num_try == 4:
+                    print('Time-out over {} seconds '.format(timeout_interval))
+                    print(
+                        'End Threading - the thread is still alive. Stop downloading after 3 tries')
+                    return False
+
+            except Exception as e:
+                exception_full_msg = 'Failed to download image from {}\n{}'. \
+                    format(probe_url, e)
+                print(exception_full_msg)
+                return False
+        else:
+            print('Probe URL does not exists, image was not downloaded from: {}'.format(probe_url))
+            return False
+
+        return True
+
