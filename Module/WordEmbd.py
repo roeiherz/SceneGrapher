@@ -2,9 +2,11 @@ import os
 import os.path
 import numpy as np
 import sys
+
+from FilesManager.FilesManager import FilesManager
+
 sys.path.append("..")
 from DesignPatterns.Singleton import Singleton
-import cPickle
 
 
 class WordEmbd(object):
@@ -12,13 +14,6 @@ class WordEmbd(object):
     Word to vector embeddin, using GLOVE
     """
     __metaclass__ = Singleton
-
-    # fields
-    # GLOVE_FILE_NAME = 'LanguageModule/glove.6B.300d.txt'
-    GLOVE_FILE_NAME_50 = 'glove.6B.50d.txt'
-    GLOVE_FILE_NAME_300 = 'glove.6B.300d.txt'
-    EMBED_PICKLE_FILE_50 = 'glove50.p'
-    EMBED_PICKLE_FILE_300 = 'glove300.p'
 
     def __init__(self, word_embed_size):
         ## init fields
@@ -32,11 +27,14 @@ class WordEmbd(object):
         # word to word_index
         self.word_index = None
 
+        # file-manager
+        self.filemanager = FilesManager()
+
         ## load Glove
         self.loadWordEmbd(word_embed_size)
 
 
-    def loadGlove(self, filename):
+    def loadGlove(self, filename, word_embed_size):
         """
         Load Glove Word Embedding (expecting pre-traind data to be stored in filename
         :param filename: that path to the pre-trained data
@@ -45,16 +43,16 @@ class WordEmbd(object):
         vocab = []
         word_index = {}
         embd = []
-        file = open(filename, 'rb')
+        lines = self.filemanager.load_file("word_embedding.glove.original" + str(word_embed_size))
         index = 0
-        for line in file.readlines():
+        for line in lines:
             row = line.strip().split(' ')
             vocab.append(row[0])
             embd.append(row[1:])
             word_index[row[0]] = index
             index += 1
         print('Loaded GloVe!')
-        file.close()
+
         return vocab, embd, word_index
 
     def loadWordEmbd(self, word_embed_size):
@@ -62,20 +60,13 @@ class WordEmbd(object):
         Load / prepare Word embedding module
         :return:
         """
-        if word_embed_size == 50:
-            glove_file_name = WordEmbd.GLOVE_FILE_NAME_50
-            embed_pickle_file = WordEmbd.EMBED_PICKLE_FILE_50
-        else:
-            glove_file_name = WordEmbd.GLOVE_FILE_NAME_300
-            embed_pickle_file = WordEmbd.EMBED_PICKLE_FILE_300
+        if self.filemanager.file_exist("word_embedding.glove.embed" + str(word_embed_size)):
+            data = self.filemanager.load_file("word_embedding.glove.embed" + str(word_embed_size))
 
-        if os.path.isfile(embed_pickle_file):
             #if already saved to pickle files, load it
-            embed_file = file(embed_pickle_file, "rb")
-            self.embed = cPickle.load(embed_file)
-            self.vocab = cPickle.load(embed_file)
-            self.word_index = cPickle.load(embed_file)
-            embed_file.close()
+            self.embed = data[0]
+            self.vocab = data[1]
+            self.word_index = data[2]
 
             self.vocab_size = self.embed.shape[0]
             self.vector_dim = self.embed.shape[1]
@@ -84,7 +75,7 @@ class WordEmbd(object):
             # if pickle files, does not exist - prepare module.
             # load data
             print "Load Data"
-            vocab, embd, word_index = self.loadGlove(glove_file_name)
+            vocab, embd, word_index = self.loadGlove(word_embed_size)
             self.vocab_size = len(vocab)
             self.vector_dim = len(embd[0])
 
@@ -95,11 +86,8 @@ class WordEmbd(object):
 
             #Save picke files
             print "Save Embed Words"
-            embed_file = open(embed_pickle_file, "wb")
-            cPickle.dump(self.embed, embed_file, 0)
-            cPickle.dump(self.vocab, embed_file, 0)
-            cPickle.dump(self.word_index, embed_file, 0)
-            embed_file.close()
+            data = [self.embed, self.vocab, self.word_index]
+            self.filemanager.save_file("word_embedding.glove.embed" + str(word_embed_size))
 
 
     def word2vec(self, word):
@@ -128,5 +116,5 @@ class WordEmbd(object):
         return self.vector_dim
 
 if __name__ == "__main__":
-    embed = WordEmbd()
+    embed = WordEmbd(50)
     print("Debug")

@@ -1,12 +1,14 @@
-from ModuleLogger import ModuleLogger
-from WordEmbd import WordEmbd
-from Module import Module
+import inspect
+
+import yaml
+
 import sgd
-import numpy as np
+from Module import Module
+from Utils.Logger import ModuleLogger
+from WordEmbd import WordEmbd
 from data import *
 from gradcheck import gradcheck_naive
-import yaml
-import inspect
+
 
 def train(
     name = "none",

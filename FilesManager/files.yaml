@@ -1,0 +1,33 @@
+# the file holds the paths to default files that will be loaded or saved
+features_extraction:
+    visual:
+
+    language:
+
+scene_graph_module:
+    train:
+
+    eval:
+
+scene_graph_base_module:
+
+word_embedding:
+    glove:
+        original300:
+            name: "glove.6B.300d.txt"
+            type: "text"
+            doc: "data from glove project storing word to vec info"
+        original50:
+            name: "glove.6B.50d.txt"
+            type: "text"
+            doc: "data from glove project storing word to vec info"
+        embed300:
+            name: "glove300.p"
+            type: "pickle"
+            nof_objects: 3
+            doc: "storing 1. matrix converting from word index to vector; 2. vocabulary; 3. word to index dictionary"
+        embed50:
+            name: "glove50.p"
+            type: "pickle"
+            nof_objects: 3
+            doc: "storing 1. matrix converting from word index to vector; 2. vocabulary; 3. word to index dictionary"

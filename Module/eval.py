@@ -1,13 +1,7 @@
-from ModuleLogger import ModuleLogger
-from WordEmbd import WordEmbd
-from Module import Module
-import sgd
-import numpy as np
-from data import *
-from gradcheck import gradcheck_naive
-import yaml
-import inspect
 import cPickle
+
+from Module import Module
+from data import *
 
 
 def eval(model_filename="best_params_for_eval2.npy", word_embed_size=300, visual_embed_size=2048):
