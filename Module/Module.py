@@ -5,6 +5,7 @@ from VisualModuleLazy import VisualModule
 from ModuleDetection import ModuleDetection
 import cPickle
 from Utils.Utils import softmax_multi_dim
+import gc
 
 
 class Module(object):
@@ -27,8 +28,10 @@ class Module(object):
         # save input params
         self.nof_objects = len(object_ids)
         self.object_ids = object_ids
+        self.reverse_object_ids = {self.object_ids[id] : id for id in self.object_ids}
         self.nof_predicates = len(predicate_ids)
         self.predicate_ids = predicate_ids
+        self.reverse_predicate_ids = {self.predicate_ids[id] : id for id in self.predicate_ids}
         self.lang_embed_size = lang_embed_size
         self.visual_embed_size = visual_embed_size
 
@@ -434,11 +437,9 @@ class Module(object):
             global_sub_ids = top_k_global_subject_ids[top_k_indices]
             global_obj_ids = top_k_global_object_ids[top_k_indices]
             likelihoods = top_likelihoods[top_k_indices]
+            triplets = np.unravel_index(predictions.astype(int), predict_tensor.shape)
             for i in range(k):
-                triplets = np.unravel_index(max_k_predictions, predict_tensor.shape)
-                detections.add_detection(global_sub_ids[i], global_obj_ids[i],
-                                         triplets[0], triplets[2], triplets[1],
-                                         i, likelihoods[i])
+                detections.add_detection(global_subject_id=global_sub_ids[i], global_object_id=global_obj_ids[i], pred_subject=triplets[0][i], pred_object=triplets[2][i], pred_predicate=triplets[1][i], top_k_index=i, confidence=likelihoods[i])
 
             img_score = 0
             nof_pos_relationship = 0
@@ -464,7 +465,64 @@ class Module(object):
             total_score += img_score
             total_gt_relationships += nof_pos_relationship
             score = float(total_score) / total_gt_relationships
-            print(str(score))
+            img_score_precent = float(img_score)/nof_pos_relationship
+            print("image score: " + str(img_score_precent))
+            print("total score: " + str(score))
+            detections.save_stat(score=img_score_precent)
+            gc.collect()
 
         #return images_score / len(images)
+
+
+    def predicate_class_recall(self, images, params, k = 5):
+        """
+
+        :param images:
+        :return:
+        """
+        # decode module parmas
+        w, b, z, s = self.decode_parameters(params)
+
+        # get tensor of probabilities (element per any relation - triplet)
+        lang_predict = self.lang.predict_all(w, b)
+
+        correct = np.zeros(len(self.predicate_ids))
+        total = np.zeros(len(self.predicate_ids))
+        for img in images:
+            # filter images with no relationships
+            if len(img.relationships) == 0:
+                continue
+
+            for relation in img.relationships:
+                predicate_features, subject_prob, object_prob = self.visual.extract_features([relation.filtered_id])
+                predicate_features = predicate_features[0]; subject_prob = subject_prob[0]; object_prob = object_prob[0]
+
+                predicate_prob = self.visual.predicate_predict(predicate_features, z, s)
+
+                # calc tensor of probabilities taking into account both visual and language module
+                subject_class = self.object_ids[relation.subject.names[0]]
+                object_class = self.object_ids[relation.object.names[0]]
+                predicate_class = self.predicate_ids[relation.predicate]
+		alter_predicate_class = self.predicate_ids[relation.predicate]
+                if relation.predicate.islower() and self.predicate_ids.has_key(relation.predicate.upper()):  
+		    alter_predicate_class = self.predicate_ids[relation.predicate.upper()] 		
+		if relation.predicate.isupper() and self.predicate_ids.has_key(relation.predicate.lower()):
+                    alter_predicate_class = self.predicate_ids[relation.predicate.lower()]
+
+                predict_tensor = predicate_prob * lang_predict[subject_class, :, object_class]
+
+                # remove negative probabilties
+                max_k_predictions = np.argsort(predict_tensor)[-k:]
+                found = np.where(predicate_class == max_k_predictions)[0]
+                found_alter = np.where(alter_predicate_class == max_k_predictions)[0]
+                if len(found) != 0 or len(found_alter) != 0:
+                    correct[predicate_class] += 1
+                total[predicate_class] += 1
+
+	for i in range(len(self.reverse_predicate_ids)):
+    	    if total[i] != 0:
+        	print("{0} recall@5 is {1} (total - {2}, correct {3})".format(self.reverse_predicate_ids[i], float(correct[i])/total[i], total[i], correct[i]))
+
+
+        
 

@@ -1,3 +1,7 @@
+from DesignPatterns.DetectionsStats import DetectionsStats
+import cPickle
+import os
+
 class ModuleDetection():
     """
     Holds and maintain Image detection (used to evaluate the module)
@@ -34,8 +38,8 @@ class ModuleDetection():
         for object in self.entity.objects:
             if object.id == global_subject_id:
                 vg_subject = object
-                if object.id == global_object_id:
-                    vg_object = object
+            if object.id == global_object_id:
+                vg_object = object
 
         # find if exist in gt and gt_predicate
         is_gt = 0
@@ -55,7 +59,29 @@ class ModuleDetection():
         pred_predicate_name = self.module.reverse_predicate_ids[pred_predicate]
 
         # store detection params to be converted to numpy object later
-        detection = {"url": url, "vg_subject" : vg_subject, "vg_object" : vg_object, "true_predicate" : true_predicate,
+        detection = {"vg_subject" : vg_subject, "vg_object" : vg_object, "true_predicate" : true_predicate,
                      "pred_subject" : pred_subject_name, "pred_object" : pred_object_name, "pred_predicate" : pred_predicate_name,
                      "is_gt" : is_gt, "top_k_index" : top_k_index, "confidence" : confidence, "filtered_id" : filtered_id}
         self.detections_params.append(detection)
+
+    def get_stat(self):
+        stat = DetectionsStats(len(self.detections_params))
+        for i in range(len(self.detections_params)):
+            params =  self.detections_params[i]
+            stat.set_detections(filtered_id=params["filtered_id"], vg_subject=params["vg_subject"], vg_object=params["vg_object"], predicted_subject=params["pred_subject"], predicted_object=params["pred_object"], predicted_predicate=params["pred_predicate"], predicate_gt=params["true_predicate"], top_k_index=params["top_k_index"], is_gt=params["is_gt"], relation_confidence=params["confidence"], url=self.entity.image.url, detection_stats=stat[i])
+
+        return stat
+
+    def save_stat(self, filename="detections_stat.p", score=0):
+        stat = self.get_stat()
+        if os.path.exists(filename):
+            statfile = open(filename, "r")
+            stat_lst = cPickle.load(statfile)
+            statfile.close()
+        else:
+            stat_lst = []
+        stat_lst.append((stat, self.entity, score))
+
+        statfile = open(filename, "w")
+        cPickle.dump(stat_lst, statfile)
+        statfile.close()
