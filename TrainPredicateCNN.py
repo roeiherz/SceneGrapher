@@ -6,29 +6,29 @@ from keras.optimizers import Adam
 
 from Data.VisualGenome.models import ObjectMapping, RelationshipMapping
 from DesignPatterns.Detections import Detections
-from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_generator, \
+from features_extraction.Lib.VisualGenomeDataGenerator import visual_genome_data_generator, \
     visual_genome_data_parallel_generator, visual_genome_data_generator_with_batch
-from keras_frcnn.Lib.Zoo import ModelZoo
+from features_extraction.Lib.Zoo import ModelZoo
 from keras.applications.resnet50 import ResNet50
 import os
 import cPickle
 import numpy as np
-from keras_frcnn.Lib.Config import Config
+from features_extraction.Lib.Config import Config
 from keras.layers import Input, Dense, GlobalAveragePooling2D
 from keras import backend as K
 from keras.models import Model
 import sys
 import matplotlib.pyplot as plt
 
-from keras_frcnn.Utils.Boxes import find_union_box, BOX
-from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
+from features_extraction.Utils.Boxes import find_union_box, BOX
+from features_extraction.Utils.Utils import VisualGenome_PICKLES_PATH, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
     get_img_resize, get_time_and_date, TRAINING_PREDICATE_CNN_PATH, get_img, get_sorting_url, replace_top_layer
 from Utils.Utils import create_folder
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 import cv2
-from keras_frcnn.Utils.Visualizer import VisualizerDrawer, CvColor
-from keras_frcnn.Utils.data import get_sorted_data, generate_new_hierarchy_mapping, splitting_to_datasets, \
+from features_extraction.Utils.Visualizer import VisualizerDrawer, CvColor
+from features_extraction.Utils.data import get_sorted_data, generate_new_hierarchy_mapping, splitting_to_datasets, \
     get_predicate_hierarchy_mapping_from_detections, process_to_detections, get_filtered_data
 
 NOF_LABELS = 150

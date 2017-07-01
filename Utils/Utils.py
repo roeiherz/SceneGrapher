@@ -2,7 +2,7 @@ import os
 import cPickle
 import numpy as np
 from numpy.core.umath_tests import inner1d
-from keras_frcnn.Utils.Utils import VG_VisualModule_PICKLES_PATH
+from features_extraction.Utils.Utils import VG_VisualModule_PICKLES_PATH
 
 FILE_EXISTS_ERROR = (17, 'File exists')
 

@@ -6,13 +6,13 @@ import os
 import cPickle
 import sys
 from DesignPatterns.Detections import Detections
-from keras_frcnn.Lib.Config import Config
-from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator
+from features_extraction.Lib.Config import Config
+from features_extraction.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator
 from keras import backend as K
 from keras.models import Model
-from keras_frcnn.Lib.Zoo import ModelZoo
-from keras_frcnn.Utils.Boxes import BOX
-from keras_frcnn.Utils.Utils import get_img_resize, get_img
+from features_extraction.Lib.Zoo import ModelZoo
+from features_extraction.Utils.Boxes import BOX
+from features_extraction.Utils.Utils import get_img_resize, get_img
 
 VG_VisualModule_PICKLES_PATH = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/VisualModule/Data/VisualGenome/"
 OBJECTS_TRAINING_PATH = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Training/TrainingObjectsCNN/"

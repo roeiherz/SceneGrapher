@@ -1,7 +1,7 @@
 import cv2
 import numpy
 
-from keras_frcnn.Utils.Boxes import BOX
+from features_extraction.Utils.Boxes import BOX
 
 __author__ = 'roeih'
 

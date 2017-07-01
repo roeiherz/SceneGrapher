@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 
 import cv2
 
-from keras_frcnn.Lib.DataSetGenerator import DataSetGenerator
+from features_extraction.Lib.DataSetGenerator import DataSetGenerator
 
 __author__ = 'roeih'
 

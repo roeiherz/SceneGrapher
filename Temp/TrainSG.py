@@ -1,7 +1,7 @@
 from __future__ import print_function
-from keras_frcnn.Lib.PascalVocDataGenerator import PascalVocDataGenerator
-from keras_frcnn.Lib.Loss import rpn_loss_cls, rpn_loss_regr, class_loss_cls, class_loss_regr
-from keras_frcnn.Lib.Zoo import ModelZoo
+from features_extraction.Lib.PascalVocDataGenerator import PascalVocDataGenerator
+from features_extraction.Lib.Loss import rpn_loss_cls, rpn_loss_regr, class_loss_cls, class_loss_regr
+from features_extraction.Lib.Zoo import ModelZoo
 
 __author__ = 'roeih'
 
@@ -10,10 +10,10 @@ import pprint
 import os
 import cPickle
 import json
-from keras_frcnn.Lib.Config import Config
+from features_extraction.Lib.Config import Config
 from keras.optimizers import Adam
 from keras.layers import Input
-from keras_frcnn.Lib.PascalVoc import PascalVoc
+from features_extraction.Lib.PascalVoc import PascalVoc
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras import backend as K
 

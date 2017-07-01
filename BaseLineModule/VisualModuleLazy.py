@@ -3,23 +3,23 @@ import sys
 import cv2
 
 sys.path.append("..")
-from keras_frcnn.Utils.Visualizer import CvColor, VisualizerDrawer
-from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator_with_batch, \
+from features_extraction.Utils.Visualizer import CvColor, VisualizerDrawer
+from features_extraction.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator_with_batch, \
     visual_genome_data_cnn_generator_with_batch
 from numpy.core.umath_tests import inner1d
 import os
 import cPickle
-from keras_frcnn.Lib.Config import Config
-from keras_frcnn.Utils.Utils import VG_VisualModule_PICKLES_PATH, TRAINING_OBJECTS_CNN_PATH, \
+from features_extraction.Lib.Config import Config
+from features_extraction.Utils.Utils import VG_VisualModule_PICKLES_PATH, TRAINING_OBJECTS_CNN_PATH, \
     TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, VisualGenome_PICKLES_PATH, get_mask_from_object, get_img
 from DesignPatterns.Detections import Detections
 import numpy as np
 from Utils.Utils import softmax, get_detections
 from keras import backend as K
 from keras.models import Model
-from keras_frcnn.Lib.Zoo import ModelZoo
-from keras_frcnn.Utils.Boxes import BOX, find_union_box
-from keras_frcnn.Utils.Utils import get_img_resize
+from features_extraction.Lib.Zoo import ModelZoo
+from features_extraction.Utils.Boxes import BOX, find_union_box
+from features_extraction.Utils.Utils import get_img_resize
 from keras.engine import Input
 from keras.layers import GlobalAveragePooling2D, Dense
 

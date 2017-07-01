@@ -4,13 +4,13 @@ import os
 import numpy as np
 from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
 from TrainCNN import VisualGenome_PICKLES_PATH
-from keras_frcnn.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
+from features_extraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
     HIERARCHY_MAPPING, plot_graph, POSITIVE_NEGATIVE_RATIO
 from Utils.Utils import create_folder
-from keras_frcnn.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data
+from features_extraction.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data
 from PredictVisualModel import get_resize_images_array, load_full_detections
-from keras_frcnn.Utils.Utils import VG_VisualModule_PICKLES_PATH
-from keras_frcnn.Lib.Config import Config
+from features_extraction.Utils.Utils import VG_VisualModule_PICKLES_PATH
+from features_extraction.Lib.Config import Config
 from DesignPatterns.Detections import Detections
 
 

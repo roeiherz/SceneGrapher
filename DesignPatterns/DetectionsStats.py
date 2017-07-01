@@ -2,8 +2,8 @@ import numpy as np
 import sys
 
 sys.path.append("..")
-from keras_frcnn.Utils.Boxes import find_union_box
-from keras_frcnn.Utils.Utils import get_mask_from_object
+from features_extraction.Utils.Boxes import find_union_box
+from features_extraction.Utils.Utils import get_mask_from_object
 
 __author__ = 'roeih'
 
