@@ -8,8 +8,8 @@ import numpy
 from keras.engine import Model
 from keras.layers import Dense
 
-PROJECT_ROOT = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/"
-# PROJECT_ROOT = ".."
+# PROJECT_ROOT = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/"
+PROJECT_ROOT = ".."
 VG_DATA_PATH = "Data/VisualGenome/data"
 VG_PATCH_PATH = "Data/VisualGenome/Patches"
 VG_PICKLES_FOLDER_PATH = "Data/VisualGenome/pickles"
@@ -26,7 +26,9 @@ PascalVoc_PICKLES_PATH = "keras_frcnn/Data/PascalVoc"
 VisualGenome_PICKLES_PATH = "keras_frcnn/Data/VisualGenome"
 VisualGenome_DATASETS_PICKLES_PATH = "keras_frcnn/PicklesDataset"
 VG_VisualModule_PICKLES_PATH = "VisualModule/Data/VisualGenome"
-MINI_VG_DATADET_PATH = "/home/roeih/VisualGenome/vg"
+MINI_VG_DATASET_PATH = "Data/VisualGenome/data/mini"
+OBJECTS_ALIAS = "object_alias.txt"
+PREDICATES_ALIAS = "predicate_alias.txt"
 DATA_PATH = "Data/VisualGenome/data/"
 TRAIN_DATA_SET = "train_set.p"
 TEST_DATA_SET = "test_set.p"

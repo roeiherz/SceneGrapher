@@ -13,7 +13,7 @@ from keras_frcnn.Utils.Boxes import find_union_box
 from keras_frcnn.Utils.Utils import VG_PATCH_PATH, DATA_PATH, CLASSES_MAPPING_FILE, CLASSES_COUNT_FILE, \
     TRAIN_IMGS_P, VAL_IMGS_P, VisualGenome_PICKLES_PATH, ENTITIES_FILE, HIERARCHY_MAPPING, PascalVoc_PICKLES_PATH, \
     VALIDATION_DATA_SET, TEST_DATA_SET, TRAIN_DATA_SET, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
-    MINI_VG_DATADET_PATH, MINI_IMDB, get_time_and_date, VG_PICKLES_FOLDER_PATH, VisualGenome_DATASETS_PICKLES_PATH, \
+    MINI_VG_DATASET_PATH, MINI_IMDB, get_time_and_date, VG_PICKLES_FOLDER_PATH, VisualGenome_DATASETS_PICKLES_PATH, \
     get_img, get_sorting_url, POSITIVE_NEGATIVE_RATIO
 from DesignPatterns.Detections import Detections
 from keras_frcnn.Utils.Visualizer import VisualizerDrawer, CvColor
@@ -71,7 +71,7 @@ def create_mini_data_visual_genome():
     """
 
     # Load from mini-dataset VisualGenome
-    imdb = h5py.File(os.path.join(MINI_VG_DATADET_PATH, MINI_IMDB), "r")
+    imdb = h5py.File(os.path.join(MINI_VG_DATASET_PATH, MINI_IMDB), "r")
     images_id = imdb['image_ids'][:]
 
     # Comment out some of data for maybe a future use
@@ -541,6 +541,8 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
                 predicates
     """
 
+    make_alias_dict()
+
     objects_count_path = os.path.join(VisualGenome_PICKLES_PATH, objects_count_file_name)
     predicates_count_path = os.path.join(VisualGenome_PICKLES_PATH, predicates_count_file_name)
     entities_path = os.path.join(VisualGenome_PICKLES_PATH, entities_file_name)
@@ -795,3 +797,23 @@ def get_filtered_data(filtered_data_file_name="filtered_module_data.p", category
     hierarchy_mapping_objects = filtered_module_data['object_ids']
     hierarchy_mapping_predicates = filtered_module_data['predicate_ids']
     return entities, hierarchy_mapping_objects, hierarchy_mapping_predicates
+
+
+def make_alias_dict(file_name):
+    """
+    This function create an alias dictionary from a txt file
+    :param file_name: file name
+    :return: dictionary and list
+    """
+
+    # Dict mapping between words->target words
+    dict_mapping = {}
+    # List of the target words
+    words_target = []
+    for line in open(file_name, 'r'):
+        alias = line.strip('\n').strip('\r').split(',')
+        alias_target = alias[0] if alias[0] not in dict_mapping else dict_mapping[alias[0]]
+        for a in alias:
+            dict_mapping[a] = alias_target  # use the first term as the aliasing target
+        words_target.append(alias_target)
+    return dict_mapping, words_target

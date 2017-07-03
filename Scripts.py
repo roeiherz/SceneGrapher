@@ -287,6 +287,15 @@ def get_mini_url():
 
 if __name__ == '__main__':
 
+    # out_dict = {}
+    # vocab = []
+    # for line in open("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Data/VisualGenome/mini/object_alias.txt", 'r'):
+    #     alias = line.strip('\n').strip('\r').split(',')
+    #     alias_target = alias[0] if alias[0] not in out_dict else out_dict[alias[0]]
+    #     for a in alias:
+    #         out_dict[a] = alias_target  # use the first term as the aliasing target
+    #     vocab.append(alias_target)
+
     # Filter the data
     filtered_module_data = get_module_filter_data(objects_count_file_name="mini_classes_count.p",
                                                   # entities_file_name="mini_final_entities.p",
