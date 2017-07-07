@@ -14,7 +14,7 @@ from keras_frcnn.Utils.Utils import VG_PATCH_PATH, DATA_PATH, CLASSES_MAPPING_FI
     TRAIN_IMGS_P, VAL_IMGS_P, VisualGenome_PICKLES_PATH, ENTITIES_FILE, HIERARCHY_MAPPING, PascalVoc_PICKLES_PATH, \
     VALIDATION_DATA_SET, TEST_DATA_SET, TRAIN_DATA_SET, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
     MINI_VG_DATASET_PATH, MINI_IMDB, get_time_and_date, VG_PICKLES_FOLDER_PATH, VisualGenome_DATASETS_PICKLES_PATH, \
-    get_img, get_sorting_url, POSITIVE_NEGATIVE_RATIO
+    get_img, get_sorting_url, POSITIVE_NEGATIVE_RATIO, OBJECTS_ALIAS, PREDICATES_ALIAS, PREDICATES_LIST, OBJECTS_LIST
 from DesignPatterns.Detections import Detections
 from keras_frcnn.Utils.Visualizer import VisualizerDrawer, CvColor
 import cv2
@@ -532,6 +532,36 @@ def process_to_detections(relations, detections_file_name="detections.p", debug=
     return detections
 
 
+def preprocess_entities_by_mapping(entities, objects_alias_mapping, predicates_alias_mapping):
+    """
+    This function pre-process the entities by object alias mapping and predicate
+    :param entities: list of entities
+    :param objects_alias_mapping: objects dictionary mapping between "old object: new object"
+    :param predicates_alias_mapping: predicates dictionary mapping between "old predicate: new predicate"
+    :return: list of entities after their objects and predicates have been changed according to new alias mapping
+    """
+
+    for entity in entities:
+
+        for object in entity.objects:
+            candidate_object = object.names[0].lower()
+
+            # Update object name according to the objects_alias_mapping or just save it lower-case
+            if candidate_object in objects_alias_mapping:
+                object.names[0] = objects_alias_mapping[candidate_object]
+            else:
+                object.names[0] = candidate_object
+
+        for relation in entity.relationships:
+            candidate_predicate = relation.predicate.lower()
+
+            # Update object name according to the predicates_to_be_used or just save it lower-case
+            if candidate_predicate in predicates_alias_mapping:
+                relation.predicate = predicates_alias_mapping[candidate_predicate]
+            else:
+                relation.predicate = candidate_predicate
+
+
 def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entities_file_name="final_entities.p",
                            predicates_count_file_name="mini_predicates_count.p", nof_objects=150, nof_predicates=50,
                            create_negative=False, positive_negative_ratio=POSITIVE_NEGATIVE_RATIO):
@@ -541,25 +571,47 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
                 predicates
     """
 
-    make_alias_dict()
+    # Load Objects alias
+    objects_alias_filename = os.path.join(MINI_VG_DATASET_PATH, OBJECTS_ALIAS)
+    objects_alias_mapping, objects_alias_words_target = make_alias_dict(objects_alias_filename)
 
-    objects_count_path = os.path.join(VisualGenome_PICKLES_PATH, objects_count_file_name)
-    predicates_count_path = os.path.join(VisualGenome_PICKLES_PATH, predicates_count_file_name)
+    # Load Predicates alias
+    predicates_alias_filename = os.path.join(MINI_VG_DATASET_PATH, PREDICATES_ALIAS)
+    predicates_alias_mapping, predicates_alias_words_target = make_alias_dict(predicates_alias_filename)
+
+    # Load Objects list
+    objects_list_filename = os.path.join(MINI_VG_DATASET_PATH, OBJECTS_LIST)
+    objects_to_be_used = make_list(objects_list_filename)
+
+    # Load Predicates list
+    predicates_list_filename = os.path.join(MINI_VG_DATASET_PATH, PREDICATES_LIST)
+    predicates_to_be_used = make_list(predicates_list_filename)
+
+    # Load entities
     entities_path = os.path.join(VisualGenome_PICKLES_PATH, entities_file_name)
-
-    objects_count = cPickle.load(file(objects_count_path, 'rb'))
-    predicate_count = cPickle.load(file(predicates_count_path, 'rb'))
     entities = np.array(cPickle.load(file(entities_path, 'rb')))
 
-    # Sorting - Extracting the most popular predicates
-    sorted_predicates_count = sorted(predicate_count.items(), key=operator.itemgetter(1), reverse=True)
-    sorted_predicates = sorted_predicates_count[:nof_predicates]
-    predicates_to_be_used = dict(sorted_predicates)
+    # PreProcess Objects by Mapping
+    preprocess_entities_by_mapping(entities, objects_alias_mapping, predicates_alias_mapping)
 
-    # Sorting - Extracting the most popular objects
-    sorted_objects_count = sorted(objects_count.items(), key=operator.itemgetter(1), reverse=True)
-    sorted_objects = sorted_objects_count[:nof_objects]
-    objects_to_be_used = dict(sorted_objects)
+    # regionOld code in which we calculate from the top counts data the predicates_to_be_used and the objects_to_be_used
+    # # Load object counts dict
+    # objects_count_path = os.path.join(VisualGenome_PICKLES_PATH, objects_count_file_name)
+    # objects_count = cPickle.load(file(objects_count_path, 'rb'))
+    #
+    # # Load predicates counts dict
+    # predicates_count_path = os.path.join(VisualGenome_PICKLES_PATH, predicates_count_file_name)
+    # predicate_count = cPickle.load(file(predicates_count_path, 'rb'))
+    # Sorting - Extracting the most popular predicates from a predicate counter dictionary
+    # sorted_predicates_count = sorted(predicate_count.items(), key=operator.itemgetter(1), reverse=True)
+    # sorted_predicates = sorted_predicates_count[:nof_predicates]
+    # predicates_to_be_used = dict(sorted_predicates)
+    #
+    # # Sorting - Extracting the most popular objects from a objects counter dictionary
+    # sorted_objects_count = sorted(objects_count.items(), key=operator.itemgetter(1), reverse=True)
+    # sorted_objects = sorted_objects_count[:nof_objects]
+    # objects_to_be_used = dict(sorted_objects)
+    #endregion
 
     # Counts index for relationship id
     relation_ind = 0
@@ -582,7 +634,7 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
             object_ind += 1
 
         # Rewrite objects
-        entity.objects = objects_filtered
+        entity.objects = objects_filtered[:]
 
         relationship_filtered = []
         for relation in entity.relationships:
@@ -659,6 +711,33 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
     # Close the file
     filtered_module_data_file.close()
     return filtered_module_data
+
+
+def preprocess_data_by_mapping(dicts_count, alias_mapping):
+    """
+    This function preprocessed the objects data according to the objects_alias_mapping
+    :param dicts_count: a dict with object and number of its instances
+    :param alias_mapping: a dict between object and its correct object
+    :return: a new dictionary after aliasing the keys
+    """
+
+    new_mapping_dict = {}
+    for (key, value) in dicts_count.items():
+
+        # Replace the key with lower string
+        new_key = unicode.lower(key)
+
+        # Replace the key with object alias
+        if new_key in alias_mapping:
+            new_key = alias_mapping[new_key]
+
+        # Check if the object key is already exists in the dict
+        if new_key in new_mapping_dict:
+            new_mapping_dict[new_key] += value
+        else:
+            new_mapping_dict[new_key] = value
+
+    return new_mapping_dict
 
 
 def create_negative_relations(entity, relation_id, filtered_id, positive_negative_ratio=POSITIVE_NEGATIVE_RATIO):
@@ -817,3 +896,12 @@ def make_alias_dict(file_name):
             dict_mapping[a] = alias_target  # use the first term as the aliasing target
         words_target.append(alias_target)
     return dict_mapping, words_target
+
+
+def make_list(list_file):
+    """
+    Create a blacklist list from a file
+    :param list_file:
+    :return:
+    """
+    return [line.strip('\n').strip('\r') for line in open(list_file)]
