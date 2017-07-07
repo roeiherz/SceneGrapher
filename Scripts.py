@@ -4,13 +4,13 @@ import os
 import numpy as np
 from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
 from TrainCNN import VisualGenome_PICKLES_PATH
-from keras_frcnn.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
+from features_extraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
     HIERARCHY_MAPPING, plot_graph, POSITIVE_NEGATIVE_RATIO, DATA_PATH, CLASSES_COUNT_FILE, RELATIONS_COUNT_FILE
 from Utils.Utils import create_folder
-from keras_frcnn.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data
+from features_extraction.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data
 from PredictVisualModel import get_resize_images_array, load_full_detections
-from keras_frcnn.Utils.Utils import VG_VisualModule_PICKLES_PATH
-from keras_frcnn.Lib.Config import Config
+from features_extraction.Utils.Utils import VG_VisualModule_PICKLES_PATH
+from features_extraction.Lib.Config import Config
 from DesignPatterns.Detections import Detections
 
 
@@ -260,7 +260,7 @@ def save_hierarchy_mapping():
     # Save hierarchy_mapping_per_objects file
     hierarchy_mapping_file = open(os.path.join(
         "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/VisualModule/Data/VisualGenome/hierarchy_mapping_objects.p"),
-        'wb')
+                                  'wb')
     # Pickle hierarchy_mapping_per_objects
     cPickle.dump(hierarchy_mapping_objects, hierarchy_mapping_file, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
@@ -268,7 +268,7 @@ def save_hierarchy_mapping():
     # Save hierarchy_mapping_per_predicates file
     hierarchy_mapping_file2 = open(os.path.join(
         "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/VisualModule/Data/VisualGenome/hierarchy_mapping_predicates.p"),
-        'wb')
+                                   'wb')
     # Pickle hierarchy_mapping_per_objects
     cPickle.dump(hierarchy_mapping_predicates, hierarchy_mapping_file2, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
@@ -304,7 +304,7 @@ def delete_ind_from_detections():
     detections = load_full_detections(detections_file_name="mini_filtered_detections.p")
 
     idx = np.where((detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2321818.jpg") |
-                   (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2334844.jpg"))
+               (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2334844.jpg"))
     new_detections = np.delete(detections, idx)
 
     # Save detections
@@ -506,7 +506,6 @@ def get_mini_url():
     filtered_detections_file.close()
     print("debug")
 
-
 if __name__ == '__main__':
 
     # Create mini data-set
@@ -514,8 +513,8 @@ if __name__ == '__main__':
 
     # Filter the data
     filtered_module_data = get_module_filter_data(objects_count_file_name="mini_classes_count.p",
-                                                  entities_file_name="mini_final_entities.p",
-                                                  # entities_file_name="final_entities.p",
+                                                  # entities_file_name="mini_final_entities.p",
+                                                  entities_file_name="final_entities.p",
                                                   predicates_count_file_name="mini_predicates_count.p", nof_objects=150,
                                                   nof_predicates=50, create_negative=True,
                                                   positive_negative_ratio=POSITIVE_NEGATIVE_RATIO)

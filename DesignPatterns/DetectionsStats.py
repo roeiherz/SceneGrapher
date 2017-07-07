@@ -1,12 +1,14 @@
 import numpy as np
 import sys
+
 sys.path.append("..")
-from keras_frcnn.Utils.Boxes import find_union_box
-from keras_frcnn.Utils.Utils import get_mask_from_object
+from features_extraction.Utils.Boxes import find_union_box
+from features_extraction.Utils.Utils import get_mask_from_object
 
 __author__ = 'roeih'
 
 
+# todo: should implements has equal()
 class DetectionsStats(np.ndarray):
     Id = 'id'
     SubjectBox = 'subject_box'
@@ -15,7 +17,6 @@ class DetectionsStats(np.ndarray):
     ObjectId = 'object_id'
     Predicate = 'predicate'
     PredictPredicate = 'predict_predicate'
-    # UnionFeature = 'union_feature'
     UnionBox = 'union_box'
     SubjectClassifications = 'subject_classifications'
     PredictSubjectClassifications = 'predict_subject_classifications'
@@ -61,7 +62,8 @@ class DetectionsStats(np.ndarray):
         return self.__str__()
 
     @staticmethod
-    def set_detections(filtered_id, vg_subject, vg_object, predicted_subject, predicted_object, predicted_predicate, predicate_gt,
+    def set_detections(filtered_id, vg_subject, vg_object, predicted_subject, predicted_object, predicted_predicate,
+                       predicate_gt,
                        top_k_index, is_gt, relation_confidence, url, detection_stats):
         """
         This function set the following inputs for a DetectionsStats object
@@ -121,10 +123,27 @@ class DetectionsStats(np.ndarray):
         # Update the relation confidence
         detection_stats[DetectionsStats.RelationConfidence] = relation_confidence
 
-
-if __name__ == '__main__':
-
-    print('test')
-    tt = DetectionsStats(5)
-
-    print('end')
+    # def __eq__(self, other):
+    #     if isinstance(other, self.__class__):
+    #
+    #         # Shape is not as the same size
+    #         if len(self.shape[0]) != len(other.shape[0]):
+    #             return False
+    #
+    #         # Detection is the same
+    #         for i in self.shape[0]:
+    #             if not self.detection_equals(self[i], other[i]):
+    #                 return False
+    #             return True
+    #     else:
+    #         return False
+    #
+    # @staticmethod
+    # def detection_equals(one, other):
+    #     """
+    #     This function check if 2 detections are equals
+    #     :param one:
+    #     :param other:
+    #     :return:
+    #     """
+    #     pass

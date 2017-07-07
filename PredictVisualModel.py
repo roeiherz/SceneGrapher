@@ -1,25 +1,25 @@
 from __future__ import print_function
 from Data.VisualGenome.models import ObjectMapping, RelationshipMapping
 from DesignPatterns.Detections import Detections
-from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_generator, \
+from features_extraction.Lib.VisualGenomeDataGenerator import visual_genome_data_generator, \
     visual_genome_data_parallel_generator, visual_genome_data_parallel_generator_with_batch, \
     visual_genome_data_generator_with_batch
-from keras_frcnn.Lib.Zoo import ModelZoo
+from features_extraction.Lib.Zoo import ModelZoo
 import traceback
 import os
 import cPickle
 import numpy as np
-from keras_frcnn.Lib.Config import Config
+from features_extraction.Lib.Config import Config
 from keras.layers import Input, Dense, GlobalAveragePooling2D
 from keras import backend as K
 from keras.models import Model
 import sys
 import math
-from keras_frcnn.Utils.Boxes import find_union_box, BOX
-from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
+from features_extraction.Utils.Boxes import find_union_box, BOX
+from features_extraction.Utils.Utils import VisualGenome_PICKLES_PATH, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
     get_img_resize, TRAINING_OBJECTS_CNN_PATH, TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img, PROJECT_ROOT
 import time
-from keras_frcnn.Utils.data import get_filtered_data
+from features_extraction.Utils.data import get_filtered_data
 
 NOF_LABELS = 150
 TRAINING_PERCENT = 0.75

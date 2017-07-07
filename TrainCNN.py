@@ -2,15 +2,15 @@ import matplotlib as mpl
 
 mpl.use('Agg')
 from Data.VisualGenome.models import ObjectMapping
-from keras_frcnn.Lib.PascalVocDataGenerator import PascalVocDataGenerator
-from keras_frcnn.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator, \
+from features_extraction.Lib.PascalVocDataGenerator import PascalVocDataGenerator
+from features_extraction.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator, \
     visual_genome_data_cnn_generator_with_batch
-from keras_frcnn.Lib.Zoo import ModelZoo
+from features_extraction.Lib.Zoo import ModelZoo
 from keras.applications.resnet50 import ResNet50
 import os
 import cPickle
 import numpy as np
-from keras_frcnn.Lib.Config import Config
+from features_extraction.Lib.Config import Config
 from keras.optimizers import Adam
 from keras.layers import Input, AveragePooling2D, Flatten, Dense, GlobalAveragePooling2D, Activation
 from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, CSVLogger
@@ -18,11 +18,11 @@ from keras import backend as K
 from keras.models import Model
 import sys
 import matplotlib.pyplot as plt
-from keras_frcnn.Utils.Utils import VisualGenome_PICKLES_PATH, get_time_and_date, TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE, replace_top_layer, get_sorting_url
+from features_extraction.Utils.Utils import VisualGenome_PICKLES_PATH, get_time_and_date, TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE, replace_top_layer, get_sorting_url
 from Utils.Utils import create_folder
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
-from keras_frcnn.Utils.data import get_sorted_data, splitting_to_datasets, create_data_pascal_voc, \
+from features_extraction.Utils.data import get_sorted_data, splitting_to_datasets, create_data_pascal_voc, \
     generate_new_hierarchy_mapping, get_filtered_data
 
 NOF_LABELS = 150
