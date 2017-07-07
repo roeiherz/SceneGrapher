@@ -1,12 +1,13 @@
 import numpy as np
 
 from LangModule import LangModule
-from VisualModuleLazy import VisualModule
+from VisualModule import VisualModule
 from ModuleDetection import ModuleDetection
 import cPickle
 from Utils.Utils import softmax_multi_dim
 import gc
 
+from Utils.Logger import Logger
 
 class Module(object):
     """
@@ -14,16 +15,13 @@ class Module(object):
     This module includes visual module and language module
     """
 
-    def __init__(self, object_ids, predicate_ids, lang_embed_size, visual_embed_size, objects_training_dir_name="",
-                 predicates_training_dir_name=""):
+    def __init__(self, object_ids, predicate_ids, lang_embed_size, visual_embed_size):
         """
         Initialize module and create module parameters
         :param nof_objects: number of object classes
         :param nof_predicates: number of predicate classes
         :param lang_embed_size: size of embedded word in word2vec space
         :param visual_embed_size: size of features extracted from predicate CNN
-        :param objects_training_dir_name: objects training dir name for taking the weights
-        :param predicates_training_dir_name: predicates training dir name for taking the weights
         """
         # save input params
         self.nof_objects = len(object_ids)
@@ -39,8 +37,7 @@ class Module(object):
         self.lang = LangModule(object_ids, predicate_ids, lang_embed_size)
 
         # create visual module
-        self.visual = VisualModule(predicates_training_dir_name=predicates_training_dir_name,
-                                   objects_training_dir_name=objects_training_dir_name)
+        self.visual = VisualModule()
 
         # create dimensions for module parameters
         self.w_dimensions = (self.nof_predicates, 2 * lang_embed_size)
@@ -358,6 +355,9 @@ class Module(object):
         :param params: module params
         :return: R@K meric
         """
+        # get logger
+        logger = Logger()
+
         # decode module parmas
         w, b, z, s = self.decode_parameters(params)
 
@@ -466,8 +466,8 @@ class Module(object):
             total_gt_relationships += nof_pos_relationship
             score = float(total_score) / total_gt_relationships
             img_score_precent = float(img_score)/nof_pos_relationship
-            print("image score: " + str(img_score_precent))
-            print("total score: " + str(score))
+            logger.log("image score: " + str(img_score_precent))
+            logger.log("total score: " + str(score))
             detections.save_stat(score=img_score_precent)
             gc.collect()
 
@@ -480,6 +480,9 @@ class Module(object):
         :param images:
         :return:
         """
+        # get logger
+        logger = Logger()
+
         # decode module parmas
         w, b, z, s = self.decode_parameters(params)
 
@@ -521,7 +524,7 @@ class Module(object):
 
 	for i in range(len(self.reverse_predicate_ids)):
     	    if total[i] != 0:
-        	print("{0} recall@5 is {1} (total - {2}, correct {3})".format(self.reverse_predicate_ids[i], float(correct[i])/total[i], total[i], correct[i]))
+        	logger.log("{0} recall@5 is {1} (total - {2}, correct {3})".format(self.reverse_predicate_ids[i], float(correct[i])/total[i], total[i], correct[i]))
 
 
         

@@ -1,8 +1,8 @@
 import os
-import cPickle
+import sys
 import numpy as np
 from numpy.core.umath_tests import inner1d
-from features_extraction.Utils.Utils import VG_VisualModule_PICKLES_PATH
+from FilesManager import FilesManager
 
 FILE_EXISTS_ERROR = (17, 'File exists')
 
@@ -111,17 +111,11 @@ def create_folder(path):
     return folder_missing
 
 
-def get_detections(detections_file_name="predicated_mini_detections.p"):
+def get_detections():
     """
     This function gets the whole filtered detections data (with no split between the  modules)
     :return: detections
     """
-    # Check if pickles are already created
-    detections_path = os.path.join("..", VG_VisualModule_PICKLES_PATH, detections_file_name)
-
-    if os.path.isfile(detections_path):
-        print('Detections numpy array is Loading from: {0}'.format(detections_path))
-        detections = cPickle.load(open(detections_path, 'rb'))
-        return detections
-
-    return None
+    filesmanager = FilesManager.FilesManager()
+    detections = filesmanager.load_file("scene_graph_base_module.visual_module.detections")
+    return detections

@@ -4,6 +4,8 @@ import numpy as np
 import cPickle
 import random
 
+from FilesManager.FilesManager import FilesManager
+
 
 def prepare_data():
     """
@@ -11,24 +13,20 @@ def prepare_data():
     TBD: improve
     :return: filtered_data
     """
-
+    filemanager = FilesManager()
     # Check if filtered data already exist
-    if os.path.isfile("mini_final_module_data_neg.p"):
-        module_data_file = open("mini_final_module_data_neg.p", "rb")
-        module_data = cPickle.load(module_data_file)
-        module_data_file.close()
+    if filemanager.file_exist("scene_graph_base_module.train.final_filtered_data"):
+        module_data = filemanager.load_file("scene_graph_base_module.train.final_filtered_data")
     else:
         # load entities and filter it according to most popular classes and predicates
-        module_data_file = open("mini_filtered_module_data_with_neg.p", "rb")
-        module_data = cPickle.load(module_data_file)
-        module_data_file.close()
+        module_data = filemanager.load_file("scene_graph_base_module.train.filtered_data")
 
         object_ids = module_data["object_ids"]
         predicate_ids = module_data["predicate_ids"]
         entities = module_data["entities_module"]
 
         # Load mini url list which will be filtered
-        mini_url_lst = cPickle.load(open("url_lst_mini_neg.p"))
+        mini_url_lst = filemanager.load_file("scene_graph_base_module.train.urls")
 
         # Real entities
         real_entities = []
@@ -40,19 +38,19 @@ def prepare_data():
                 continue
             # filter some of the negative relationships to get 1x1 
             relationship_filtered = []
-	    neg_id = 0
+            neg_id = 0
             for relation in entity.relationships:
                 if relation.predicate == "neg":
                     if neg_id % 3 == 0:
                         relationship_filtered.append(relation)
-		    neg_id += 1
+                        neg_id += 1
                 else:
                     relationship_filtered.append(relation)
 
             # Rewrite relations - the slice is for copy the list
             entity.relationships = relationship_filtered[:]
 
-	    real_entities.append(entity)
+        real_entities.append(entity)
 
         # Replace entities
         entities = real_entities
@@ -75,9 +73,7 @@ def prepare_data():
         # save data
         module_data = {"train": train_data, "validation": validation_data, "test": test_data, "object_ids": object_ids,
                        "predicate_ids": predicate_ids, "test_entities" : test_entities}
-        filtered_data_file = open("mini_final_module_data_neg.p", "wb")
-        cPickle.dump(module_data, filtered_data_file, 0)
-        filtered_data_file.close()
+        filemanager.save_file("scene_graph_base_module.train.final_filtered_data")
 
     module_data["train"] = Data(module_data["train"], module_data["object_ids"], module_data["predicate_ids"])
     module_data["validation"] = Data(module_data["validation"],module_data["object_ids"], module_data["predicate_ids"])
@@ -90,23 +86,21 @@ def prepare_eval_data():
     Prepare data for evaluate
     :return: visual genome entities (filtered to be similar to ou base line model)
     """
-    if os.path.isfile("mini_eval_module_data_neg.p"):
-        module_data_file = open("mini_eval_module_data_neg.p", "rb")
-        test_entities = cPickle.load(module_data_file)
-        object_ids = cPickle.load(module_data_file)
-        predicate_ids = cPickle.load(module_data_file)
-        module_data_file.close()
+    filemanager = FilesManager()
+    if filemanager.file_exist("scene_graph_base_module.eval.final_eval_filtered_data"):
+        data = filemanager.load_file("scene_graph_base_module.eval.final_eval_filtered_data", version=1)
+        test_entities = data[0]
+        object_ids = data[1]
+        predicate_ids = data[2]
     else:
-        module_data_file = open("mini_filtered_module_data_with_neg.p", "rb")
-        module_data = cPickle.load(module_data_file)
-        module_data_file.close()
+        module_data = filemanager.load_file("scene_graph_base_module.eval.filtered_data")
 
         object_ids = module_data["object_ids"]
         predicate_ids = module_data["predicate_ids"]
         entities = module_data["entities_module"]
 
         # Load mini url list which will be filtered
-        mini_url_lst = cPickle.load(open("url_lst_mini_neg.p"))
+        mini_url_lst = filemanager.load_file("scene_graph_base_module.eval.urls")
 
         # Real entities
         real_entities = []
@@ -129,11 +123,8 @@ def prepare_eval_data():
         validation_entities = entities[int(0.6 * nof_entities):int(0.8 * nof_entities)]
         test_entities = entities[int(0.8 * nof_entities):]
 
-        eval_data_file = open("mini_eval_module_data_neg.p", "w")
-        cPickle.dump(test_entities, eval_data_file, 0)
-        cPickle.dump(object_ids, eval_data_file, 0)
-        cPickle.dump(predicate_ids, eval_data_file, 0)
-        eval_data_file.close()
+        data = [test_entities, object_ids, predicate_ids]
+        filemanager.save_file("scene_graph_base_module.eval.final_filtered_data")
 
     return test_entities, object_ids, predicate_ids
 

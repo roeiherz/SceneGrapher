@@ -1,13 +1,13 @@
 import inspect
 
-import yaml
-
 import sgd
 from Module import Module
-from Utils.Logger import ModuleLogger
+from Utils.Logger import Logger
 from WordEmbd import WordEmbd
 from data import *
 from gradcheck import gradcheck_naive
+from multiprocessing import Process
+from FilesManager.FilesManager import FilesManager
 
 
 def train(
@@ -29,8 +29,12 @@ def train(
     TBD: improve
     :return: trained language module
     """
+    # files manager
+    filemanager = FilesManager()
+    logger_path = filemanager.get_file_path("scene_graph_base_module.train.saved_params")
+    logger_path = os.path.join(logger_path, name)
     # create logger
-    logger = ModuleLogger(name)
+    logger = Logger(name, logger_path)
 
     # print train params
     frame = inspect.currentframe()
@@ -118,7 +122,7 @@ def module_sgd_test_data(x, data, module, name):
         if predict[index][0] == data.subject_ids[index] and predict[index][1] == data.predicate_ids[index] and predict[index][2] == data.object_ids[index]:
             correct_ans += 1
 
-    logger = ModuleLogger()
+    logger = Logger()
     logger.log("{0} accuracy {1} acc percent {2}".format(name, str(float(correct_ans) / len(predict)), str(float(np.sum(acc_percent)) / len(acc_percent))))
 
 def get_random_data(data, batch_size=128):
@@ -179,9 +183,10 @@ def sanity_check(word_embed_size=50, visual_embed_size=2048):
 if __name__ == "__main__":
     #train()
     #sanity_check()
-    from multiprocessing import Process
-    stream = file('params.yaml', 'r')
-    params = yaml.load(stream)
+
+    filemanager = FilesManager(overrides_filename="module_train.yaml")
+
+    params = filemanager.load_file("scene_graph_base_module.train.params")
 
     nof_processes = params["nof_p"]
 

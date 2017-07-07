@@ -1,23 +1,29 @@
-import numpy as np
-from keras.engine import Input
-from keras.layers import GlobalAveragePooling2D, Dense
+from __future__ import print_function
+import sys
+import cv2
+
+sys.path.append("..")
+from Utils.Logger import Logger
+from FilesManager.FilesManager import FilesManager
+
+from features_extraction.Utils.Visualizer import CvColor, VisualizerDrawer
+from features_extraction.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator_with_batch, \
+    visual_genome_data_cnn_generator_with_batch
 from numpy.core.umath_tests import inner1d
 import os
-import cPickle
-import sys
-from DesignPatterns.Detections import Detections
 from features_extraction.Lib.Config import Config
-from features_extraction.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator
+from features_extraction.Utils.Utils import TRAINING_OBJECTS_CNN_PATH, \
+    TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_mask_from_object, get_img
+from DesignPatterns.Detections import Detections
+import numpy as np
+from Utils.Utils import softmax, get_detections
 from keras import backend as K
 from keras.models import Model
 from features_extraction.Lib.Zoo import ModelZoo
-from features_extraction.Utils.Boxes import BOX
-from features_extraction.Utils.Utils import get_img_resize, get_img
-
-VG_VisualModule_PICKLES_PATH = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/VisualModule/Data/VisualGenome/"
-OBJECTS_TRAINING_PATH = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Training/TrainingObjectsCNN/"
-PREDICATES_TRAINING_PATH = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Training/TrainingPredicatesCNN/"
-WEIGHTS_NAME = 'model_vg_resnet50.hdf5'
+from features_extraction.Utils.Boxes import BOX, find_union_box
+from features_extraction.Utils.Utils import get_img_resize
+from keras.engine import Input
+from keras.layers import GlobalAveragePooling2D, Dense
 
 
 class VisualModule(object):
@@ -25,72 +31,89 @@ class VisualModule(object):
     Visual module for scene-grapher
     """
 
-    def __init__(self, objects_training_dir_name=OBJECTS_TRAINING_PATH, predicates_training_dir_name=PREDICATES_TRAINING_PATH):
-        self.objects_model_weight_path = os.path.join(OBJECTS_TRAINING_PATH, objects_training_dir_name, WEIGHTS_NAME)
-        self.predicates_model_weight_path = os.path.join(PREDICATES_TRAINING_PATH, predicates_training_dir_name, WEIGHTS_NAME)
+    def __init__(self):
+        """
+        Initialize class visual module
+        :param objects_training_dir_name: objects training dir name for taking the weights
+        :param predicates_training_dir_name: predicates training dir name for taking the weights
+        """
+        # get logger
+        logger = Logger()
 
-        # Get argument
-        if len(sys.argv) < 2:
-            # Default GPU number
-            gpu_num = 0
-        else:
-            # Get the GPU number from the user
-            gpu_num = sys.argv[1]
-
-        # Load class config
-        self.config = Config(gpu_num)
-
-        # Define GPU training
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(self.config.gpu_num)
+        # get files manager
+        filesmanager = FilesManager()
 
         # Get the whole detections
-        self.full_detections = self._get_detections(detections_file_name="full_filtered_detections.p")
-        # Get the hierarchy mapping objects
-        self.hierarchy_mapping_objects = cPickle.load(open("hierarchy_mapping_objects.p"))
-        # Get the hierarchy mapping predicates
-        self.hierarchy_mapping_predicates = cPickle.load(open("hierarchy_mapping_predicates.p"))
-        # Set the number of classes
-        self.number_of_classes = len(self.hierarchy_mapping_objects)
-        # Get the object and predicate model
-        self.object_model = self.get_model(self.number_of_classes, weight_path=self.objects_model_weight_path)
-        # self.predict_model = self.get_model(self.number_of_classes, weight_path=self.predicates_model_weight_path)
+        # self.full_detections = get_detections(detections_file_name="predicated_mini_fixed_detections_url.p")
+        self.full_detections = get_detections()
+
+        # Get Mapping dict between Detections.Id to index
+        self.mapping_id_to_ind_dict = {}
+        idx = 0
+        for id in self.full_detections[Detections.Id]:
+            self.mapping_id_to_ind_dict[id] = idx
+            idx += 1
+
+        # Check if loading detections succeed
+        if self.full_detections is None:
+            logger.log("Error: No detections have been found")
+            raise Exception
+
+        self.objects_model_weight_path = filesmanager.get_file_path("scene_graph_base_module.visual_module.object_cnn")
+        self.predicates_model_weight_path = filesmanager.get_file_path("scene_graph_base_module.visual_module.predicate_cnn")
+
+        # A flag which make sure we are initialized networks only once
+        self.networks_initialization_flag = False
+        # Parameters for the Networks
+        self.config = None
+        self.hierarchy_mapping_objects = None
+        self.hierarchy_mapping_predicates = None
+        self.objects_nof_classes = None
+        self.predicates_nof_classes = None
+        self.object_model = None
         self.predict_model = None
+        self.gpu_num = None
+        self.batch_size = None
 
     def extract_features(self, relation_ids):
         """
-        extract visual features
+        extract visual features and object and subject probabilities
         :param relation_ids: array of relationships ids
         :return: predicate_features, subject_probabilities, object_probabilities
         """
+        # get logger
+        logger = Logger()
 
         # Sorted detections by their relation_ids
-        detections = self.full_detections[relation_ids]
+        detections_indx = [self.mapping_id_to_ind_dict[relation] for relation in relation_ids]
+        detections = self.full_detections[detections_indx]
 
-        # Define the generator
-        data_gen_validation_vg = visual_genome_data_parallel_generator(data=detections,
-                                                                       hierarchy_mapping=self.hierarchy_mapping_objects,
-                                                                       config=self.config, mode='valid')
+        # todo: remove after checking with testing
+        # # Sorted detections by their relation_ids
+        # detections_indx = np.zeros(len(relation_ids), dtype=int)
+        # for indx in range(len(relation_ids)):
+        #     detections_indx[indx] = \
+        #         np.where(np.in1d(list(self.full_detections[Detections.Id]), relation_ids[indx]) == True)[0][0]
+        # detections = self.full_detections[detections_indx]
+        #
+        # # Sorted detections by their relation_ids
+        # indx = np.where(np.in1d(list(self.full_detections[Detections.Id]), relation_ids) == True)
+        # detections = self.full_detections[indx]
 
-        # Get probabilities
-        probes = self.object_model.predict_generator(data_gen_validation_vg, steps=len(detections) * 2, max_q_size=1,
-                                                     workers=1)
+        # Check if loading detections succeed
+        if len(detections) != len(relation_ids):
+            logger.log("Error: not all detections was found")
+            ee = np.where(np.in1d(relation_ids, list(self.full_detections[Detections.Id])) == False)
+            logger.log(relation_ids[ee])
 
-        # Slice the Subject prob. (even index) [nof_samples, 150]
-        subject_probabilities = probes[::2]
+        # Subject prob. [nof_samples, 150]
+        subject_probabilities = np.concatenate(detections[Detections.SubjectConfidence])
 
-        # Slice the Object prob. (odd index) [nof_samples, 150]
-        object_probabilities = probes[1::2]
+        # Object prob. [nof_samples, 150]
+        object_probabilities = np.concatenate(detections[Detections.ObjectConfidence])
 
-        # Fill detections with Subject and Object probabilities - for future use
-        # self.fill_detections_with_probes(probes, detections)
-
-        # Get the features
-        # Create matrix with a resize union box from all detections
-        resized_union_box_mat = self.get_resize_images_array(detections)
-        # Define a Graph function to extract the features from Global Average Pooling layer
-        get_features_output = K.function([self.predict_model.layers[0].input], [self.predict_model.layers[-2].output])
-        # Predict the Graph function [nof_samples, 2048]
-        predicate_features = get_features_output([resized_union_box_mat])[0]
+        # Features [nof_samples, 2048]
+        predicate_features = np.concatenate(detections[Detections.UnionFeature])
 
         return predicate_features, subject_probabilities, object_probabilities
 
@@ -108,41 +131,148 @@ class VisualModule(object):
         :param s: visual module parameters
         :return:
         """
-        predicate_likelihoods = inner1d(z[predicate_ids], predicate_features) + s[predicate_ids].flatten()
-        subject_likelihoods = subject_probabilities[subject_ids]
-        object_likelihoods = object_probabilities[object_ids]
+        predicate_likelihoods = np.dot(z, predicate_features).flatten() + s.flatten()
+        # predicate_prob = softmax(predicate_likelihoods)[predicate_ids]
+        subject_prob = subject_probabilities[subject_ids]
+        object_prob = object_probabilities[object_ids]
 
-        likelihoods = subject_likelihoods * predicate_likelihoods * object_likelihoods
+        likelihoods = subject_prob * predicate_likelihoods[predicate_ids] * object_prob
 
-        return likelihoods
+        return likelihoods, subject_prob, object_prob
 
-    def _get_detections(self, detections_file_name="full_filtered_detections.p"):
+    def predicate_predict(self, predicate_features, z, s):
         """
-        This function gets the whole filtered detections data (with no split between the  modules)
-        :return: detections
+            predict a probability per predicate given visual module params
+            :param predicate_features: visual features extracted
+            :param z: visual module params
+            :param s: visual params
+            :return: probability per predicate
+            """
+        predicate_likelihoods = np.dot(z, predicate_features.T).T + s.flatten().T
+        # predicate_probability = softmax(predicate_likelihoods)
+
+        return predicate_likelihoods
+
+    def extract_features_for_evaluate(self, subject, object, img_url):
         """
-        # Check if pickles are already created
-        detections_path = os.path.join(VG_VisualModule_PICKLES_PATH, detections_file_name)
-
-        if os.path.isfile(detections_path):
-            print('Detections numpy array is Loading from: {0}'.format(detections_path))
-            detections = cPickle.load(open(detections_path, 'rb'))
-            return detections
-
-        return None
-
-    def _get_detections_by_ids(self, full_detections, relation_ids):
+        This function
+        :param subject: subject which is a Object VisualGenome type
+        :param object: object which is a Object VisualGenome type
+        :param img_url: image url which the objects are taken from
+        :return: 
         """
-        This function return the sorted detections by their relation_ids
-        :param full_detections: full detections numpy dtype array
-        :param relation_ids: list of relation_ids
-        :return: detections numpy dtype array sorted by their relation_ids
-        """
+        # get logger
+        logger = Logger()
+        if self.hierarchy_mapping_objects is None or self.config is None:
+            logger.log("Error: Networks didn't initialize correctly")
 
-        # Find the indices of the detections that
-        indices = np.searchsorted(full_detections[Detections.Id], relation_ids)
-        detections = full_detections[indices]
-        print 'debug'
+        # Add the url to the objects
+        subject.url = img_url
+        object.url = img_url
+
+        # Create data images
+        val_imgs = np.array([subject, object])
+        data_gen_validation_vg = visual_genome_data_cnn_generator_with_batch(data=val_imgs,
+                                                                             hierarchy_mapping=self.hierarchy_mapping_objects,
+                                                                             config=self.config, mode='validation',
+                                                                             batch_size=1)
+        # Start prediction
+        # print('Starting Prediction')
+        # print('Predicting Probabilities')
+
+        # Calculating Probabilities from objects [2 , 150]
+        probes = self.object_model.predict_generator(data_gen_validation_vg, steps=2, max_q_size=1, workers=1)
+
+        # Get Subject Probabilities - [1, 150]
+        subject_probabilities = probes[0]
+
+        # Get Object Probabilities - [1, 150]
+        object_probabilities = probes[1]
+
+        # print('Calculating Union-Box Features')
+        # Define the function
+        get_features_output_func = K.function([self.predict_model.layers[0].input],
+                                              [self.predict_model.layers[-2].output])
+
+        # Subject
+        # Get the mask: a dict with {x1,x2,y1,y2}
+        subject_mask = get_mask_from_object(subject)
+        # Saves as a box
+        subject_box = np.array([subject_mask['x1'], subject_mask['y1'], subject_mask['x2'], subject_mask['y2']])
+
+        # Object
+        # Get the mask: a dict with {x1,x2,y1,y2}
+        object_mask = get_mask_from_object(subject)
+        # Saves as a box
+        object_box = np.array([object_mask['x1'], object_mask['y1'], object_mask['x2'], object_mask['y2']])
+
+        # Find the union box
+        union_box = find_union_box(subject_box, object_box)
+        img = get_img(img_url)
+        patch = img[union_box[BOX.Y1]: union_box[BOX.Y2], union_box[BOX.X1]: union_box[BOX.X2], :]
+        resized_img = get_img_resize(patch, self.config.crop_width, self.config.crop_height,
+                                     type=self.config.padding_method)
+        resized_img = np.expand_dims(resized_img, axis=0)
+
+        # Get the feature - [1, 2048]
+        features_model = get_features_output_func([resized_img])[0]
+
+        return subject_probabilities, object_probabilities, features_model
+
+    def initialize_networks(self, gpu_num, batch_num=128):
+        """
+        This function initialize the networks only once
+        :param gpu_num: GPU number
+        :param batch_num: Number of batches which the networks will be run
+        """
+        # get logger
+        logger = Logger()
+
+        # get files manager
+        filesmanager = FilesManager()
+
+        # Check if we didn't already initialize networks once
+        if self.networks_initialization_flag:
+            logger.log("Error: We already initialized networks")
+            raise Exception
+
+        # Check that GPU number has been declared
+        if self.gpu_num:
+            logger.log("Error: No GPU number has been declared")
+            raise Exception
+
+        # Check if weights are declared properly
+        if not os.path.exists(self.predicates_model_weight_path) or not os.path.exists(self.objects_model_weight_path):
+            logger.log("Error: No Weights have been found")
+            raise Exception
+
+        # Set GPU number
+        self.gpu_num = gpu_num
+
+        # Set number of batches
+        self.batch_size = batch_num
+
+        # Load class config
+        self.config = Config(self.gpu_num)
+
+        # Define GPU training
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(self.config.gpu_num)
+
+        # Define the hierarchy mapping objects and predicates paths
+
+        # Get the hierarchy mapping objects
+        self.hierarchy_mapping_objects = filesmanager.load_file("data.visual_genome.hierarchy_mapping_objects")
+        # Get the hierarchy mapping predicates
+        self.hierarchy_mapping_predicates = filesmanager.load_file("data.visual_genome.hierarchy_mapping_predicates")
+        # Set the number of classes of object
+        self.objects_nof_classes = len(self.hierarchy_mapping_objects)
+        self.predicates_nof_classes = len(self.hierarchy_mapping_predicates)
+        # Get the object and predicate model
+        self.object_model = self.get_model(self.objects_nof_classes, weight_path=self.objects_model_weight_path)
+        self.predict_model = self.get_model(self.predicates_nof_classes, weight_path=self.predicates_model_weight_path)
+
+        # Set initialized_networks to True. This function will never run again
+        self.networks_initialization_flag = True
 
     def get_model(self, number_of_classes, weight_path):
         """
@@ -151,6 +281,8 @@ class VisualModule(object):
         :type number_of_classes: number of classes
         :return: model
         """
+        # get logger
+        logger = Logger()
 
         if K.image_dim_ordering() == 'th':
             input_shape_img = (3, None, None)
@@ -173,65 +305,72 @@ class VisualModule(object):
 
         # Load pre-trained weights for ResNet50
         try:
-            print("Start loading Weights")
+            logger.log("Start loading Weights")
             model.load_weights(weight_path, by_name=True)
-            print('Finished successfully loading weights from {}'.format(weight_path))
+            logger.log('Finished successfully loading weights from {}'.format(weight_path))
 
         except Exception as e:
-            print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
+            logger.log('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
                 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
                 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
             ))
             raise Exception(e)
 
-        print('Finished successfully loading Model')
+        logger.log('Finished successfully loading Model')
         return model
 
-    def fill_detections_with_probes(self, probes, detections):
+    def _debug_detections(self):
         """
-        This function fill the detections with the Subject and Object probabilities
-        :param probes: probabilities from the model predict
-        :param detections: detections dtype numpy array
+        This function will print negative patches
+        :param path: name path
         """
-        # Get the max probes for each sample
-        probes_per_sample = np.max(probes, axis=1)
-        # Slice the Subject prob (even index)
-        detections[Detections.SubjectConfidence] = probes_per_sample[::2]
-        # Slice the Object prob (odd index)
-        detections[Detections.ObjectConfidence] = probes_per_sample[1::2]
-        # Get the max argument
-        index_labels_per_sample = np.argmax(probes, axis=1)
+        # get files manager
+        filesmanager = FilesManager()
+        path = filesmanager.get_file_path("data.visual_genome.pics")
 
-        # Get the inverse-mapping: int id to str label
-        index_to_label_mapping = {label: id for id, label in self.hierarchy_mapping_objects.iteritems()}
-        labels_per_sample = np.array([index_to_label_mapping[label] for label in index_labels_per_sample])
+        # Get index of failed prediction of Subject
+        indx = np.where((self.full_detections[Detections.SubjectClassifications] !=
+                         self.full_detections[Detections.PredictSubjectClassifications]) |
+                        (self.full_detections[Detections.ObjectClassifications] !=
+                         self.full_detections[Detections.PredictObjectClassifications]))
 
-        # Slice the predicated Subject id (even index)
-        detections[Detections.PredictSubjectClassifications] = labels_per_sample[::2]
-        # Slice the predicated Object id (odd index)
-        detections[Detections.PredictObjectClassifications] = labels_per_sample[1::2]
+        # Define the hierarchy mapping objects and predicates paths
+        # Get the hierarchy mapping objects
+        self.hierarchy_mapping_objects = filesmanager.load_file("data.visual_genome.hierarchy_mapping_objects")
+        # Get the hierarchy mapping predicates
+        self.hierarchy_mapping_predicates = filesmanager.load_file("data.visual_genome.hierarchy_mapping_predicates")
 
-    def get_resize_images_array(self, detections):
-        """
-        This function calculates the resize image for each detection and returns a numpy ndarray
-        :param detections: a numpy Detections dtype array
-        :return: a numpy array of shape (len(detections), config.crop_width, config.crop_height , 3)
-        """
+        for detection in self.full_detections:
+            if (detection[Detections.SubjectClassifications] not in self.hierarchy_mapping_objects or
+                        detection[Detections.SubjectClassifications] not in self.hierarchy_mapping_objects):
+                print(detection)
 
-        resized_img_lst = []
-        for detection in detections:
-            box = detection[Detections.UnionBox]
-            url_data = detection[Detections.Url]
-            img = get_img(url_data)
-            patch = img[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
-            resized_img = get_img_resize(patch, self.config.crop_width, self.config.crop_height, type=self.config.padding_method)
-            resized_img_lst.append(resized_img)
+        # Get the negatives
+        negatives = self.full_detections[indx]
+        img_url = negatives[0][Detections.Url]
+        img = get_img(img_url)
 
-        return np.array(resized_img_lst)
+        for negative in negatives:
 
+            id = negative[Detections.Url].split("/")[-1]
+            new_img_url = negative[Detections.Url]
 
-if __name__ == '__main__':
-    # Example
-    tt = VisualModule(objects_training_dir_name="Sat_May_27_18:25:10_2017_full",
-                      predicates_training_dir_name="Wed_May_31_16:19:26_2017")
-    tt.extract_features(relation_ids=[1, 2, 15, 5, 25, 10])
+            if not img_url == new_img_url:
+                cv2.imwrite(path + "{}".format(id), img)
+                img = get_img(new_img_url)
+
+            if negative[Detections.SubjectClassifications] != negative[Detections.PredictSubjectClassifications]:
+                draw_subject_box = negative[Detections.SubjectBox]
+                VisualizerDrawer.draw_labeled_box(img, draw_subject_box,
+                                                  label=negative[Detections.PredictSubjectClassifications] + "/" +
+                                                        negative[Detections.SubjectClassifications],
+                                                  rect_color=CvColor.BLACK, scale=500)
+
+            if negative[Detections.ObjectClassifications] != negative[Detections.PredictObjectClassifications]:
+                draw_object_box = negative[Detections.ObjectBox]
+                VisualizerDrawer.draw_labeled_box(img, draw_object_box,
+                                                  label=negative[Detections.PredictObjectClassifications] + "/" +
+                                                        negative[Detections.ObjectClassifications],
+                                                  rect_color=CvColor.BLUE, scale=500)
+
+        cv2.imwrite(path + "{}".format(id), img)

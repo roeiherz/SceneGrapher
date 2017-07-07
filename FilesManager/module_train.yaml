@@ -1,0 +1,8 @@
+# the file holds the paths to default files that will be loaded or saved
+
+scene_graph_base_module:
+    train:
+        params:
+            name: "scene_graph_base_module/train/params2.yaml"
+            type: "yaml"
+            doc: "train parameters 2"

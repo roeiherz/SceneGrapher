@@ -1,6 +1,8 @@
 from DesignPatterns.DetectionsStats import DetectionsStats
-import cPickle
 import os
+
+from FilesManager.FilesManager import FilesManager
+
 
 class ModuleDetection():
     """
@@ -72,16 +74,13 @@ class ModuleDetection():
 
         return stat
 
-    def save_stat(self, filename="detections_stat.p", score=0):
+    def save_stat(self, score=0):
+        filesManager = FilesManager()
         stat = self.get_stat()
-        if os.path.exists(filename):
-            statfile = open(filename, "r")
-            stat_lst = cPickle.load(statfile)
-            statfile.close()
+        if filesManager.file_exist("scene_graph_base_module.eval.stat"):
+            stat_lst = filesManager.load_file("scene_graph_base_module.eval.stat")
         else:
             stat_lst = []
         stat_lst.append((stat, self.entity, score))
 
-        statfile = open(filename, "w")
-        cPickle.dump(stat_lst, statfile)
-        statfile.close()
+        filesManager.save_file("scene_graph_base_module.eval.stat", stat_lst)

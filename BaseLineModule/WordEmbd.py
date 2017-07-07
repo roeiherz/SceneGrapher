@@ -2,6 +2,7 @@ import os
 import os.path
 import numpy as np
 import sys
+from Utils.Logger import Logger
 
 from FilesManager.FilesManager import FilesManager
 
@@ -34,7 +35,7 @@ class WordEmbd(object):
         self.loadWordEmbd(word_embed_size)
 
 
-    def loadGlove(self, filename, word_embed_size):
+    def loadGlove(self, word_embed_size):
         """
         Load Glove Word Embedding (expecting pre-traind data to be stored in filename
         :param filename: that path to the pre-trained data
@@ -51,7 +52,7 @@ class WordEmbd(object):
             embd.append(row[1:])
             word_index[row[0]] = index
             index += 1
-        print('Loaded GloVe!')
+        Logger().log('Loaded GloVe!')
 
         return vocab, embd, word_index
 
@@ -74,7 +75,7 @@ class WordEmbd(object):
         else:
             # if pickle files, does not exist - prepare module.
             # load data
-            print "Load Data"
+            Logger().log("Load Data")
             vocab, embd, word_index = self.loadGlove(word_embed_size)
             self.vocab_size = len(vocab)
             self.vector_dim = len(embd[0])
@@ -85,7 +86,7 @@ class WordEmbd(object):
             self.word_index = word_index
 
             #Save picke files
-            print "Save Embed Words"
+            Logger().log("Save Embed Words")
             data = [self.embed, self.vocab, self.word_index]
             self.filemanager.save_file("word_embedding.glove.embed" + str(word_embed_size))
 
