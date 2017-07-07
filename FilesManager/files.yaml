@@ -39,17 +39,17 @@ scene_graph_base_module:
             doc: "detections of mini data with neg"
 
         object_cnn:
-            name: "features_extraction/object_cnn/Fri_Jun__2_19:16:26_2017"
+            name: "features_extraction/object_cnn/Fri_Jun__2_19:16:26_2017/model_vg_resnet50.hdf5"
             type: "dir"
             doc: "path to object cnn"
             versions:
                 1:
                     date: "xx:xx:xx"
-                    name: "features_extraction/object_cnn/Fri_Jun__1_00:00:00_2017"
+                    name: "features_extraction/object_cnn/Fri_Jun__1_00:00:00_2017/model_vg_resnet50.hdf5"
                     doc: "trained without negative examples"
 
         predicate_cnn:
-            name: "features_extraction/object_cnn/Wed_Jun_14_20:25:16_2017"
+            name: "features_extraction/predicate_cnn/Wed_Jun_14_20:25:16_2017/model_vg_resnet50.hdf5"
             type: "dir"
             doc: "path to predicate cnn"
     train:
@@ -77,7 +77,7 @@ scene_graph_base_module:
                   doc: "with positive examples only"
 
         module:
-            name: "scene_graph_base_module/eval/module.p"
+            name: "scene_graph_base_module/train/saved_params/best_params.npy"
             type: "pickle"
             doc:  "module weights to evaluate"
         stat:

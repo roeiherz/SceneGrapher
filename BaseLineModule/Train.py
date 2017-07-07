@@ -1,5 +1,6 @@
 import inspect
-
+import sys
+sys.path.append("..")
 import sgd
 from Module import Module
 from Utils.Logger import Logger
@@ -184,7 +185,7 @@ if __name__ == "__main__":
     #train()
     #sanity_check()
 
-    filemanager = FilesManager(overrides_filename="module_train.yaml")
+    filemanager = FilesManager()
 
     params = filemanager.load_file("scene_graph_base_module.train.params")
 

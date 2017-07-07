@@ -88,7 +88,7 @@ def prepare_eval_data():
     """
     filemanager = FilesManager()
     if filemanager.file_exist("scene_graph_base_module.eval.final_eval_filtered_data"):
-        data = filemanager.load_file("scene_graph_base_module.eval.final_eval_filtered_data", version=1)
+        data = filemanager.load_file("scene_graph_base_module.eval.final_eval_filtered_data")
         test_entities = data[0]
         object_ids = data[1]
         predicate_ids = data[2]

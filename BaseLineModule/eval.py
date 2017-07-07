@@ -1,13 +1,16 @@
+import sys
+sys.path.append("..")
+
 from Module import Module
 from data import *
 from Utils.Logger import Logger
 
-def eval(word_embed_size=50, visual_embed_size=2048):
+def eval(word_embed_size=300, visual_embed_size=2048):
     """
     Evaluate the module using TBD metrics
     :return:
     """
-    filesmanager = FilesManager(overrides_filename="module_eval.yaml")
+    filesmanager = FilesManager()
     logger = Logger()
 
     logger.log("Prepare Data")
@@ -17,7 +20,7 @@ def eval(word_embed_size=50, visual_embed_size=2048):
     # create Module
     logger.log("Create Module")
     module = Module(object_ids, predicate_ids, word_embed_size, visual_embed_size)
-    #module.visual.initialize_networks(gpu_num=1, batch_num=1)
+    module.visual.initialize_networks(gpu_num=1, batch_num=1)
 
     logger.log("Load module weights")
 
