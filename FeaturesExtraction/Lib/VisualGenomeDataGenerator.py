@@ -5,9 +5,9 @@ import cv2
 import numpy as np
 
 from DesignPatterns.Detections import Detections
-from features_extraction.Lib.DataAugmention import augment_visual_genome
-from features_extraction.Utils.Boxes import iou, BOX
-from features_extraction.Utils.Utils import VG_DATA_PATH, get_mask_from_object, get_img_resize, get_img
+from FeaturesExtraction.Lib.DataAugmention import augment_visual_genome
+from FeaturesExtraction.Utils.Boxes import iou, BOX
+from FeaturesExtraction.Utils.Utils import VG_DATA_PATH, get_mask_from_object, get_img_resize, get_img
 
 __author__ = 'roeih'
 

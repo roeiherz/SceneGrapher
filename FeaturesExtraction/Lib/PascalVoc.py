@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 
 import cv2
 
-from features_extraction.Lib.DataSetGenerator import DataSetGenerator
+from FeaturesExtraction.Lib.DataSetGenerator import DataSetGenerator
 
 __author__ = 'roeih'
 

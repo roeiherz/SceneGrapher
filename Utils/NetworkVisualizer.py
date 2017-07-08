@@ -4,8 +4,8 @@ from keras.engine import Input
 from keras.layers import GlobalAveragePooling2D, Dense
 from vis.utils import utils
 from vis.visualization import visualize_activation, get_num_filters
-from features_extraction.Lib.Config import Config
-from features_extraction.Lib.Zoo import ModelZoo
+from FeaturesExtraction.Lib.Config import Config
+from FeaturesExtraction.Lib.Zoo import ModelZoo
 from keras import backend as K
 from keras.models import Model
 from matplotlib import pyplot as plt
@@ -13,7 +13,7 @@ import numpy as np
 from keras.preprocessing.image import img_to_array
 from keras.applications.imagenet_utils import preprocess_input
 from vis.visualization import visualize_saliency
-from features_extraction.Utils.Utils import WEIGHTS_NAME, VG_VisualModule_PICKLES_PATH
+from FeaturesExtraction.Utils.Utils import WEIGHTS_NAME, VG_VisualModule_PICKLES_PATH
 
 __author__ = 'roeih'
 

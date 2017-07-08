@@ -10,15 +10,15 @@ data:
             type: "dir"
             doc: "path to visual genome pics"
         filtered_data:
-            name: "data/visual_genome/filtered_data.p"
+            name: "Data/VisualGenome/filtered_data.p"
             type: "pickle"
             doc:  "visual genome data filtered according to the most popular objects and predicates and includes negative predicates 1X3"
         hierarchy_mapping_objects:
-            name: "data/visual_genome/hierarchy_mapping_objects.p"
+            name: "Data/VisualGenome/hierarchy_mapping_objects.p"
             type: "pickle"
             doc: "dictionary mapping supported object labels to object ids"
         hierarchy_mapping_predicates:
-            name: "data/visual_genome/hierarchy_mapping_predicates.p"
+            name: "Data/VisualGenome/hierarchy_mapping_predicates.p"
             type: "pickle"
             doc: "dictionary mapping supported object labels to predicate ids"
 features_extraction:
@@ -34,74 +34,74 @@ scene_graph_module:
 scene_graph_base_module:
     visual_module:
         detections:
-            name: "scene_graph_base_module/visual_module/detections.p"
+            name: "SceneGraphBaseModule/VisualModule/detections.p"
             type: "pickle"
             doc: "detections of mini data with neg"
 
         object_cnn:
-            name: "features_extraction/object_cnn/Fri_Jun__2_19:16:26_2017/model_vg_resnet50.hdf5"
+            name: "FeaturesExtraction/ObjectCNN/Fri_Jun__2_19:16:26_2017/model_vg_resnet50.hdf5"
             type: "dir"
             doc: "path to object cnn"
             versions:
                 1:
                     date: "xx:xx:xx"
-                    name: "features_extraction/object_cnn/Fri_Jun__1_00:00:00_2017/model_vg_resnet50.hdf5"
+                    name: "FeaturesExtraction/ObjectCNN/Fri_Jun__1_00:00:00_2017/model_vg_resnet50.hdf5"
                     doc: "trained without negative examples"
 
         predicate_cnn:
-            name: "features_extraction/predicate_cnn/Wed_Jun_14_20:25:16_2017/model_vg_resnet50.hdf5"
+            name: "FeaturesExtraction/PredicateCNN/Wed_Jun_14_20:25:16_2017/model_vg_resnet50.hdf5"
             type: "dir"
             doc: "path to predicate cnn"
     train:
         params:
-            name: "scene_graph_base_module/train/params.yaml"
+            name: "SceneGraphBaseModule/Train/params.yaml"
             type: "yaml"
             doc: "train parameters"
         final_filtered_data:
-            name: "scene_graph_base_module/train/final_filtered_data.p"
+            name: "SceneGraphBaseModule/Train/final_filtered_data.p"
             type: "pickle"
             doc:  "on top of filtered data - filter urls and negative predicates to be 1x1 and convert to Data class"
         saved_params:
-            name: "scene_graph_base_module/train/saved_params"
+            name: "SceneGraphBaseModule/Train/saved_params"
             type: "dir"
             doc: "dir storing saved params per set of hyper paramters"
     eval:
         final_eval_filtered_data:
-            name: "scene_graph_base_module/eval/eval_module_data.p"
+            name: "SceneGraphBaseModule/Eval/eval_module_data.p"
             type: "pickle"
             nof_objects: 3
             doc:  "on top of filtered data - filter urls"
             versions:
                 1:
-                  name: "scene_graph_base_module/eval/eval_module_data_pos.p"
+                  name: "SceneGraphBaseModule/Eval/eval_module_data_pos.p"
                   doc: "with positive examples only"
 
         module:
-            name: "scene_graph_base_module/train/saved_params/best_params.npy"
+            name: "SceneGraphBaseModule/Train/SavedParams/best_params.npy"
             type: "pickle"
             doc:  "module weights to evaluate"
         stat:
-            name: "scene_graph_base_module/eval/detections_stat.p"
+            name: "SceneGraphBaseModule/Eval/detections_stat.p"
             type: "pickle"
             doc: "store detections stat tuple of (entity detectionsStat score) per image"
 
 word_embedding:
     glove:
         original300:
-            name: "word_embedding/glove/glove.6B.300d.txt"
+            name: "WordEmbedding/glove/glove.6B.300d.txt"
             type: "text"
             doc: "data from glove project storing word to vec info"
         original50:
-            name: "word_embedding/glove/glove.6B.50d.txt"
+            name: "WordEmbedding/glove/glove.6B.50d.txt"
             type: "text"
             doc: "data from glove project storing word to vec info"
         embed300:
-            name: "word_embedding/glove/glove300.p"
+            name: "WordEmbedding/glove/glove300.p"
             type: "pickle"
             nof_objects: 3
             doc: "storing 1. matrix converting from word index to vector; 2. vocabulary; 3. word to index dictionary"
         embed50:
-            name: "word_embedding/glove/glove50.p"
+            name: "WordEmbedding/glove/glove50.p"
             type: "pickle"
             nof_objects: 3
             doc: "storing 1. matrix converting from word index to vector; 2. vocabulary; 3. word to index dictionary"

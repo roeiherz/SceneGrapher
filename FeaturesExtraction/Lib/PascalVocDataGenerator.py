@@ -1,8 +1,8 @@
 import random
 import numpy as np
-from features_extraction.Lib.DataAugmention import augment_pascal_voc
-from features_extraction.Utils.Boxes import iou
-from features_extraction.Utils.Utils import convert_img_bgr_to_rgb
+from FeaturesExtraction.Lib.DataAugmention import augment_pascal_voc
+from FeaturesExtraction.Utils.Boxes import iou
+from FeaturesExtraction.Utils.Utils import convert_img_bgr_to_rgb
 import cv2
 
 __author__ = 'roeih'

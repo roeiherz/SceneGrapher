@@ -1,7 +1,7 @@
 import cv2
 import numpy
 
-from features_extraction.Utils.Boxes import BOX
+from FeaturesExtraction.Utils.Boxes import BOX
 
 __author__ = 'roeih'
 

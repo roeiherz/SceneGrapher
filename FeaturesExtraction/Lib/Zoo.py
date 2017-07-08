@@ -10,8 +10,8 @@ from keras.layers import ZeroPadding2D, Convolution2D, MaxPooling2D, Flatten, De
     Activation, Merge, merge, AveragePooling2D, TimeDistributed, Conv2D
 from keras.optimizers import SGD
 from DesignPatterns.Singleton import Singleton
-from features_extraction.Layers.FixedBatchNormalization import FixedBatchNormalization
-from features_extraction.Layers.RoiPoolingConv import RoiPoolingConv
+from FeaturesExtraction.Layers.FixedBatchNormalization import FixedBatchNormalization
+from FeaturesExtraction.Layers.RoiPoolingConv import RoiPoolingConv
 from keras.layers import add
 
 CHANNEL_AXIS = 3

@@ -5,13 +5,13 @@ import os
 import sys
 
 import cv2
-import features_extraction.resnet as nn
+import FeaturesExtraction.resnet as nn
 import numpy as np
 from keras.layers import Input
 from keras.models import Model
 
-from features_extraction import roi_helpers
-from features_extraction.Lib import Config
+from FeaturesExtraction import roi_helpers
+from FeaturesExtraction.Lib import Config
 
 sys.setrecursionlimit(40000)
 C = Config.Config()

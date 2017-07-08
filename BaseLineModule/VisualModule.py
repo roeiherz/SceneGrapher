@@ -6,22 +6,22 @@ sys.path.append("..")
 from Utils.Logger import Logger
 from FilesManager.FilesManager import FilesManager
 
-from features_extraction.Utils.Visualizer import CvColor, VisualizerDrawer
-from features_extraction.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator_with_batch, \
+from FeaturesExtraction.Utils.Visualizer import CvColor, VisualizerDrawer
+from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator_with_batch, \
     visual_genome_data_cnn_generator_with_batch
 from numpy.core.umath_tests import inner1d
 import os
-from features_extraction.Lib.Config import Config
-from features_extraction.Utils.Utils import TRAINING_OBJECTS_CNN_PATH, \
+from FeaturesExtraction.Lib.Config import Config
+from FeaturesExtraction.Utils.Utils import TRAINING_OBJECTS_CNN_PATH, \
     TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_mask_from_object, get_img
 from DesignPatterns.Detections import Detections
 import numpy as np
 from Utils.Utils import softmax, get_detections
 from keras import backend as K
 from keras.models import Model
-from features_extraction.Lib.Zoo import ModelZoo
-from features_extraction.Utils.Boxes import BOX, find_union_box
-from features_extraction.Utils.Utils import get_img_resize
+from FeaturesExtraction.Lib.Zoo import ModelZoo
+from FeaturesExtraction.Utils.Boxes import BOX, find_union_box
+from FeaturesExtraction.Utils.Utils import get_img_resize
 from keras.engine import Input
 from keras.layers import GlobalAveragePooling2D, Dense
 

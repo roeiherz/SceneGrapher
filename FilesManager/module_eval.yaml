@@ -1,4 +1,4 @@
 scene_graph_base_module:
     eval:
         module:
-            name: "scene_graph_base_module/train/saved_params/reg_pre2/saved_params_800.npy"
+            name: "SceneGraphBaseModule/Train/SavedParams/reg_pre2/saved_params_800.npy"
