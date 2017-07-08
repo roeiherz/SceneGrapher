@@ -1,5 +1,7 @@
 import matplotlib as mpl
 
+from FilesManager.FilesManager import FilesManager
+
 mpl.use('Agg')
 from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger
 from keras.optimizers import Adam
@@ -21,15 +23,17 @@ import sys
 import matplotlib.pyplot as plt
 
 from FeaturesExtraction.Utils.Boxes import find_union_box, BOX
-from FeaturesExtraction.Utils.Utils import VisualGenome_PICKLES_PATH, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
-    get_img_resize, get_time_and_date, TRAINING_PREDICATE_CNN_PATH, get_img, get_sorting_url, replace_top_layer
+from FeaturesExtraction.Utils.Utils import VisualGenome_PICKLES_PATH, VG_VisualModule_PICKLES_PATH, \
+    get_mask_from_object, \
+    get_img_resize, get_time_and_date, TRAINING_PREDICATE_CNN_PATH, get_img, get_sorting_url, replace_top_layer, DATA, \
+    VISUAL_GENOME
 from Utils.Utils import create_folder
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 import cv2
 from FeaturesExtraction.Utils.Visualizer import VisualizerDrawer, CvColor
 from FeaturesExtraction.Utils.data import get_sorted_data, generate_new_hierarchy_mapping, splitting_to_datasets, \
-    get_predicate_hierarchy_mapping_from_detections, process_to_detections, get_filtered_data
+    get_predicate_hierarchy_mapping_from_detections, process_to_detections, get_filtered_data, get_name_from_file
 
 NOF_LABELS = 150
 TRAINING_PERCENT = 0.75
@@ -58,7 +62,8 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
     """
 
     # Check if pickles are already created
-    objects_path = os.path.join(VisualGenome_PICKLES_PATH, object_file_name)
+    objects_path = filemanager.get_file_path(
+                        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(object_file_name)))
 
     if os.path.isfile(objects_path):
         print('File is already exist {0}'.format(objects_path))
@@ -92,13 +97,11 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
         idx += 1
         print("Finished img: {}".format(idx))
 
-    # Save the objects files to the disk
-    objects_file = file(objects_path, 'wb')
     # Pickle objects_lst
     objects_array = np.array(objects_lst)
-    cPickle.dump(objects_array, objects_file, protocol=cPickle.HIGHEST_PROTOCOL)
-    # Close the file
-    objects_file.close()
+    # Save the objects files to the disk
+    filemanager.save_file(objects_path, objects_array)
+
     return objects_array
 
 
@@ -114,15 +117,17 @@ def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mappi
     """
 
     # Check if pickles are already created
-    objects_path = os.path.join(VG_VisualModule_PICKLES_PATH, relation_file_name)
+    relations_path = filemanager.get_file_path(
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(relation_file_name)))
 
-    if os.path.isfile(objects_path):
-        print('File is already exist {0}'.format(objects_path))
-        objects = cPickle.load(open(objects_path, 'rb'))
+    if os.path.isfile(relations_path):
+        print('File is already exist {0}'.format(relations_path))
+        objects = filemanager.load_file(
+            "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(relation_file_name)))
         return objects
 
     # Get the whole objects from entities
-    objects_lst = []
+    relations_lst = []
     correct_object_labels = hierarchy_mapping_objects.keys()
     correct_predicates_labels = hierarchy_mapping_predicates.keys()
     bad_urls = get_sorting_url()
@@ -155,19 +160,18 @@ def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mappi
             new_relation_mapping = RelationshipMapping(relation.id, relation.subject, relation.predicate,
                                                        relation.object, relation.synset, url, relation.filtered_id)
             # Append the new objectMapping to objects_lst
-            objects_lst.append(new_relation_mapping)
+            relations_lst.append(new_relation_mapping)
 
         idx += 1
         print("Finished img: {}".format(idx))
 
-    # Save the objects files to the disk
-    objects_file = open(objects_path, 'wb')
     # Pickle objects_lst
-    objects_array = np.array(objects_lst)
-    cPickle.dump(objects_array, objects_file, protocol=cPickle.HIGHEST_PROTOCOL)
-    # Close the file
-    objects_file.close()
-    return objects_array
+    relations_array = np.array(relations_lst)
+
+    # Save the objects files to the disk
+    filemanager.save_file(relations_path, relations_array)
+
+    return relations_array
 
 
 def get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path):
@@ -236,6 +240,9 @@ if __name__ == '__main__':
     # Load class config
     config = Config(gpu_num)
 
+    # Define FileManager
+    filemanager = FilesManager()
+
     # Define GPU training
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)
 
@@ -246,6 +253,7 @@ if __name__ == '__main__':
 
     # Get time and date
     time_and_date = get_time_and_date()
+
     # Path for the training folder
     path = os.path.join(TRAINING_PREDICATE_CNN_PATH, time_and_date)
     # Create a new folder for training
@@ -267,14 +275,14 @@ if __name__ == '__main__':
     #                                                              nof_labels=NOF_LABELS)
 
     # Load filtered data
-    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name="final_filtered_module_data_with_neg.p",
-                                                                                          # "mini_filtered_module_data_with_neg.p",
-                                                                                          category='entities_visual_module'
-                                                                                          )
+    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(
+                                                        filtered_data_file_name="full_filtered_data.p",
+                                                        # "mini_filtered_data.p",
+                                                        category='entities_visual_module')
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                                        relation_file_name="final_visual_filtered_relations_with_neg.p")
+                                        relation_file_name="full_relations.p")
 
     # Process relations to numpy Detections dtype
     detections = process_to_detections(relations, detections_file_name="final_visual_filtered_detections_with_neg.p")

@@ -11,7 +11,7 @@ class Config:
 
         # Do we continuing to train or start from fresh
         self.loading_model = True
-        self.loading_model_folder = "Training/TrainingPredicatesCNN/Fri_Jun__2_20:00:24_2017"
+        self.loading_model_folder = "FeaturesExtraction/TrainingPredicatesCNN/Fri_Jun__2_20:00:24_2017"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
         self.use_cache_dir = False

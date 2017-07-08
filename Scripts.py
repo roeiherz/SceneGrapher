@@ -3,6 +3,7 @@ import cPickle
 import os
 import numpy as np
 from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
+from FilesManager.FilesManager import FilesManager
 from TrainCNN import VisualGenome_PICKLES_PATH
 from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
     HIERARCHY_MAPPING, plot_graph, POSITIVE_NEGATIVE_RATIO, DATA_PATH, CLASSES_COUNT_FILE, RELATIONS_COUNT_FILE
@@ -511,14 +512,17 @@ if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
 
+    filemanager = FilesManager()
+
     # Filter the data
     filtered_module_data = get_module_filter_data(objects_count_file_name="mini_classes_count.p",
-                                                  # entities_file_name="mini_final_entities.p",
-                                                  entities_file_name="final_entities.p",
+                                                  # entities_file_name="mini_entities.p",
+                                                  entities_file_name="full_entities.p",
                                                   predicates_count_file_name="mini_predicates_count.p", nof_objects=150,
                                                   nof_predicates=50, create_negative=True,
                                                   positive_negative_ratio=POSITIVE_NEGATIVE_RATIO)
 
+    exit()
     # Filter mini urls
     get_mini_url()
     exit()

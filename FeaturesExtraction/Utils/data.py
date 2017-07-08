@@ -14,12 +14,15 @@ from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, DATA_PATH, CLASSES_MAP
     TRAIN_IMGS_P, VAL_IMGS_P, VisualGenome_PICKLES_PATH, ENTITIES_FILE, HIERARCHY_MAPPING, PascalVoc_PICKLES_PATH, \
     VALIDATION_DATA_SET, TEST_DATA_SET, TRAIN_DATA_SET, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
     MINI_VG_DATASET_PATH, MINI_IMDB, get_time_and_date, VG_PICKLES_FOLDER_PATH, VisualGenome_DATASETS_PICKLES_PATH, \
-    get_img, get_sorting_url, POSITIVE_NEGATIVE_RATIO, OBJECTS_ALIAS, PREDICATES_ALIAS, PREDICATES_LIST, OBJECTS_LIST
+    get_img, get_sorting_url, POSITIVE_NEGATIVE_RATIO, OBJECTS_ALIAS, PREDICATES_ALIAS, PREDICATES_LIST, OBJECTS_LIST, \
+    DATA, VISUAL_GENOME
 from DesignPatterns.Detections import Detections
 from FeaturesExtraction.Utils.Visualizer import VisualizerDrawer, CvColor
 import cv2
 import h5py
 import sys
+
+from FilesManager.FilesManager import FilesManager
 
 __author__ = 'roeih'
 
@@ -450,9 +453,11 @@ def process_to_detections(relations, detections_file_name="detections.p", debug=
     :param relations: a numpy array of relationships
     :return: numpy detections array
     """
+    filemanager = FilesManager()
 
     # Check if pickles are already created
-    detections_path = os.path.join(VG_VisualModule_PICKLES_PATH, detections_file_name)
+    detections_path = filemanager.get_file_path(
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(detections_file_name)))
 
     if os.path.isfile(detections_path):
         print('File is already exist {0}'.format(detections_path))
@@ -562,7 +567,7 @@ def preprocess_entities_by_mapping(entities, objects_alias_mapping, predicates_a
                 relation.predicate = candidate_predicate
 
 
-def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entities_file_name="final_entities.p",
+def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entities_file_name="full_entities.p",
                            predicates_count_file_name="mini_predicates_count.p", nof_objects=150, nof_predicates=50,
                            create_negative=False, positive_negative_ratio=POSITIVE_NEGATIVE_RATIO):
     """
@@ -571,25 +576,31 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
                 predicates
     """
 
+    filemanager = FilesManager()
+
     # Load Objects alias
-    objects_alias_filename = os.path.join(MINI_VG_DATASET_PATH, OBJECTS_ALIAS)
+    objects_alias_filename = filemanager.get_file_path(
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(OBJECTS_ALIAS)))
     objects_alias_mapping, objects_alias_words_target = make_alias_dict(objects_alias_filename)
 
     # Load Predicates alias
-    predicates_alias_filename = os.path.join(MINI_VG_DATASET_PATH, PREDICATES_ALIAS)
+    predicates_alias_filename = filemanager.get_file_path(
+       "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(PREDICATES_ALIAS)))
     predicates_alias_mapping, predicates_alias_words_target = make_alias_dict(predicates_alias_filename)
 
     # Load Objects list
-    objects_list_filename = os.path.join(MINI_VG_DATASET_PATH, OBJECTS_LIST)
+    objects_list_filename = filemanager.get_file_path(
+         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(OBJECTS_LIST)))
     objects_to_be_used = make_list(objects_list_filename)
 
     # Load Predicates list
-    predicates_list_filename = os.path.join(MINI_VG_DATASET_PATH, PREDICATES_LIST)
+    predicates_list_filename = filemanager.get_file_path(
+         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(PREDICATES_LIST)))
     predicates_to_be_used = make_list(predicates_list_filename)
 
     # Load entities
-    entities_path = os.path.join(VisualGenome_PICKLES_PATH, entities_file_name)
-    entities = np.array(cPickle.load(file(entities_path, 'rb')))
+    entities = np.array(filemanager.load_file(
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(entities_file_name))))
 
     # PreProcess Objects by Mapping
     preprocess_entities_by_mapping(entities, objects_alias_mapping, predicates_alias_mapping)
@@ -611,7 +622,7 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
     # sorted_objects_count = sorted(objects_count.items(), key=operator.itemgetter(1), reverse=True)
     # sorted_objects = sorted_objects_count[:nof_objects]
     # objects_to_be_used = dict(sorted_objects)
-    #endregion
+    # endregion
 
     # Counts index for relationship id
     relation_ind = 0
@@ -703,13 +714,11 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
                             "entities_visual_module": entities[len(entities) / 2:]}
 
     # Save filtered_module_data file for only the top labels
-    # filtered_module_data_file = open(os.path.join(VisualGenome_PICKLES_PATH, "mini_filtered_module_data_with_neg.p"), 'wb')
-    filtered_module_data_file = open(os.path.join(VisualGenome_PICKLES_PATH, "final_filtered_module_data_with_neg.p"),
-                                     'wb')
-    # Pickle hierarchy_mapping
-    cPickle.dump(filtered_module_data, filtered_module_data_file, protocol=cPickle.HIGHEST_PROTOCOL)
-    # Close the file
-    filtered_module_data_file.close()
+    # filemanager.save_file(
+    #     "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "mini_filtered_data"), filtered_module_data)
+    filemanager.save_file(
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "full_filtered_data"), filtered_module_data)
+
     return filtered_module_data
 
 
@@ -866,10 +875,11 @@ def get_filtered_data(filtered_data_file_name="filtered_module_data.p", category
     :return: entities, hierarchy mapping of objects and hierarchy mapping of predicates
     """
 
-    # The file path
-    filtered_module_data_file = open(os.path.join(VisualGenome_PICKLES_PATH, filtered_data_file_name), 'rb')
-    # The filtered
-    filtered_module_data = cPickle.load(filtered_module_data_file)
+    filemanager = FilesManager()
+
+    # Load the filtered file
+    filtered_module_data = filemanager.load_file(
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(filtered_data_file_name)))
 
     entities = filtered_module_data[category]
     # entities = filtered_module_data['entities']
@@ -905,3 +915,12 @@ def make_list(list_file):
     :return:
     """
     return [line.strip('\n').strip('\r') for line in open(list_file)]
+
+
+def get_name_from_file(filename):
+    """
+    This function get the name from the filename (from example.txt we returned example)
+    :param filename: the file name including the extension .txt
+    :return: only the name of the filename
+    """
+    return filename.split(".")[0]

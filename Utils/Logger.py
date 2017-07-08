@@ -1,19 +1,15 @@
 import os
 import os.path
-import numpy as np
 import sys
 from FilesManager.FilesManager import FilesManager
 import time
-
-
 sys.path.append("..")
 from DesignPatterns.Singleton import Singleton
-import cPickle
 
 
 class Logger(object):
     """
-    Word to vector embedding, using GLOVE
+    Logger class
     """
     __metaclass__ = Singleton
 
@@ -30,8 +26,9 @@ class Logger(object):
             self.prefix = ""
 
         self.path = path
+
         # create dir
-        if self.path != None:
+        if self.path is not None:
             if not os.path.exists(self.path):
                 os.makedirs(self.path)
 
@@ -45,7 +42,7 @@ class Logger(object):
         filesmanager.add_logger(self)
 
         # default log file
-        if self.log_file == None:
+        if self.log_file is None:
             self.path = filesmanager.get_file_path("logs")
             if not os.path.exists(self.path):
                 os.makedirs(self.path)
@@ -53,10 +50,19 @@ class Logger(object):
             self.log("Start %s" % time.strftime("%c"))
 
     def log(self, str):
-        if self.log_file != None:
+        """
+        
+        :param str: 
+        :return: 
+        """
+        if self.log_file is not None:
             self.log_file.write(self.name + ": " + str + "\n")
             self.log_file.flush()
         print(self.prefix + str)
 
     def get_dir(self):
+        """
+        
+        :return: 
+        """
         return self.path

@@ -9,10 +9,7 @@ data:
             name: "../Pics"
             type: "dir"
             doc: "path to visual genome pics"
-        filtered_data:
-            name: "Data/VisualGenome/filtered_data.p"
-            type: "pickle"
-            doc:  "visual genome data filtered according to the most popular objects and predicates and includes negative predicates 1X3"
+
         hierarchy_mapping_objects:
             name: "Data/VisualGenome/hierarchy_mapping_objects.p"
             type: "pickle"
@@ -21,6 +18,61 @@ data:
             name: "Data/VisualGenome/hierarchy_mapping_predicates.p"
             type: "pickle"
             doc: "dictionary mapping supported object labels to predicate ids"
+
+        # Don't know what is it..1000 entities/50000 entities?
+        filtered_data:
+            name: "Data/VisualGenome/filtered_data.p"
+            type: "pickle"
+            doc:  "visual genome data filtered according to the most popular objects and predicates and includes negative predicates 1X3"
+
+        # Load pre-processing data mapping
+        object_alias:
+            name: "../Data/VisualGenome/mini/object_alias.txt"
+            type: "text"
+            doc:  "objects mapping between old label to new label"
+        object_list:
+            name: "../Data/VisualGenome/mini/object_list.txt"
+            type: "text"
+            doc:  "150 objects labels"
+        predicate_alias:
+            name: "../Data/VisualGenome/mini/predicate_alias.txt"
+            type: "text"
+            doc:  "predicates mapping between old label to new label"
+        predicate_list:
+            name: "../Data/VisualGenome/mini/predicate_list.txt"
+            type: "text"
+            doc:  "50 predicates labels"
+
+        # Entities - before pre-processing
+        mini_entities:
+            name: "Data/VisualGenome/mini_entities.p"
+            type: "pickle"
+            doc:  "raw visual genome data (ONLY 1000 entities)"
+        full_entities:
+            name: "Data/VisualGenome/final_entities.p"
+            type: "pickle"
+            doc:  "raw visual genome data (108000 entities)"
+
+        # The Data after pre-processing by entities
+        mini_filtered_data:
+            name: "Data/VisualGenome/mini_filtered_data.p"
+            type: "pickle"
+            doc:  "visual genome data (ONLY 1000 entities) filtered according to the most popular objects and predicates and includes negative predicates 1X3"
+        full_filtered_data:
+            name: "Data/VisualGenome/full_filtered_data.p"
+            type: "pickle"
+            doc:  "visual genome data (108000 entities) filtered according to the most popular objects and predicates and includes negative predicates 1X3"
+
+        # Relations
+        mini_relations:
+            name: "Data/VisualGenome/mini_visual_filtered_relations.p"
+            type: "pickle"
+            doc:  "Relations (ONLY FROM 1000 ENTITIES) includes positive and negative predicates 1X3"
+        full_relations:
+            name: "Data/VisualGenome/full_visual_filtered_relations.p"
+            type: "pickle"
+            doc:  "Relations (ONLY FROM 108000 ENTITIES) includes positive and negative predicates 1X3"
+
 features_extraction:
     visual:
 
