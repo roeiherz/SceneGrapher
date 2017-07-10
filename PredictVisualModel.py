@@ -1,8 +1,7 @@
 from __future__ import print_function
-from Data.VisualGenome.models import ObjectMapping, RelationshipMapping
+
 from DesignPatterns.Detections import Detections
-from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_generator, \
-    visual_genome_data_parallel_generator, visual_genome_data_parallel_generator_with_batch, \
+from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator_with_batch, \
     visual_genome_data_generator_with_batch
 from FeaturesExtraction.Lib.Zoo import ModelZoo
 import traceback
@@ -15,11 +14,13 @@ from keras import backend as K
 from keras.models import Model
 import sys
 import math
-from FeaturesExtraction.Utils.Boxes import find_union_box, BOX
-from FeaturesExtraction.Utils.Utils import VisualGenome_PICKLES_PATH, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
-    get_img_resize, TRAINING_OBJECTS_CNN_PATH, TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img, PROJECT_ROOT
+from FeaturesExtraction.Utils.Boxes import BOX
+from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH, get_img_resize, TRAINING_OBJECTS_CNN_PATH, TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img
 import time
 from FeaturesExtraction.Utils.data import get_filtered_data
+from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
+from FilesManager.FilesManager import FilesManager
+from Utils.Logger import Logger
 
 NOF_LABELS = 150
 TRAINING_PERCENT = 0.75

@@ -2,28 +2,25 @@ import matplotlib as mpl
 
 mpl.use('Agg')
 from Data.VisualGenome.models import ObjectMapping
-from FeaturesExtraction.Lib.PascalVocDataGenerator import PascalVocDataGenerator
-from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator, \
-    visual_genome_data_cnn_generator_with_batch
+from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator_with_batch
 from FeaturesExtraction.Lib.Zoo import ModelZoo
-from keras.applications.resnet50 import ResNet50
 import os
 import cPickle
 import numpy as np
 from FeaturesExtraction.Lib.Config import Config
 from keras.optimizers import Adam
 from keras.layers import Input, AveragePooling2D, Flatten, Dense, GlobalAveragePooling2D, Activation
-from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard, CSVLogger
+from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger
 from keras import backend as K
 from keras.models import Model
 import sys
 import matplotlib.pyplot as plt
-from FeaturesExtraction.Utils.Utils import VisualGenome_PICKLES_PATH, get_time_and_date, TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE, replace_top_layer, get_sorting_url
+from FeaturesExtraction.Utils.Utils import get_time_and_date, TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE, replace_top_layer, get_sorting_url
 from Utils.Utils import create_folder
-import tensorflow as tf
-from keras.backend.tensorflow_backend import set_session
-from FeaturesExtraction.Utils.data import get_sorted_data, splitting_to_datasets, create_data_pascal_voc, \
-    generate_new_hierarchy_mapping, get_filtered_data
+from FeaturesExtraction.Utils.data import splitting_to_datasets, get_filtered_data
+from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
+from FilesManager.FilesManager import FilesManager
+from Utils.Logger import Logger
 
 NOF_LABELS = 150
 TRAINING_PERCENT = 0.75

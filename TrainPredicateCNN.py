@@ -16,7 +16,6 @@ from keras import backend as K
 from keras.models import Model
 import sys
 import matplotlib.pyplot as plt
-from FeaturesExtraction.Utils.Boxes import find_union_box, BOX
 from FeaturesExtraction.Utils.Utils import get_time_and_date, TRAINING_PREDICATE_CNN_PATH, get_sorting_url, replace_top_layer, DATA, \
     VISUAL_GENOME
 from Utils.Utils import create_folder
