@@ -51,9 +51,8 @@ class Logger(object):
 
     def log(self, str):
         """
-        
-        :param str: 
-        :return: 
+        This function write str to the logger
+        :param str: a string to be written
         """
         if self.log_file is not None:
             self.log_file.write(self.name + ": " + str + "\n")
@@ -62,7 +61,15 @@ class Logger(object):
 
     def get_dir(self):
         """
-        
-        :return: 
+        Get the path of the dir
+        :return: path of the dir
         """
         return self.path
+
+    @classmethod
+    def get_logger(cls):
+        """
+        This function returns the logger
+        :return: return the cls logger
+        """
+        return cls

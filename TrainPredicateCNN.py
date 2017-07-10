@@ -1,17 +1,12 @@
 import matplotlib as mpl
-
 from FilesManager.FilesManager import FilesManager
-
 mpl.use('Agg')
 from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger
 from keras.optimizers import Adam
-
 from Data.VisualGenome.models import ObjectMapping, RelationshipMapping
 from DesignPatterns.Detections import Detections
-from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_generator, \
-    visual_genome_data_parallel_generator, visual_genome_data_generator_with_batch
+from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_generator_with_batch
 from FeaturesExtraction.Lib.Zoo import ModelZoo
-from keras.applications.resnet50 import ResNet50
 import os
 import cPickle
 import numpy as np
@@ -21,19 +16,12 @@ from keras import backend as K
 from keras.models import Model
 import sys
 import matplotlib.pyplot as plt
-
 from FeaturesExtraction.Utils.Boxes import find_union_box, BOX
-from FeaturesExtraction.Utils.Utils import VisualGenome_PICKLES_PATH, VG_VisualModule_PICKLES_PATH, \
-    get_mask_from_object, \
-    get_img_resize, get_time_and_date, TRAINING_PREDICATE_CNN_PATH, get_img, get_sorting_url, replace_top_layer, DATA, \
+from FeaturesExtraction.Utils.Utils import get_time_and_date, TRAINING_PREDICATE_CNN_PATH, get_sorting_url, replace_top_layer, DATA, \
     VISUAL_GENOME
 from Utils.Utils import create_folder
-import tensorflow as tf
-from keras.backend.tensorflow_backend import set_session
-import cv2
-from FeaturesExtraction.Utils.Visualizer import VisualizerDrawer, CvColor
-from FeaturesExtraction.Utils.data import get_sorted_data, generate_new_hierarchy_mapping, splitting_to_datasets, \
-    get_predicate_hierarchy_mapping_from_detections, process_to_detections, get_filtered_data, get_name_from_file
+from FeaturesExtraction.Utils.data import splitting_to_datasets, process_to_detections, get_filtered_data, get_name_from_file
+from Utils.Logger import Logger
 
 NOF_LABELS = 150
 TRAINING_PERCENT = 0.75
@@ -66,7 +54,7 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
                         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(object_file_name)))
 
     if os.path.isfile(objects_path):
-        print('File is already exist {0}'.format(objects_path))
+        logger.log('File is already exist {0}'.format(objects_path))
         objects = cPickle.load(file(objects_path, 'rb'))
         return objects
 
@@ -95,7 +83,7 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
             objects_lst.append(new_object_mapping)
 
         idx += 1
-        print("Finished img: {}".format(idx))
+        logger.log("Finished img: {}".format(idx))
 
     # Pickle objects_lst
     objects_array = np.array(objects_lst)
@@ -121,10 +109,10 @@ def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mappi
         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(relation_file_name)))
 
     if os.path.isfile(relations_path):
-        print('File is already exist {0}'.format(relations_path))
-        objects = filemanager.load_file(
+        logger.log('File is already exist {0}'.format(relations_path))
+        relations = filemanager.load_file(
             "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(relation_file_name)))
-        return objects
+        return relations
 
     # Get the whole objects from entities
     relations_lst = []
@@ -163,7 +151,7 @@ def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mappi
             relations_lst.append(new_relation_mapping)
 
         idx += 1
-        print("Finished img: {}".format(idx))
+        logger.log("Finished img: {}".format(idx))
 
     # Pickle objects_lst
     relations_array = np.array(relations_lst)
@@ -226,6 +214,11 @@ def pick_different_negative_sample_ratio(detections, ratio=1):
 
 if __name__ == '__main__':
 
+    # Define FileManager
+    filemanager = FilesManager()
+    # Define Logger
+    logger = Logger()
+
     # Get argument
     if len(sys.argv) < 2:
         # Default GPU number
@@ -235,13 +228,10 @@ if __name__ == '__main__':
         gpu_num = sys.argv[1]
 
     # Printing which GPU you have selected
-    print("Selected GPU number: {0}".format(gpu_num))
+    logger.log("Selected GPU number: {0}".format(gpu_num))
 
     # Load class config
     config = Config(gpu_num)
-
-    # Define FileManager
-    filemanager = FilesManager()
 
     # Define GPU training
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)
@@ -261,13 +251,13 @@ if __name__ == '__main__':
     # loading model weights
     if config.loading_model:
         net_weights = os.path.join(config.loading_model_folder, config.model_weights_name)
-        print("Loading Weights from: {}".format(net_weights))
+        logger.log("Loading Weights from: {}".format(net_weights))
     else:
         # The Weights for training
         net_weights = config.base_net_weights
-        print("Taking Base Weights from: {}".format(net_weights))
+        logger.log("Taking Base Weights from: {}".format(net_weights))
     net_weights_path = os.path.join(path, config.model_weights_name)
-    print("The new Model Weights will be Saved: {}".format(net_weights_path))
+    logger.log("The new Model Weights will be Saved: {}".format(net_weights_path))
 
     # classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
     #                                                              hierarchy_mapping_file_name="final_class_mapping.p",
@@ -285,7 +275,7 @@ if __name__ == '__main__':
                                         relation_file_name="full_relations.p")
 
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="final_visual_filtered_detections_with_neg.p")
+    detections = process_to_detections(relations, detections_file_name="full_detections.p")
 
     # Get new negative - positive ratio
     detections = pick_different_negative_sample_ratio(detections, ratio=1.0/10)
@@ -369,10 +359,10 @@ if __name__ == '__main__':
     # Load pre-trained weights for ResNet50
     try:
         if config.load_weights:
-            print('loading weights from {}'.format(net_weights))
+            logger.log('loading weights from {}'.format(net_weights))
             model.load_weights(net_weights, by_name=True)
     except Exception as e:
-        print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
+        logger.log('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
         ))
@@ -396,7 +386,7 @@ if __name__ == '__main__':
                  TensorBoard(log_dir="logs", write_graph=True, write_images=True),
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False)]
 
-    print('Starting training')
+    logger.log('Starting training')
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
                                   validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_BATCHES,
                                   callbacks=callbacks, max_q_size=1, workers=1)
@@ -405,7 +395,7 @@ if __name__ == '__main__':
     test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(val_imgs) / NUM_BATCHES, max_q_size=1,
                                           workers=1)
     # Plot the Score
-    print("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
+    logger.log("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
 
     # Summarize history for accuracy
     plt.figure()

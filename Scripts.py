@@ -13,6 +13,7 @@ from PredictVisualModel import get_resize_images_array, load_full_detections
 from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH
 from FeaturesExtraction.Lib.Config import Config
 from DesignPatterns.Detections import Detections
+from Utils.Logger import Logger
 
 
 def check_loading_pickle_time():
@@ -513,6 +514,7 @@ if __name__ == '__main__':
     # create_data_object_and_predicates_by_img_id()
 
     filemanager = FilesManager()
+    logger = Logger()
 
     # Filter the data
     filtered_module_data = get_module_filter_data(objects_count_file_name="mini_classes_count.p",

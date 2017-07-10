@@ -461,7 +461,8 @@ def process_to_detections(relations, detections_file_name="detections.p", debug=
 
     if os.path.isfile(detections_path):
         print('File is already exist {0}'.format(detections_path))
-        detections = cPickle.load(file(detections_path, 'rb'))
+        detections = filemanager.load_file(
+            "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(detections_path)))
         return detections
 
     bad_urls = get_sorting_url()
@@ -528,12 +529,9 @@ def process_to_detections(relations, detections_file_name="detections.p", debug=
         # Update index
         id += 1
 
-    # Save the objects files to the disk
-    detections_file = file(detections_path, 'wb')
     # Pickle detections numpy Detection dtype
-    cPickle.dump(detections, detections_file, protocol=cPickle.HIGHEST_PROTOCOL)
-    # Close the file
-    detections_file.close()
+    filemanager.save_file(detections_path, detections)
+
     return detections
 
 

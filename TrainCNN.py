@@ -54,11 +54,13 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
     """
 
     # Check if pickles are already created
-    objects_path = os.path.join(VisualGenome_PICKLES_PATH, object_file_name)
+    objects_path = filemanager.get_file_path(
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(object_file_name)))
 
     if os.path.isfile(objects_path):
-        print('File is already exist {0}'.format(objects_path))
-        objects = cPickle.load(file(objects_path, 'rb'))
+        logger.log('File is already exist {0}'.format(objects_path))
+        objects = filemanager.load_file(
+            "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(relation_file_name)))
         return objects
 
     # Bad urls which should be sorted out
@@ -94,15 +96,12 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
             objects_lst.append(new_object_mapping)
 
         idx += 1
-        print("Finished img: {}".format(idx))
+        logger.log("Finished img: {}".format(idx))
 
-    # Save the objects files to the disk
-    objects_file = file(objects_path, 'wb')
     # Pickle objects_lst
     objects_array = np.array(objects_lst)
-    cPickle.dump(objects_array, objects_file, protocol=cPickle.HIGHEST_PROTOCOL)
-    # Close the file
-    objects_file.close()
+    # Save the objects files to the disk
+    filemanager.save_file(objects_path, objects_array)
     return objects_array
 
 
@@ -119,7 +118,7 @@ def get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path, config=N
     if config is not None and config.use_cache_dir:
         classes_count_path = os.path.join(config.loading_model_folder, CLASSES_COUNT_FILE)
         hierarchy_mapping_path = os.path.join(config.loading_model_folder, CLASSES_MAPPING_FILE)
-        print("Loading from cached hierarchy mapping from {0} and class counting {1}".format(hierarchy_mapping_path,
+        logger.log("Loading from cached hierarchy mapping from {0} and class counting {1}".format(hierarchy_mapping_path,
                                                                                              classes_count_path))
         classes_count_per_objects = cPickle.load(open(classes_count_path, 'rb'))
         hierarchy_mapping_per_objects = cPickle.load(open(hierarchy_mapping_path, 'rb'))
@@ -192,13 +191,18 @@ def sorting_urls(train_imgs, test_imgs, val_imgs):
             continue
         real_val_imgs.append(img)
 
-    print("Debug printing after sorting- the number of train samples: {0}, the number of test samples: {1}, "
+    logger.log("Debug printing after sorting- the number of train samples: {0}, the number of test samples: {1}, "
           "the number of validation samples: {2}".format(len(real_train_imgs),
                                                          len(real_test_imgs),
                                                          len(real_val_imgs)))
     return real_val_imgs, real_test_imgs, real_val_imgs
 
 if __name__ == '__main__':
+
+    # Define FileManager
+    filemanager = FilesManager()
+    # Define Logger
+    logger = Logger()
 
     # Get argument
     if len(sys.argv) < 2:
@@ -209,7 +213,7 @@ if __name__ == '__main__':
         gpu_num = sys.argv[1]
 
     # Printing which GPU you have selected
-    print("Selected GPU number: {0}".format(gpu_num))
+    logger.log("Selected GPU number: {0}".format(gpu_num))
 
     # Load class config
     config = Config(gpu_num)
@@ -231,13 +235,13 @@ if __name__ == '__main__':
     # loading model weights
     if config.loading_model:
         net_weights = os.path.join(config.loading_model_folder, config.model_weights_name)
-        print("Loading Weights from: {}".format(net_weights))
+        logger.log("Loading Weights from: {}".format(net_weights))
     else:
         # The Weights for training
         net_weights = config.base_net_weights
-        print("Taking Base Weights from: {}".format(net_weights))
+        logger.log("Taking Base Weights from: {}".format(net_weights))
     net_weights_path = os.path.join(path, config.model_weights_name)
-    print("The new Model Weights will be Saved: {}".format(net_weights_path))
+    logger.log("The new Model Weights will be Saved: {}".format(net_weights_path))
 
     # classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="mini_classes_count.p",
     #                                                              hierarchy_mapping_file_name="mini_class_mapping.p",
@@ -315,10 +319,10 @@ if __name__ == '__main__':
     # Load pre-trained weights for ResNet50
     try:
         if config.load_weights:
-            print('loading weights from {}'.format(net_weights))
+            logger.log('loading weights from {}'.format(net_weights))
             model.load_weights(net_weights, by_name=True)
     except Exception as e:
-        print('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
+        logger.log('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
         ))
@@ -342,7 +346,7 @@ if __name__ == '__main__':
                  TensorBoard(log_dir="logs", write_graph=True, write_images=True),
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False)]
 
-    print('Starting training')
+    logger.log('Starting training')
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs)/NUM_BATCHES, epochs=NUM_EPOCHS,
                                   validation_data=data_gen_test_vg, validation_steps=len(test_imgs)/NUM_BATCHES,
                                   callbacks=callbacks, max_q_size=1, workers=1)
@@ -350,7 +354,7 @@ if __name__ == '__main__':
     # Validating the model
     test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(val_imgs)/NUM_BATCHES, max_q_size=1, workers=1)
     # Plot the Score
-    print("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
+    logger.log("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
 
     # Summarize history for accuracy
     plt.figure()
