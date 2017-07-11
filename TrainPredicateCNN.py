@@ -48,13 +48,14 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
     :return: list of ObjectMapping
     """
 
+    objects_path_token = "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(object_file_name))
+
     # Check if pickles are already created
-    objects_path = filemanager.get_file_path(
-                        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(object_file_name)))
+    objects_path = filemanager.get_file_path(objects_path_token)
 
     if os.path.isfile(objects_path):
         logger.log('File is already exist {0}'.format(objects_path))
-        objects = cPickle.load(file(objects_path, 'rb'))
+        objects = cPickle.load(open(objects_path))
         return objects
 
     # Get the whole objects from entities
@@ -87,7 +88,7 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
     # Pickle objects_lst
     objects_array = np.array(objects_lst)
     # Save the objects files to the disk
-    filemanager.save_file(objects_path, objects_array)
+    filemanager.save_file(objects_path_token, objects_array)
 
     return objects_array
 
@@ -103,14 +104,14 @@ def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mappi
     :return: list of RelationshipMapping
     """
 
+    relations_path_token = "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(relation_file_name))
+
     # Check if pickles are already created
-    relations_path = filemanager.get_file_path(
-        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(relation_file_name)))
+    relations_path = filemanager.get_file_path(relations_path_token)
 
     if os.path.isfile(relations_path):
         logger.log('File is already exist {0}'.format(relations_path))
-        relations = filemanager.load_file(
-            "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(relation_file_name)))
+        relations = filemanager.load_file(relations_path_token)
         return relations
 
     # Get the whole objects from entities
@@ -156,7 +157,7 @@ def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mappi
     relations_array = np.array(relations_lst)
 
     # Save the objects files to the disk
-    filemanager.save_file(relations_path, relations_array)
+    filemanager.save_file(relations_path_token, relations_array)
 
     return relations_array
 
@@ -249,11 +250,11 @@ if __name__ == '__main__':
     create_folder(path)
     # loading model weights
     if config.loading_model:
-        net_weights = os.path.join(config.loading_model_folder, config.model_weights_name)
+        net_weights = filemanager.get_file_path(config.loading_model_token)
         logger.log("Loading Weights from: {}".format(net_weights))
     else:
         # The Weights for training
-        net_weights = config.base_net_weights
+        net_weights = filemanager.get_file_path(config.base_net_weights)
         logger.log("Taking Base Weights from: {}".format(net_weights))
     net_weights_path = os.path.join(path, config.model_weights_name)
     logger.log("The new Model Weights will be Saved: {}".format(net_weights_path))
@@ -265,19 +266,19 @@ if __name__ == '__main__':
 
     # Load filtered data
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(
-                                                        filtered_data_file_name="full_filtered_data.p",
-                                                        # "mini_filtered_data.p",
+                                                        filtered_data_file_name="full_filtered_data",
+                                                        # "mini_filtered_data",
                                                         category='entities_visual_module')
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                                        relation_file_name="full_relations.p")
+                                        relation_file_name="full_relations")
 
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="full_detections.p")
+    detections = process_to_detections(relations, detections_file_name="full_detections")
 
     # Get new negative - positive ratio
-    detections = pick_different_negative_sample_ratio(detections, ratio=1.0/10)
+    detections = pick_different_negative_sample_ratio(detections, ratio=3.0/10)
 
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
@@ -288,25 +289,6 @@ if __name__ == '__main__':
     # predicate_classes_count, predicate_hierarchy_mapping = get_predicate_hierarchy_mapping_from_detections(detections,
     #                                                                                                        path,
     #                                                                                                        config=config)
-
-    # Create a data generator for VisualGenome without batch num
-    # data_gen_train_vg = visual_genome_data_generator(data=train_imgs,
-    #                                                  hierarchy_mapping=hierarchy_mapping_predicates,
-    #                                                  config=config, mode='train',
-    #                                                  classification=Detections.Predicate, type_box=Detections.UnionBox)
-    #
-    # # Create a data generator for VisualGenome
-    # data_gen_test_vg = visual_genome_data_generator(data=test_imgs,
-    #                                                 hierarchy_mapping=hierarchy_mapping_predicates,
-    #                                                 config=config, mode='test', classification=Detections.Predicate,
-    #                                                 type_box=Detections.UnionBox)
-    #
-    # # Create a data generator for VisualGenome
-    # data_gen_validation_vg = visual_genome_data_generator(data=val_imgs,
-    #                                                       hierarchy_mapping=hierarchy_mapping_predicates,
-    #                                                       config=config, mode='valid',
-    #                                                       classification=Detections.Predicate,
-    #                                                       type_box=Detections.UnionBox)
 
     # Create a data generator for VisualGenome with batch size
     data_gen_train_vg = visual_genome_data_generator_with_batch(data=train_imgs,

@@ -17,7 +17,7 @@ import math
 from FeaturesExtraction.Utils.Boxes import BOX
 from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH, get_img_resize, TRAINING_OBJECTS_CNN_PATH, TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img
 import time
-from FeaturesExtraction.Utils.data import get_filtered_data
+from FeaturesExtraction.Utils.data import get_filtered_data, get_name_from_file
 from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
 from FilesManager.FilesManager import FilesManager
 from Utils.Logger import Logger
@@ -217,14 +217,10 @@ if __name__ == '__main__':
     # Define GPU training
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)
 
-    # Load detections dtype numpy array
-    # detections = load_full_detections(detections_file_name="full_filtered_detections.p")
-
-    # ONLY MODULE
-    # detections = load_full_detections(detections_file_name="mini_module_filtered_detections_with_neg.p")
     # BOTH MODULE + VISUAL
-    detections = load_full_detections(detections_file_name="mini_all_filtered_detections_with_neg.p")
+    detections = load_full_detections(detections_file_name="full_detections")
     detections = sort_detections_by_url(detections)
+
     # region
     # Load hierarchy mappings
     # Get the hierarchy mapping objects
@@ -237,7 +233,7 @@ if __name__ == '__main__':
 
     # Load detections dtype numpy array and hierarchy mappings
     _, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                   "mini_filtered_data.p",
+                                                                                   "mini_filtered_data",
                                                                                    category='entities')
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
@@ -253,11 +249,6 @@ if __name__ == '__main__':
     # Set the number of classes
     number_of_classes_objects = len(hierarchy_mapping_objects)
     number_of_classes_predicates = len(hierarchy_mapping_predicates)
-
-    # Create a data generator for VisualGenome
-    # data_gen_validation_vg = visual_genome_data_parallel_generator(data=detections,
-    #                                                                hierarchy_mapping=hierarchy_mapping_objects,
-    #                                                                config=config, mode='valid')
 
     # Create a data generator for VisualGenome for OBJECTS
     data_gen_val_objects_vg = visual_genome_data_parallel_generator_with_batch(data=detections,
@@ -282,8 +273,8 @@ if __name__ == '__main__':
     save_weights(predict_model, file_name="last_layer_ratio3_weights.p")
 
     logger.log('Starting Prediction')
-    # region
 
+    # region
     # # Load Predicates
     # # load_predicts(file_name="mini_predicated_predicates_with_neg_ratio1_Wed_Jun_14_20:25:16_2017.p")
     #
@@ -308,8 +299,8 @@ if __name__ == '__main__':
     # logger.log("Finished successfully saving predicated_detections")
     #
     # exit()
-
     # endregion
+
     logger.log('Predicting Probabilities - Objects')
     # probes = object_model.predict_generator(data_gen_validation_vg, steps=len(detections) * 2, max_q_size=1, workers=1)
     # Probabilities: [nof_detections * 2, 150]

@@ -84,11 +84,11 @@ data:
             doc:  "Detections (ONLY FROM 108000 ENTITIES) includes positive and negative predicates 1X3"
 
         # Objects (for TrainCNN)
-        mini_detections:
+        mini_objects:
             name: "Data/VisualGenome/mini_visual_filtered_objects.p"
             type: "pickle"
             doc:  "Objects (ONLY FROM 1000 ENTITIES) only positive"
-        full_detections:
+        full_objects:
             name: "Data/VisualGenome/full_visual_filtered_objects.p"
             type: "pickle"
             doc:  "Objects (ONLY FROM 108000 ENTITIES) only positive"
@@ -131,7 +131,7 @@ scene_graph_base_module:
             doc: "detections of mini data with neg"
 
         object_cnn:
-            name: "FeaturesExtraction/ObjectCNN/Fri_Jun__2_19:16:26_2017/model_vg_resnet50.hdf5"
+            name: "FeaturesExtraction/ObjectsCNN/Fri_Jun__2_19:16:26_2017/model_vg_resnet50.hdf5"
             type: "dir"
             doc: "path to object cnn"
             versions:
@@ -141,9 +141,20 @@ scene_graph_base_module:
                     doc: "trained without negative examples"
 
         predicate_cnn:
-            name: "FeaturesExtraction/PredicateCNN/Wed_Jun_14_20:25:16_2017/model_vg_resnet50.hdf5"
+            name: "FeaturesExtraction/PredicatesCNN/Fri_Jun__2_20:00:24_2017/model_vg_resnet50.hdf5"
+            type: "dir"
+            doc: "path to predicate cnn. A network which trained on the best 50 most probable predicats in the data (without neg)"
+
+        image_net_tf:
+            name: "Temp/resnet50_weights_tf_dim_ordering_th_kernels_notop.h5"
             type: "dir"
             doc: "path to predicate cnn"
+
+        image_net_th:
+            name: "Temp/resnet50_weights_th_dim_ordering_th_kernels_notop.h5"
+            type: "dir"
+            doc: "path to predicate cnn"
+
     train:
         params:
             name: "SceneGraphBaseModule/Train/params.yaml"

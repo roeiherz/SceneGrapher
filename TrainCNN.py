@@ -17,7 +17,7 @@ import sys
 import matplotlib.pyplot as plt
 from FeaturesExtraction.Utils.Utils import get_time_and_date, TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE, replace_top_layer, get_sorting_url
 from Utils.Utils import create_folder
-from FeaturesExtraction.Utils.data import splitting_to_datasets, get_filtered_data
+from FeaturesExtraction.Utils.data import splitting_to_datasets, get_filtered_data, get_name_from_file
 from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
 from FilesManager.FilesManager import FilesManager
 from Utils.Logger import Logger
@@ -50,14 +50,14 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
     :return: list of ObjectMapping
     """
 
+    object_path_token = "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(object_file_name))
+
     # Check if pickles are already created
-    objects_path = filemanager.get_file_path(
-        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(object_file_name)))
+    objects_path = filemanager.get_file_path(object_path_token)
 
     if os.path.isfile(objects_path):
         logger.log('File is already exist {0}'.format(objects_path))
-        objects = filemanager.load_file(
-            "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(relation_file_name)))
+        objects = filemanager.load_file(object_path_token)
         return objects
 
     # Bad urls which should be sorted out
@@ -98,7 +98,7 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
     # Pickle objects_lst
     objects_array = np.array(objects_lst)
     # Save the objects files to the disk
-    filemanager.save_file(objects_path, objects_array)
+    filemanager.save_file(object_path_token, objects_array)
     return objects_array
 
 
@@ -192,7 +192,7 @@ def sorting_urls(train_imgs, test_imgs, val_imgs):
           "the number of validation samples: {2}".format(len(real_train_imgs),
                                                          len(real_test_imgs),
                                                          len(real_val_imgs)))
-    return real_val_imgs, real_test_imgs, real_val_imgs
+    return real_train_imgs, real_test_imgs, real_val_imgs
 
 if __name__ == '__main__':
 
@@ -231,11 +231,11 @@ if __name__ == '__main__':
     create_folder(path)
     # loading model weights
     if config.loading_model:
-        net_weights = os.path.join(config.loading_model_folder, config.model_weights_name)
+        net_weights = filemanager.get_file_path(config.loading_model_token)
         logger.log("Loading Weights from: {}".format(net_weights))
     else:
         # The Weights for training
-        net_weights = config.base_net_weights
+        net_weights = filemanager.get_file_path(config.base_net_weights)
         logger.log("Taking Base Weights from: {}".format(net_weights))
     net_weights_path = os.path.join(path, config.model_weights_name)
     logger.log("The new Model Weights will be Saved: {}".format(net_weights_path))
@@ -245,18 +245,14 @@ if __name__ == '__main__':
     #                                                              entities_file_name="final_entities.p",
     #                                                              nof_labels=NOF_LABELS)
 
-    entities, hierarchy_mapping_objects, _ = get_filtered_data(filtered_data_file_name="filtered_module_data.p")
+    entities, hierarchy_mapping_objects, _ = get_filtered_data(filtered_data_file_name="full_filtered_data")
 
     # Get Visual Genome Data objects
-    objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="filtered_objects.p")
+    objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="full_objects")
 
     # If there is too much data tak only part pf the data
     if len(objects) > MAX_NOF_SAMPLES_THR:
         objects = objects[:MAX_NOF_SAMPLES]
-
-    # new_hierarchy_mapping = create_new_hierarchy_mapping(hierarchy_mapping)
-    # Get the updating class_mapping and hierarchy_mapping by mapping and save them in Training Folder
-    # classes_count, hierarchy_mapping = get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path, config=config)
 
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(objects, training_percent=TRAINING_PERCENT,
                                                             testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
@@ -270,14 +266,6 @@ if __name__ == '__main__':
         number_of_classes = config.nof_classes
     else:
         number_of_classes = len(hierarchy_mapping_objects)
-
-    # Create a data generator for VisualGenome - old with no batch size
-    # data_gen_train_vg = visual_genome_data_cnn_generator(data=train_imgs, hierarchy_mapping=hierarchy_mapping_objects,
-    #                                                      config=config, mode='train')
-    # data_gen_test_vg = visual_genome_data_cnn_generator(data=test_imgs, hierarchy_mapping=hierarchy_mapping_objects,
-    #                                                     config=config, mode='test')
-    # data_gen_validation_vg = visual_genome_data_cnn_generator(data=val_imgs, hierarchy_mapping=hierarchy_mapping_objects,
-    #                                                           config=config, mode='validation')
 
     data_gen_train_vg = visual_genome_data_cnn_generator_with_batch(data=train_imgs,
                                                                     hierarchy_mapping=hierarchy_mapping_objects,
