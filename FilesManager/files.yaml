@@ -146,12 +146,12 @@ scene_graph_base_module:
             doc: "path to predicate cnn. A network which trained on the best 50 most probable predicats in the data (without neg)"
 
         image_net_tf:
-            name: "Temp/resnet50_weights_tf_dim_ordering_th_kernels_notop.h5"
+            name: "../Temp/resnet50_weights_tf_dim_ordering_th_kernels_notop.h5"
             type: "dir"
             doc: "path to predicate cnn"
 
         image_net_th:
-            name: "Temp/resnet50_weights_th_dim_ordering_th_kernels_notop.h5"
+            name: "../Temp/resnet50_weights_th_dim_ordering_th_kernels_notop.h5"
             type: "dir"
             doc: "path to predicate cnn"
 
