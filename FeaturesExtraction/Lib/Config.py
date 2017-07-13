@@ -10,8 +10,8 @@ class Config:
     def __init__(self, gpu_num):
 
         # Do we continuing to train or start from fresh
-        self.loading_model = True
-        self.loading_model_folder = "FeaturesExtraction/ObjectsCNN/Fri_Jun__2_19:16:26_2017"
+        self.loading_model = False
+        self.loading_model_folder = "FeaturesExtraction/ObjectsCNN/Thu_Jun__1_18:59:51_2017"
         self.loading_model_token = "scene_graph_base_module.visual_module.object_cnn"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
@@ -19,7 +19,7 @@ class Config:
         # Load weights
         self.load_weights = True
         # Replace the Dense layer
-        self.replace_top = True
+        self.replace_top = False
         # If we replace top, what is the old top number of classes
         if self.replace_top:
             self.nof_classes = 150
