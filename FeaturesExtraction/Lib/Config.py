@@ -10,27 +10,28 @@ class Config:
     def __init__(self, gpu_num):
 
         # Do we continuing to train or start from fresh
-        self.loading_model = True
-        self.loading_model_folder = "FeaturesExtraction/TrainingPredicatesCNN/Fri_Jun__2_20:00:24_2017"
+        self.loading_model = False
+        self.loading_model_folder = "FeaturesExtraction/ObjectsCNN/Thu_Jun__1_18:59:51_2017"
+        self.loading_model_token = "scene_graph_base_module.visual_module.object_cnn"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
         self.use_cache_dir = False
         # Load weights
         self.load_weights = True
         # Replace the Dense layer
-        self.replace_top = True
+        self.replace_top = False
         # If we replace top, what is the old top number of classes
         if self.replace_top:
-            self.nof_classes = 50
+            self.nof_classes = 150
 
         # location of pre-trained weights for the base network
         # weight files can be found at:
         # https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5
         # https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5
         if K.image_dim_ordering() == 'th':
-            self.base_net_weights = 'Weights/resnet50_weights_th_dim_ordering_th_kernels_notop.h5'
+            self.base_net_weights = 'scene_graph_base_module.visual_module.image_net_th'
         else:
-            self.base_net_weights = 'Weights/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
+            self.base_net_weights = "scene_graph_base_module.visual_module.image_net_tf"
 
         # For debugging
         self.debug = False

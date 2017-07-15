@@ -455,14 +455,14 @@ def process_to_detections(relations, detections_file_name="detections.p", debug=
     """
     filemanager = FilesManager()
 
+    detections_path_token = "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(detections_file_name))
+
     # Check if pickles are already created
-    detections_path = filemanager.get_file_path(
-        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(detections_file_name)))
+    detections_path = filemanager.get_file_path(detections_path_token)
 
     if os.path.isfile(detections_path):
         print('File is already exist {0}'.format(detections_path))
-        detections = filemanager.load_file(
-            "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(detections_path)))
+        detections = filemanager.load_file(detections_path_token)
         return detections
 
     bad_urls = get_sorting_url()
@@ -530,7 +530,7 @@ def process_to_detections(relations, detections_file_name="detections.p", debug=
         id += 1
 
     # Pickle detections numpy Detection dtype
-    filemanager.save_file(detections_path, detections)
+    filemanager.save_file(detections_path_token, detections)
 
     return detections
 
