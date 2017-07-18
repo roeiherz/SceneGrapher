@@ -8,7 +8,8 @@ class Module(object):
     """
 
     def __init__(self, nof_predicates, nof_objects, visual_features_predicate_size, visual_features_object_size,
-                 rnn_steps=3, is_train=True):
+                 rnn_steps=3, is_train=True,
+                 learning_rate=0.1, learning_rate_steps=1000, learning_rate_decay=0.5):
         """
         Construct module:
         - create input placeholders
@@ -25,6 +26,9 @@ class Module(object):
         :param is_train: whether the module will be used to train or eval
         """
         ## save input
+        self.learning_rate_decay = learning_rate_decay
+        self.learning_rate_steps = learning_rate_steps
+        self.learning_rate = learning_rate
         self.nof_predicates = nof_predicates
         self.nof_objects = nof_objects
         self.visual_features_predicate_size = visual_features_predicate_size
@@ -222,7 +226,7 @@ class Module(object):
 
             return out_belief_predicate, out_belief_object
 
-    def module_loss(self, lr=0.1, lr_steps=1000, lr_decay=0.5, scope_name="loss"):
+    def module_loss(self, scope_name="loss"):
         """
         Set and minimize module loss
         :param lr: init learning rate
@@ -246,8 +250,8 @@ class Module(object):
 
             # minimize
             global_step = tf.Variable(0, trainable=False)
-            learning_rate = tf.train.exponential_decay(lr, global_step, lr_steps,
-                                                       lr_decay, staircase=True)
+            learning_rate = tf.train.exponential_decay(self.learning_rate, global_step, self.learning_rate_steps,
+                                                       self.learning_rate_decay, staircase=True)
             train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
 
         return loss, train_step

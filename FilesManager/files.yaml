@@ -118,9 +118,20 @@ features_extraction:
 
     language:
 
-scene_graph_module:
+sg_module:
     train:
-
+      tf_logs:
+        name: "module/tf_logs"
+        type: "dir"
+        doc: "holds tensor flow log"
+      saver:
+        name: "module/saver"
+        type: "dir"
+        doc: "stores module weights"
+      params:
+          name: "module/params.yaml"
+          type: "yaml"
+          doc: "train parameters"
     eval:
 
 scene_graph_base_module:

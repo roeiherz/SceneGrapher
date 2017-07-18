@@ -1,7 +1,13 @@
+import inspect
+from multiprocessing import Process
+
+from FilesManager.FilesManager import FilesManager
 from Module import Module
 import tensorflow as tf
 import numpy as np
 import os
+
+from Utils.Logger import Logger
 
 VISUAL_FEATURES_PREDICATE_SIZE = 2048
 # VISUAL_FEATURES_PREDICATE_SIZE = 2
@@ -11,19 +17,40 @@ NOF_PREDICATES = 51
 # NOF_PREDICATES = 2
 NOF_OBJECTS = 150
 # NOF_OBJECTS = 2
-NOF_ITERATIONS = 100
 
 
-LOAD_MODEL_NAME = "module.ckpt"
-USE_SAVED_MODEL = False
-SAVE_MODEL_NAME = "module.ckpt"
 
+def train(name="test",
+          nof_iterations=100,
+          learning_rate=0.1,
+          learning_rate_steps=1000,
+          learning_rate_decay=0.5,
+          load_module_name="module.ckpt",
+          use_saved_module=False,
+          gpu=0):
 
-if __name__ == "__main__":
+    filesmanager = FilesManager()
+    logger_path = filesmanager.get_file_path("logs")
+    logger_path = os.path.join(logger_path, name)
+    # create logger
+    logger = Logger(name, logger_path)
+
+    # print train params
+    frame = inspect.currentframe()
+    args, _, _, values = inspect.getargvalues(frame)
+    logger.log('function name "%s"' % inspect.getframeinfo(frame)[2])
+    for i in args:
+        logger.log("    %s = %s" % (i, values[i]))
+
+    # set gpu
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+    logger.log("os.environ[\"CUDA_VISIBLE_DEVICES\"] = " + str(gpu))
+
     # create module
     module = Module(nof_predicates=NOF_PREDICATES, nof_objects=NOF_OBJECTS,
                     visual_features_predicate_size=VISUAL_FEATURES_PREDICATE_SIZE,
-                    visual_features_object_size=VISUAL_FEATURES_OBJECT_SIZE, is_train=True)
+                    visual_features_object_size=VISUAL_FEATURES_OBJECT_SIZE, is_train=True,
+                    learning_rate=learning_rate, learning_rate_steps=learning_rate_steps, learning_rate_decay=learning_rate_decay)
 
     # get input place holders
     belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph = module.get_in_ph()
@@ -40,14 +67,17 @@ if __name__ == "__main__":
     saver = tf.train.Saver()
 
     # Define Summaries
-    summary_writer = tf.summary.FileWriter('logs/', graph=tf.get_default_graph())
+    tf_logs_path = filesmanager.get_file_path("sg_module.train.tf_logs")
+    summary_writer = tf.summary.FileWriter(tf_logs_path, graph=tf.get_default_graph())
     summaries = tf.summary.merge_all()
 
     with tf.Session() as sess:
         # Restore variables from disk.
-        if os.path.exists(LOAD_MODEL_NAME + ".index") and USE_SAVED_MODEL:
-            saver.restore(sess, "./" + LOAD_MODEL_NAME)
-            print("Model restored.")
+        module_path = filesmanager.get_file_path("sg_module.train.saver")
+        module_path_load = os.path.join(module_path, load_module_name)
+        if os.path.exists(module_path_load + ".index") and use_saved_module:
+            saver.restore(sess, module_path)
+            logger.log("Model restored.")
         else:
             sess.run(init)
 
@@ -66,17 +96,45 @@ if __name__ == "__main__":
                      labels_predicate_ph: labels_predicate, labels_object_ph: labels_object}
 
         # train module
-        for i in range(NOF_ITERATIONS):
+        for i in range(nof_iterations):
             out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val = \
                 sess.run([out_belief_predicate, out_belief_object, loss, train_step],
                     feed_dict=feed_dict)
 
-            print("iter %d - loss %f" % (i, loss_val))
+            logger.log("iter %d - loss %f" % (i, loss_val))
 
         print("Debug")
 
         # save module
-        save_path = saver.save(sess, SAVE_MODEL_NAME)
-        print("Model saved in file: %s" % save_path)
+        module_path_save = os.path.join(module_path, name + "_module.ckpt")
+        save_path = saver.save(sess, module_path_save)
+        logger.log("Model saved in file: %s" % save_path)
 
     print("Debug")
+
+if __name__ == "__main__":
+    filemanager = FilesManager()
+
+    params = filemanager.load_file("sg_module.train.params")
+
+    nof_processes = params["nof_p"]
+
+    processes = []
+    for process in range(1, nof_processes + 1):
+        process_params = params[process]
+        name = process_params["name"]
+        learning_rate = process_params["learning_rate"]
+        learning_rate_steps = process_params["learning_rate_steps"]
+        learning_rate_decay = process_params["learning_rate_decay"]
+        nof_iterations = process_params["nof_iterations"]
+        load_model_name = process_params["load_model_name"]
+        use_saved_model = process_params["use_saved_model"]
+        gpu = process_params["gpu"]
+        p = Process(target=train, args=(
+            name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name, use_saved_model, gpu))
+        p.start()
+        processes.append(p)
+
+    # wait until all processes done
+    for p in processes:
+        p.join()
