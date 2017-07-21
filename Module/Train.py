@@ -16,8 +16,55 @@ VISUAL_FEATURES_OBJECT_SIZE = 2048
 NOF_PREDICATES = 51
 # NOF_PREDICATES = 2
 NOF_OBJECTS = 150
+
+
 # NOF_OBJECTS = 2
 
+
+
+def test(labels_predicate, labels_object, out_belief_predicate_val, out_belief_object_val):
+    """
+    returns a dictionary with statistics about object, predicate and relationship accuracy in this image
+    :param labels_predicate: labels of image predicates (each one is one hot vector) - shape (N, N, NOF_PREDICATES)
+    :param labels_object: labels of image objects (each one is one hot vector) - shape (N, NOF_OBJECTS)
+    :param out_belief_predicate_val: belief of image predicates - shape (N, N, NOF_PREDICATES)
+    :param out_belief_object_val: belief of image objects - shape (N, NOF_OBJECTS)
+    :return: see description
+    """
+    predicats_gt = np.argmax(labels_predicate, axis=2)
+    objects_gt = np.argmax(labels_object, axis=1)
+    predicats_pred = np.argmax(out_belief_predicate_val, axis=2)
+    objects_pred = np.argmax(out_belief_object_val, axis=1)
+
+    results = {}
+    # number of objects
+    results["obj_total"] = objects_gt.shape[0]
+    # number of predicates / relationships
+    results["predicates_total"] = predicats_gt.shape[0] * predicats_gt.shape[1]
+    # number of positive predicates / relationships
+    pos_indices = np.where(predicats_gt != NOF_PREDICATES - 1)
+    results["predicates_pos_total"] = pos_indices[0].shape[0]
+
+    # number of object correct predictipns
+    results["obj_correct"] = np.sum(objects_gt == objects_pred)
+    # number of correct predicate
+    results["predicates_correct"] = np.sum(predicats_gt == predicats_pred)
+    # number of correct positive predicates
+    predicats_gt_pos = predicats_gt[pos_indices]
+    predicats_pred_pos = predicats_pred[pos_indices]
+    results["predicates_pos_correct"] = np.sum(predicats_gt_pos == predicats_pred_pos)
+    # number of correct relationships
+    object_true_indices = np.where(objects_gt == objects_pred)
+    predicats_gt_true = predicats_gt[object_true_indices, object_true_indices]
+    predicats_pred_true = predicats_pred[object_true_indices, object_true_indices]
+    results["relationships_correct"] = np.sum(predicats_gt_true == predicats_pred_true)
+    # number of correct postive relationships
+    pos_true_indices = np.where(predicats_gt_true != NOF_PREDICATES - 1)
+    predicats_gt_pos_true = predicats_gt_true[pos_true_indices]
+    predicats_pred_pos_true = predicats_pred_true[pos_true_indices]
+    results["relationships_pos_correct"] = np.sum(predicats_gt_pos_true == predicats_pred_pos_true)
+
+    return results
 
 
 def train(name="test",
@@ -28,7 +75,6 @@ def train(name="test",
           load_module_name="module.ckpt",
           use_saved_module=False,
           gpu=0):
-
     filesmanager = FilesManager()
     logger_path = filesmanager.get_file_path("logs")
     logger_path = os.path.join(logger_path, name)
@@ -50,7 +96,8 @@ def train(name="test",
     module = Module(nof_predicates=NOF_PREDICATES, nof_objects=NOF_OBJECTS,
                     visual_features_predicate_size=VISUAL_FEATURES_PREDICATE_SIZE,
                     visual_features_object_size=VISUAL_FEATURES_OBJECT_SIZE, is_train=True,
-                    learning_rate=learning_rate, learning_rate_steps=learning_rate_steps, learning_rate_decay=learning_rate_decay)
+                    learning_rate=learning_rate, learning_rate_steps=learning_rate_steps,
+                    learning_rate_decay=learning_rate_decay)
 
     # get input place holders
     belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph = module.get_in_ph()
@@ -83,25 +130,54 @@ def train(name="test",
 
         # fake data to test
         N = 3
-        belief_predicate = np.arange(N*N*NOF_PREDICATES).reshape(N, N, NOF_PREDICATES)
-        belief_object = np.arange(1000, 1000 + N * NOF_OBJECTS).reshape(N, NOF_OBJECTS)
+        belief_predicate = np.zeros((N, N, NOF_PREDICATES))
+        belief_object = np.zeros((N, NOF_OBJECTS))
         extended_belief_object_shape = np.asarray(belief_predicate.shape)
         extended_belief_object_shape[2] = NOF_OBJECTS
-        visual_features_predicate = np.arange(2000, 2000 + N*N*VISUAL_FEATURES_PREDICATE_SIZE).reshape(N, N, VISUAL_FEATURES_PREDICATE_SIZE)
-        visual_features_object = np.arange(3000, 3000 + N*VISUAL_FEATURES_OBJECT_SIZE).reshape(N, VISUAL_FEATURES_OBJECT_SIZE)
-        labels_predicate = np.ones((N, N, NOF_PREDICATES))
-        labels_object = np.ones((N, NOF_OBJECTS))
-        feed_dict = {belief_predicate_ph: belief_predicate, belief_object_ph: belief_object, extended_belief_object_shape_ph: extended_belief_object_shape,
-                     visual_features_predicate_ph: visual_features_predicate, visual_features_object_ph: visual_features_object,
+        visual_features_predicate = np.arange(2000, 2000 + N * N * VISUAL_FEATURES_PREDICATE_SIZE).reshape(N, N,
+                                                                                                           VISUAL_FEATURES_PREDICATE_SIZE)
+        visual_features_object = np.arange(3000, 3000 + N * VISUAL_FEATURES_OBJECT_SIZE).reshape(N,
+                                                                                                 VISUAL_FEATURES_OBJECT_SIZE)
+        labels_predicate = np.zeros((N, N, NOF_PREDICATES))
+        for i in range(N):
+            for j in range(N):
+                labels_predicate[i][j][i * j] = 1
+        labels_object = np.zeros((N, NOF_OBJECTS))
+        for i in range(N):
+            labels_object[i][i] = 1
+
+        feed_dict = {belief_predicate_ph: belief_predicate, belief_object_ph: belief_object,
+                     extended_belief_object_shape_ph: extended_belief_object_shape,
+                     visual_features_predicate_ph: visual_features_predicate,
+                     visual_features_object_ph: visual_features_object,
                      labels_predicate_ph: labels_predicate, labels_object_ph: labels_object}
 
         # train module
+        accum_results = None
         for i in range(nof_iterations):
             out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val = \
                 sess.run([out_belief_predicate, out_belief_object, loss, train_step],
-                    feed_dict=feed_dict)
+                         feed_dict=feed_dict)
 
-            logger.log("iter %d - loss %f" % (i, loss_val))
+            results = test(labels_predicate, labels_object, out_belief_predicate_val, out_belief_object_val)
+            # accumulate results
+            if accum_results is None:
+                accum_results = results
+            else:
+                for key in results:
+                    accum_results[key] += results[key]
+            # print stat
+            obj_accuracy = float(results['obj_correct']) / results['obj_total']
+            predicate_pos_accuracy = float(results['predicates_pos_correct']) / results['predicates_pos_total']
+            predicate_all_accuracy = float(results['predicates_correct']) / results['predicates_total']
+            relationships_pos_accuracy = float(results['relationships_pos_correct']) / results['predicates_pos_total']
+            relationships_all_accuracy = float(results['relationships_correct']) / results['predicates_total']
+            relationships_accum_accuracy = float(accum_results['relationships_correct']) / accum_results[
+                'predicates_total']
+
+            logger.log("iter %d - loss %f - obj %f - pred %f - rela %f - all_pred %f - all rela %f " %
+                       (i, loss_val, obj_accuracy, predicate_pos_accuracy, relationships_pos_accuracy,
+                        predicate_all_accuracy, relationships_all_accuracy))
 
         print("Debug")
 
@@ -111,6 +187,7 @@ def train(name="test",
         logger.log("Model saved in file: %s" % save_path)
 
     print("Debug")
+
 
 if __name__ == "__main__":
     filemanager = FilesManager()
@@ -131,7 +208,8 @@ if __name__ == "__main__":
         use_saved_model = process_params["use_saved_model"]
         gpu = process_params["gpu"]
         p = Process(target=train, args=(
-            name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name, use_saved_model, gpu))
+            name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
+            use_saved_model, gpu))
         p.start()
         processes.append(p)
 

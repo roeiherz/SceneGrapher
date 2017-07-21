@@ -1,10 +1,10 @@
 nof_p: 1
 1:
     name: test
-    nof_iterations: 105
+    nof_iterations: 100000
     learning_rate: 0.01
     learning_rate_steps: 1000
-    learning_rate_decay: 1000
+    learning_rate_decay: 0.5
     load_model_name: "model.ckpt"
     use_saved_model: False
     gpu: 0
@@ -14,7 +14,6 @@ nof_p: 1
     learning_rate: 0.01
     learning_rate_steps: 1000
     learning_rate_decay: 0.5
-    save_model_name: "model.ckpt"
     load_model_name: "model.ckpt"
     use_saved_model: False
     gpu: 1
