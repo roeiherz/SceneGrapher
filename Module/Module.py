@@ -55,7 +55,7 @@ class Module(object):
 
         self.extended_belief_object_shape_ph = tf.placeholder(dtype=tf.int32, shape=(3), name="extended_belief_object_shape")
 
-        ## labels
+        # labels
         self.labels_predicate_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, self.nof_predicates),
                                                   name="labels_predicate")
         self.labels_object_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects), name="labels_object")
@@ -105,11 +105,10 @@ class Module(object):
             self.nn_predicate_b_3 = tf.get_variable(name="b3", shape=(out_size),
                                                     initializer=tf.truncated_normal_initializer())
 
-    def nn_predicate(self, features, out_size, out_shape, scope_name="nn_predicate"):
+    def nn_predicate(self, features, out_shape, scope_name="nn_predicate"):
         """
         simple nn to convert features to belief
         :param features: features tensor
-        :param out_size: nof labels of a belief
         :param out_shape: output shape (used to reshape to required output shape)
         :param scope_name: tensorflow scope name
         :return:
@@ -218,7 +217,7 @@ class Module(object):
                     axis=1, name="object_all_features")
 
             # fully cnn to calc belief predicate for every subject and object
-            out_belief_predicate = self.nn_predicate(predicate_all_features, out_size=self.nof_predicates,
+            out_belief_predicate = self.nn_predicate(predicate_all_features,
                                       out_shape=tf.shape(in_belief_predicate))
 
             # fully cnn to calc belief object for every object
