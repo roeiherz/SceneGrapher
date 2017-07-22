@@ -56,16 +56,17 @@ class Module(object):
         self.extended_belief_object_shape_ph = tf.placeholder(dtype=tf.int32, shape=(3), name="extended_belief_object_shape")
 
         # labels
-        self.labels_predicate_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, self.nof_predicates),
-                                                  name="labels_predicate")
-        self.labels_object_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects), name="labels_object")
+        if self.is_train:
+            self.labels_predicate_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, self.nof_predicates),
+                                                      name="labels_predicate")
+            self.labels_object_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects), name="labels_object")
 
         # single rnn stage module
         belief_predicate = self.belief_predicate_ph
         belief_object = self.belief_object_ph
 
         for step in range(self.rnn_steps):
-            belief_predicate, belief_object = \
+            belief_predicate, belief_object, last_layer_predicate, last_layer_object = \
             self.rnn_stage(in_visual_features_predicate=self.visual_features_predicate_ph,
                            in_visual_features_object=self.visual_features_object_ph,
                            in_belief_predicate=belief_predicate,
@@ -75,9 +76,12 @@ class Module(object):
 
         self.out_belief_predicate = belief_predicate
         self.out_belief_object = belief_object
+        self.last_layer_predicate = last_layer_predicate
+        self.last_layer_object = last_layer_object
 
         # loss
-        self.loss, self.train_step = self.module_loss()
+        if self.is_train:
+            self.loss, self.train_step = self.module_loss()
 
     def nn_predicate_weights(self, in_size, out_size):
         # h1_size = 2 * in_size
@@ -120,13 +124,14 @@ class Module(object):
             h1 = tf.nn.tanh(tf.matmul(input_features, self.nn_predicate_w_1) + self.nn_predicate_b_1, name="h1")
             h2 = tf.nn.tanh(tf.matmul(h1, self.nn_predicate_w_2) + self.nn_predicate_b_2, name="h2")
             y = tf.add(tf.matmul(h2, self.nn_predicate_w_3), self.nn_predicate_b_3, name="y")
-            if not self.is_train:
-                y = tf.nn.softmax(y, name="y")
+
+            out = tf.nn.softmax(y, name="y")
 
             # reshape to fit the required output dims
-            out = tf.reshape(y, out_shape)
+            y = tf.reshape(y, out_shape)
+            out = tf.reshape(out, out_shape)
 
-        return out
+        return out , y
     def nn_object_weights(self, in_size, out_size):
         # h1_size = 2 * in_size
         h1_size = 100
@@ -167,10 +172,10 @@ class Module(object):
             h1 = tf.nn.tanh(tf.matmul(features, self.nn_object_w_1) + self.nn_object_b_1, name="h1")
             h2 = tf.nn.tanh(tf.matmul(h1, self.nn_object_w_2) + self.nn_object_b_2, name="h2")
             y = tf.add(tf.matmul(h2, self.nn_object_w_3), self.nn_object_b_3, name="y")
-            if not self.is_train:
-                y = tf.nn.softmax(y, name="y")
 
-        return y
+            out = tf.nn.softmax(y, name="out")
+
+        return out, y
 
     def rnn_stage(self, in_visual_features_predicate, in_visual_features_object, in_belief_predicate, in_belief_object,
                   in_extended_belief_object_shape, scope_name="rnn_cell"):
@@ -217,13 +222,13 @@ class Module(object):
                     axis=1, name="object_all_features")
 
             # fully cnn to calc belief predicate for every subject and object
-            out_belief_predicate = self.nn_predicate(predicate_all_features,
+            out_belief_predicate, last_layer_predicate = self.nn_predicate(predicate_all_features,
                                       out_shape=tf.shape(in_belief_predicate))
 
             # fully cnn to calc belief object for every object
-            out_belief_object = self.nn_object(object_all_features, out_size=self.nof_objects)
+            out_belief_object, last_layer_object = self.nn_object(object_all_features, out_size=self.nof_objects)
 
-            return out_belief_predicate, out_belief_object
+            return out_belief_predicate, out_belief_object, last_layer_predicate, last_layer_object
 
     def module_loss(self, scope_name="loss"):
         """
@@ -236,14 +241,14 @@ class Module(object):
         """
         with tf.variable_scope(scope_name):
             # reshape to batch like shape
-            shaped_belief_predicate = tf.reshape(self.out_belief_predicate, (-1, self.nof_predicates))
+            shaped_belief_predicate = tf.reshape(self.last_layer_predicate, (-1, self.nof_predicates))
             shaped_labels_predicate = tf.reshape(self.labels_predicate_ph, (-1, self.nof_predicates))
 
             # set loss
             loss_predicate = tf.nn.softmax_cross_entropy_with_logits(labels=shaped_labels_predicate,
                                                                      logits=shaped_belief_predicate,
                                                                      name="loss_predicate")
-            loss_object = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph, logits=self.out_belief_object,
+            loss_object = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph, logits=self.last_layer_object,
                                                                   name="loss_object")
             loss = tf.add(tf.reduce_sum(loss_predicate), tf.reduce_sum(loss_object), name="loss")
 

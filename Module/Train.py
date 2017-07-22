@@ -175,9 +175,9 @@ def train(name="test",
             relationships_accum_accuracy = float(accum_results['relationships_correct']) / accum_results[
                 'predicates_total']
 
-            logger.log("iter %d - loss %f - obj %f - pred %f - rela %f - all_pred %f - all rela %f " %
+            logger.log("iter %d - loss %f - obj %f - pred %f - rela %f - all_pred %f - all rela %f accum - %f" %
                        (i, loss_val, obj_accuracy, predicate_pos_accuracy, relationships_pos_accuracy,
-                        predicate_all_accuracy, relationships_all_accuracy))
+                        predicate_all_accuracy, relationships_all_accuracy, relationships_accum_accuracy))
 
         print("Debug")
 
