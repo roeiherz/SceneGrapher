@@ -56,7 +56,7 @@ class Module(object):
         self.extended_belief_object_shape_ph = tf.placeholder(dtype=tf.int32, shape=(3), name="extended_belief_object_shape")
 
         # labels
-        if self.is_train:
+        if not self.is_train:
             self.labels_predicate_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, self.nof_predicates),
                                                       name="labels_predicate")
             self.labels_object_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects), name="labels_object")
