@@ -422,9 +422,10 @@ def visual_genome_data_generator(data, hierarchy_mapping, config, mode, classifi
                 print(str(e))
 
 
-def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config, mode, batch_size=128):
+def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config, mode, batch_size=128, evaluate=False):
     """
     This function is a generator for only objects for CNN
+    :param evaluate: A flag which indicates if we evaluate in PredictFeaturesModule 
     :param batch_size: batch size
     :param data: dictionary of Data
     :param hierarchy_mapping: hierarchy mapping
@@ -434,7 +435,12 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
 
     correct_labels = hierarchy_mapping.keys()
     size = len(data)
-    num_of_batches_per_epoch = size / batch_size
+
+    # The number of batches per epoch depends if size % batch_size == 0
+    if size % batch_size == 0:
+        num_of_batches_per_epoch = size / batch_size
+    else:
+        num_of_batches_per_epoch = size / batch_size + 1
 
     while True:
 
@@ -444,8 +450,17 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
                 imgs = []
                 labels = []
 
+                if evaluate:
+                    print("Prediction Batch Number is {0}/{1}".format(batch_num + 1, num_of_batches_per_epoch))
+
+                # Define number of samples per batch
+                if batch_size * (batch_num + 1) >= size:
+                    nof_samples_per_batch = size - batch_size * batch_num
+                else:
+                    nof_samples_per_batch = batch_size
+
                 # Start one batch
-                for current_index in range(batch_size):
+                for current_index in range(nof_samples_per_batch):
                     ind = batch_num * batch_size + current_index
                     object = data[ind]
                     img = get_img(object.url)

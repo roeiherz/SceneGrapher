@@ -54,3 +54,8 @@ mini_predicated_predicates_with_neg_ratio1_Wed_Jun_14_20:25:16_2017.p
 NEW-CONFIGS
 ratio 3./10 to 1 with pre-processed data
 FilesManager/FeaturesExtraction/PredicatesCNN/Tue_Jul_11_21:43:30_2017
+
+USED in base case
+-------------------
+objects: Fri_Jun__2_19:16:26_2017
+predicates: Wed_Jun_14_20:25:16_2017
