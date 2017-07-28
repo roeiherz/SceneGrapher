@@ -115,8 +115,23 @@ data:
 
 features_extraction:
     visual:
+        mini_detections_with_probs_and_features:
+            name: "FeaturesExtraction/PredicatedFeatures/"
+            type: "dir"
+            doc: "path to new entities which contains also objects probabilities and features and predicates probabilities and features for module"
+            versions:
+                1:
+                    date: "xx:xx:xx"
+                    name: "FeaturesExtraction/PredicatedFeatures/predicated_entities.p"
+                    doc: ""
+
+        full_detections_with_probs:
+            name: "Data/VisualGenome/full_detections_with_probs.p"
+            type: "pickle"
+            doc:  "Detections (ONLY FROM 108000 ENTITIES) with Probabilities and predicate features includes positive and negative predicates 1X3"
 
     language:
+
 
 sg_module:
     train:

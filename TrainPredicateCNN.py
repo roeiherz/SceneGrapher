@@ -5,7 +5,7 @@ from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger
 from keras.optimizers import Adam
 from Data.VisualGenome.models import ObjectMapping, RelationshipMapping
 from DesignPatterns.Detections import Detections
-from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_generator_with_batch
+from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_predicate_generator_with_batch
 from FeaturesExtraction.Lib.Zoo import ModelZoo
 import os
 import cPickle
@@ -291,26 +291,26 @@ if __name__ == '__main__':
     #                                                                                                        config=config)
 
     # Create a data generator for VisualGenome with batch size
-    data_gen_train_vg = visual_genome_data_generator_with_batch(data=train_imgs,
-                                                                hierarchy_mapping=hierarchy_mapping_predicates,
-                                                                config=config, mode='train',
-                                                                classification=Detections.Predicate,
-                                                                type_box=Detections.UnionBox, batch_size=NUM_BATCHES)
+    data_gen_train_vg = visual_genome_data_predicate_generator_with_batch(data=train_imgs,
+                                                                          hierarchy_mapping=hierarchy_mapping_predicates,
+                                                                          config=config, mode='train',
+                                                                          classification=Detections.Predicate,
+                                                                          type_box=Detections.UnionBox, batch_size=NUM_BATCHES)
 
     # Create a data generator for VisualGenome
-    data_gen_test_vg = visual_genome_data_generator_with_batch(data=test_imgs,
-                                                               hierarchy_mapping=hierarchy_mapping_predicates,
-                                                               config=config, mode='test',
-                                                               classification=Detections.Predicate,
-                                                               type_box=Detections.UnionBox, batch_size=NUM_BATCHES)
+    data_gen_test_vg = visual_genome_data_predicate_generator_with_batch(data=test_imgs,
+                                                                         hierarchy_mapping=hierarchy_mapping_predicates,
+                                                                         config=config, mode='test',
+                                                                         classification=Detections.Predicate,
+                                                                         type_box=Detections.UnionBox, batch_size=NUM_BATCHES)
 
     # Create a data generator for VisualGenome
-    data_gen_validation_vg = visual_genome_data_generator_with_batch(data=val_imgs,
-                                                                     hierarchy_mapping=hierarchy_mapping_predicates,
-                                                                     config=config, mode='valid',
-                                                                     classification=Detections.Predicate,
-                                                                     type_box=Detections.UnionBox,
-                                                                     batch_size=NUM_BATCHES)
+    data_gen_validation_vg = visual_genome_data_predicate_generator_with_batch(data=val_imgs,
+                                                                               hierarchy_mapping=hierarchy_mapping_predicates,
+                                                                               config=config, mode='valid',
+                                                                               classification=Detections.Predicate,
+                                                                               type_box=Detections.UnionBox,
+                                                                               batch_size=NUM_BATCHES)
 
     # Set the number of classes
     if config.replace_top:
