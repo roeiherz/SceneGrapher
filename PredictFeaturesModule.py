@@ -348,8 +348,6 @@ if __name__ == '__main__':
     logger.log('Starting Prediction')
     predicated_entities = []
 
-    entities = entities[:1]
-
     # Predict each entity
     for entity in entities:
         logger.log('Predicting image id {0}'.format(entity.image.id))
