@@ -357,6 +357,9 @@ if __name__ == '__main__':
         # Create Objects Mapping type
         objects = from_object_to_objects_mapping(entity.objects, hierarchy_mapping_objects, url_data)
 
+        if len(objects) == 0:
+            continue
+
         # Predict objects per entity
         predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_objects)
 
