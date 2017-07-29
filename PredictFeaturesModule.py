@@ -18,7 +18,8 @@ import sys
 import math
 from FeaturesExtraction.Utils.Boxes import BOX, find_union_box
 from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH, get_img_resize, TRAINING_OBJECTS_CNN_PATH, \
-    TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img, get_mask_from_object, get_time_and_date, PREDICATED_FEATURES_PATH
+    TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img, get_mask_from_object, get_time_and_date, \
+    PREDICATED_FEATURES_PATH
 from FeaturesExtraction.Utils.data import get_filtered_data, get_name_from_file
 from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
 from FilesManager.FilesManager import FilesManager
@@ -27,6 +28,7 @@ import itertools
 from Utils.Utils import create_folder
 
 NUM_EPOCHS = 1
+# todo: consider increase NUM_BATCHES to 256 or 384 - don't forget that you have NUM_BATCHES * 3 in the code
 NUM_BATCHES = 128
 
 __author__ = 'roeih'
@@ -199,7 +201,8 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
 
     features_lst = []
     for batch in range(num_of_batches_per_epoch):
-        logger.log("Prediction Batch Number of Features is {0}/{1}".format(batch + 1, num_of_batches_per_epoch))
+        logger.log(
+            "Prediction Batch Number of Features from *Objects* is {0}/{1}".format(batch + 1, num_of_batches_per_epoch))
         get_features_output_func = K.function([predict_model.layers[0].input], [predict_model.layers[-2].output])
         # Get the object features [len(objects), 2048]
         object_features = get_features_output_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
@@ -238,10 +241,11 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
                                                                                          evaluate=True)
     # Get the Predicate probabilities [n, 51]
     predicates_probes = predict_model.predict_generator(data_gen_val_predicates_vg,
-                                                    steps=int(math.ceil(len(objects_pairs) / float(NUM_BATCHES))),
-                                                    max_q_size=1, workers=1)
+                                                        steps=int(math.ceil(len(objects_pairs) / float(NUM_BATCHES))),
+                                                        max_q_size=1, workers=1)
     # Reshape the predicates probabilites [n, n, 51]
-    reshaped_predicates_probes = predicates_probes.reshape((len(objects), len(objects), len(hierarchy_mapping_predicates)))
+    reshaped_predicates_probes = predicates_probes.reshape(
+        (len(objects), len(objects), len(hierarchy_mapping_predicates)))
     # Save probabilities
     entity.predicates_probes = reshaped_predicates_probes
 
@@ -251,7 +255,8 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     # Get the object labels on hot vector per object [len(objects), 51]
     predicates_labels = np.eye(len(hierarchy_mapping_predicates), dtype='uint8')[index_labels_per_sample.reshape(-1)]
     # Reshape the predicates labels [n, n, 51]
-    reshaped_predicates_labels = predicates_labels.reshape((len(objects), len(objects), len(hierarchy_mapping_predicates)))
+    reshaped_predicates_labels = predicates_labels.reshape(
+        (len(objects), len(objects), len(hierarchy_mapping_predicates)))
     # Save labels
     entity.predicates_labels = reshaped_predicates_labels
 
@@ -302,12 +307,14 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
 
     features_lst = []
     for batch in range(num_of_batches_per_epoch):
-        logger.log("Prediction Batch Number of Features is {0}/{1}".format(batch + 1, num_of_batches_per_epoch))
+        logger.log(
+            "Prediction Batch Number of Features from *Objects* is {0}/{1}".format(batch + 1, num_of_batches_per_epoch))
         get_features_output_func = K.function([predict_model.layers[0].input],
                                               [predict_model.layers[-2].output])
 
         # Get the object features [len(objects), 2048]
-        predicate_features = get_features_output_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+        predicate_features = get_features_output_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[
+            0]
         features_lst.append(predicate_features)
 
     # Concatenate to [n*n, 2048]
