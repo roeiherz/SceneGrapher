@@ -188,11 +188,25 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
             traceback.print_exc()
 
     resized_img_arr = np.concatenate(resized_img_lst)
-    get_features_output_func = K.function([predict_model.layers[0].input], [predict_model.layers[-2].output])
-    # Get the object features [len(objects), 2048]
-    objects_features = get_features_output_func([resized_img_arr])[0]
+    size = len(resized_img_lst)
+    # We are predicting in one forward pass 128*3 images
+    batch_size = NUM_BATCHES * 3
+
+    if size % batch_size == 0:
+        num_of_batches_per_epoch = size / batch_size
+    else:
+        num_of_batches_per_epoch = size / batch_size + 1
+
+    features_lst = []
+    for batch in range(num_of_batches_per_epoch):
+        logger.log("Prediction Batch Number of Features is {0}/{1}".format(batch + 1, num_of_batches_per_epoch))
+        get_features_output_func = K.function([predict_model.layers[0].input], [predict_model.layers[-2].output])
+        # Get the object features [len(objects), 2048]
+        object_features = get_features_output_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+        features_lst.append(object_features)
+
     # Save features
-    entity.objects_features = objects_features
+    entity.objects_features = np.concatenate(features_lst)
 
 
 def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_predicates):
@@ -276,12 +290,28 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
             traceback.print_exc()
 
     resized_img_arr = np.concatenate(resized_img_lst)
-    get_features_output_func = K.function([predict_model.layers[0].input],
-                                          [predict_model.layers[-2].output])
 
-    # Get the object features [len(objects), 2048]
-    predicates_features = get_features_output_func([resized_img_arr])[0]
+    size = len(resized_img_lst)
+    # We are predicting in one forward pass 128*3 images
+    batch_size = NUM_BATCHES * 3
 
+    if size % batch_size == 0:
+        num_of_batches_per_epoch = size / batch_size
+    else:
+        num_of_batches_per_epoch = size / batch_size + 1
+
+    features_lst = []
+    for batch in range(num_of_batches_per_epoch):
+        logger.log("Prediction Batch Number of Features is {0}/{1}".format(batch + 1, num_of_batches_per_epoch))
+        get_features_output_func = K.function([predict_model.layers[0].input],
+                                              [predict_model.layers[-2].output])
+
+        # Get the object features [len(objects), 2048]
+        predicate_features = get_features_output_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+        features_lst.append(predicate_features)
+
+    # Concatenate to [n*n, 2048]
+    predicates_features = np.concatenate(features_lst)
     # Number of features
     number_of_features = predicates_features.shape[1]
     # Reshape the predicates labels [n, n, 2048]
