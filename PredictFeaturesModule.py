@@ -169,7 +169,7 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
     entity.objects_labels = objects_labels
 
     ## Get object features
-    features_lst = []
+    resized_img_lst = []
     # Define the function
     for object in objects:
         try:
@@ -181,16 +181,16 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
             patch = img[object_box[BOX.Y1]: object_box[BOX.Y2], object_box[BOX.X1]: object_box[BOX.X2], :]
             resized_img = get_img_resize(patch, config.crop_width, config.crop_height, type=config.padding_method)
             resized_img = np.expand_dims(resized_img, axis=0)
-            get_features_output_func = K.function([predict_model.layers[0].input], [predict_model.layers[-2].output])
-            features_model = get_features_output_func([resized_img])[0]
-            features_lst.append(features_model)
+            resized_img_lst.append(resized_img)
         except Exception as e:
             logger.log("Exception for object: {0}, image: {1}".format(object, url_data))
             logger.log(str(e))
             traceback.print_exc()
 
+    resized_img_arr = np.concatenate(resized_img_lst)
+    get_features_output_func = K.function([predict_model.layers[0].input], [predict_model.layers[-2].output])
     # Get the object features [len(objects), 2048]
-    objects_features = np.concatenate(features_lst)
+    objects_features = get_features_output_func([resized_img_arr])[0]
     # Save features
     entity.objects_features = objects_features
 
@@ -242,7 +242,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     entity.predicates_labels = reshaped_predicates_labels
 
     ## Get object features
-    features_lst = []
+    resized_img_lst = []
     # Define the function
     for object_pair in objects_pairs:
         try:
@@ -268,17 +268,20 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
             patch = img[union_box[BOX.Y1]: union_box[BOX.Y2], union_box[BOX.X1]: union_box[BOX.X2], :]
             resized_img = get_img_resize(patch, config.crop_width, config.crop_height, type=config.padding_method)
             resized_img = np.expand_dims(resized_img, axis=0)
-            get_features_output_func = K.function([predict_model.layers[0].input],
-                                                  [predict_model.layers[-2].output])
-            features_model = get_features_output_func([resized_img])[0]
-            features_lst.append(features_model)
+            resized_img_lst.append(resized_img)
+
         except Exception as e:
             logger.log("Exception for object: {0}, image: {1}".format(object_pair, url_data))
             logger.log(str(e))
             traceback.print_exc()
 
+    resized_img_arr = np.concatenate(resized_img_lst)
+    get_features_output_func = K.function([predict_model.layers[0].input],
+                                          [predict_model.layers[-2].output])
+
     # Get the object features [len(objects), 2048]
-    predicates_features = np.concatenate(features_lst)
+    predicates_features = get_features_output_func([resized_img_arr])[0]
+
     # Number of features
     number_of_features = predicates_features.shape[1]
     # Reshape the predicates labels [n, n, 2048]
@@ -364,7 +367,7 @@ if __name__ == '__main__':
             objects = from_object_to_objects_mapping(entity.objects, hierarchy_mapping_objects, url_data)
 
             if len(objects) == 0:
-                logger.log("No Objects has been found")
+                logger.log("No Objects have been found")
                 continue
 
             # Predict objects per entity
