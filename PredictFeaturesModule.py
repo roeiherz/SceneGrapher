@@ -356,9 +356,6 @@ if __name__ == '__main__':
             # Increment index
             ind += 1
 
-            if entity.image.id != 2339109:
-                continue
-
             logger.log('Predicting image id {0} in iteration {1}'.format(entity.image.id, ind))
             # Get the url image
             url_data = entity.image.url
@@ -380,6 +377,8 @@ if __name__ == '__main__':
         except Exception as e:
             logger.log('Exception in image_id: {0} with error: {1}'.format(entity.image.id, e))
             save_files(path, predicated_entities, name="predicated_entities_iter{0}".format(ind))
+            logger.log(str(e))
+            traceback.print_exc()
 
     logger.log('Finished Predicting entities')
 
