@@ -49,13 +49,13 @@ def load_full_detections(detections_file_name):
     return None
 
 
-def save_files(path, files):
+def save_files(path, files, name="predicated_entities"):
     """
     This function save the files
     """
 
     # Save detections
-    detections_filename = open(os.path.join(path, "predicated_entities.p"), 'wb')
+    detections_filename = open(os.path.join(path, "{0}.p".format(name)), 'wb')
     # Pickle detections
     cPickle.dump(files, detections_filename, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
@@ -347,26 +347,39 @@ if __name__ == '__main__':
 
     logger.log('Starting Prediction')
     predicated_entities = []
+    ind = 0
 
     # Predict each entity
     for entity in entities:
-        logger.log('Predicting image id {0}'.format(entity.image.id))
-        # Get the url image
-        url_data = entity.image.url
+        try:
 
-        # Create Objects Mapping type
-        objects = from_object_to_objects_mapping(entity.objects, hierarchy_mapping_objects, url_data)
+            # Increment index
+            ind += 1
 
-        if len(objects) == 0:
-            continue
+            if entity.image.id != 2339109:
+                continue
 
-        # Predict objects per entity
-        predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_objects)
+            logger.log('Predicting image id {0} in iteration {1}'.format(entity.image.id, ind))
+            # Get the url image
+            url_data = entity.image.url
 
-        # Predict predicates per entity
-        predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_predicates)
+            # Create Objects Mapping type
+            objects = from_object_to_objects_mapping(entity.objects, hierarchy_mapping_objects, url_data)
 
-        predicated_entities.append(entity)
+            if len(objects) == 0:
+                logger.log("No Objects has been found")
+                continue
+
+            # Predict objects per entity
+            predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_objects)
+
+            # Predict predicates per entity
+            predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_predicates)
+
+            predicated_entities.append(entity)
+        except Exception as e:
+            logger.log('Exception in image_id: {0} with error: {1}'.format(entity.image.id, e))
+            save_files(path, predicated_entities, name="predicated_entities_iter{0}".format(ind))
 
     logger.log('Finished Predicting entities')
 

@@ -597,7 +597,7 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
                 for current_index in range(nof_samples_per_batch):
                     ind = batch_num * batch_size + current_index
                     object = data[ind]
-                    img = get_img(object.url)
+                    img = get_img(object.url, download=True)
 
                     if img is None:
                         print("Coulden't get the image")
