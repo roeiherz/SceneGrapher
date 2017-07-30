@@ -120,8 +120,23 @@ data:
 
 features_extraction:
     visual:
+        mini_detections_with_probs_and_features:
+            name: "FeaturesExtraction/PredicatedFeatures/"
+            type: "dir"
+            doc: "path to new entities which contains also objects probabilities and features and predicates probabilities and features for module"
+            versions:
+                1:
+                    date: "xx:xx:xx"
+                    name: "FeaturesExtraction/PredicatedFeatures/predicated_entities.p"
+                    doc: ""
+
+        full_detections_with_probs:
+            name: "Data/VisualGenome/full_detections_with_probs.p"
+            type: "pickle"
+            doc:  "Detections (ONLY FROM 108000 ENTITIES) with Probabilities and predicate features includes positive and negative predicates 1X3"
 
     language:
+
 
 sg_module:
     train:
@@ -147,14 +162,14 @@ scene_graph_base_module:
             doc: "detections of mini data with neg"
 
         object_cnn:
-            name: "FeaturesExtraction/ObjectsCNN/Fri_Jun__2_19:16:26_2017/model_vg_resnet50.hdf5"
+            name: "FeaturesExtraction/ObjectsCNN/Thu_Jul_13_13:37:54_2017/model_vg_resnet50.hdf5"
             type: "dir"
             doc: "path to object cnn"
             versions:
                 1:
                     date: "xx:xx:xx"
-                    name: "FeaturesExtraction/ObjectCNN/Fri_Jun__1_00:00:00_2017/model_vg_resnet50.hdf5"
-                    doc: "trained without negative examples"
+                    name: "FeaturesExtraction/ObjectCNN/Fri_Jun__2_19:16:26_2017/model_vg_resnet50.hdf5"
+                    doc: "trained 650000 positives without negative examples"
 
         predicate_cnn:
             name: "FeaturesExtraction/PredicatesCNN/Fri_Jun__2_20:00:24_2017/model_vg_resnet50.hdf5"

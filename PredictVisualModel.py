@@ -2,7 +2,7 @@ from __future__ import print_function
 
 from DesignPatterns.Detections import Detections
 from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator_with_batch, \
-    visual_genome_data_generator_with_batch
+    visual_genome_data_predicate_generator_with_batch
 from FeaturesExtraction.Lib.Zoo import ModelZoo
 import traceback
 import os
@@ -257,13 +257,13 @@ if __name__ == '__main__':
                                                                                batch_size=NUM_BATCHES)
 
     # Create a data generator for VisualGenome for PREDICATES
-    data_gen_val_predicates_vg = visual_genome_data_generator_with_batch(data=detections,
-                                                                         hierarchy_mapping=hierarchy_mapping_predicates,
-                                                                         config=config, mode='valid',
-                                                                         classification=Detections.Predicate,
-                                                                         type_box=Detections.UnionBox,
-                                                                         batch_size=NUM_BATCHES,
-                                                                         evaluate=True)
+    data_gen_val_predicates_vg = visual_genome_data_predicate_generator_with_batch(data=detections,
+                                                                                   hierarchy_mapping=hierarchy_mapping_predicates,
+                                                                                   config=config, mode='valid',
+                                                                                   classification=Detections.Predicate,
+                                                                                   type_box=Detections.UnionBox,
+                                                                                   batch_size=NUM_BATCHES,
+                                                                                   evaluate=True)
 
     # Get the object and predicate model
     object_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path, config=config)

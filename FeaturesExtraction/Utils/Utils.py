@@ -10,9 +10,9 @@ from keras.engine import Model
 from keras.layers import Dense
 
 # todo: when moving to nova remove it
+
 PROJECT_ROOT = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/"
-#PROJECT_ROOT = "/home/roeih/SceneGrapher/"
-# PROJECT_ROOT = ".."
+# PROJECT_ROOT = "/home/roeih/SceneGrapher/"
 VG_DATA_PATH = "Data/VisualGenome/data"
 VG_PATCH_PATH = "Data/VisualGenome/Patches"
 VG_PICKLES_FOLDER_PATH = "Data/VisualGenome/pickles"
@@ -41,6 +41,7 @@ VALIDATION_DATA_SET = "validation_set.p"
 MINI_IMDB = "mini_imdb_1024.h5"
 TRAINING_OBJECTS_CNN_PATH = "FilesManager/FeaturesExtraction/ObjectsCNN"
 TRAINING_PREDICATE_CNN_PATH = "FilesManager/FeaturesExtraction/PredicatesCNN"
+PREDICATED_FEATURES_PATH = "FilesManager/FeaturesExtraction/PredicatedFeatures"
 WEIGHTS_NAME = 'model_vg_resnet50.hdf5'
 DATA = "data"
 VISUAL_GENOME = "visual_genome"
@@ -337,51 +338,50 @@ def url_exists(url):
 
 
 def downloadProbe(probe_full_path, probe_url):
-        """
+    """
         Downloads the image and stores it locally.
         :param probe_url:
         :param probe_full_path:
         :return: A boolean indication if the probe is stored locally (success of the operation).
         """
 
-        # First we start by checking if the file is already stored locally. If so there is no need try and access
-        # remote resources.
-        if os.path.isfile(probe_full_path):
-            print('Probe image already exists in: ' + probe_full_path)
-        elif url_exists(probe_url):
-            print('Downloading probe: {} from {}'.format(probe_full_path, probe_url))
+    # First we start by checking if the file is already stored locally. If so there is no need try and access
+    # remote resources.
+    if os.path.isfile(probe_full_path):
+        print('Probe image already exists in: ' + probe_full_path)
+    elif url_exists(probe_url):
+        print('Downloading probe: {} from {}'.format(probe_full_path, probe_url))
 
-            try:
-                num_try = 1
-                timeout_interval = 30
-                while num_try < 4:
-                    t = threading.Thread(name='urlretrieve thread', target=urllib.urlretrieve,
-                                         args=(probe_url, probe_full_path))
-                    t.start()
-                    t.join(timeout=timeout_interval)
-                    if t.is_alive():
-                        print('Time-out over {} seconds'.format(timeout_interval))
-                        print(
-                            'Num of try for downloading: {}. End Threading - the thread is still alive'.format(num_try))
-                        num_try += 1
-                        continue
-                    else:
-                        break
-                # After 3 tries stop downloading
-                if num_try == 4:
-                    print('Time-out over {} seconds '.format(timeout_interval))
+        try:
+            num_try = 1
+            timeout_interval = 30
+            while num_try < 4:
+                t = threading.Thread(name='urlretrieve thread', target=urllib.urlretrieve,
+                                     args=(probe_url, probe_full_path))
+                t.start()
+                t.join(timeout=timeout_interval)
+                if t.is_alive():
+                    print('Time-out over {} seconds'.format(timeout_interval))
                     print(
-                        'End Threading - the thread is still alive. Stop downloading after 3 tries')
-                    return False
-
-            except Exception as e:
-                exception_full_msg = 'Failed to download image from {}\n{}'. \
-                    format(probe_url, e)
-                print(exception_full_msg)
+                        'Num of try for downloading: {}. End Threading - the thread is still alive'.format(num_try))
+                    num_try += 1
+                    continue
+                else:
+                    break
+            # After 3 tries stop downloading
+            if num_try == 4:
+                print('Time-out over {} seconds '.format(timeout_interval))
+                print(
+                    'End Threading - the thread is still alive. Stop downloading after 3 tries')
                 return False
-        else:
-            print('Probe URL does not exists, image was not downloaded from: {}'.format(probe_url))
+
+        except Exception as e:
+            exception_full_msg = 'Failed to download image from {}\n{}'. \
+                format(probe_url, e)
+            print(exception_full_msg)
             return False
+    else:
+        print('Probe URL does not exists, image was not downloaded from: {}'.format(probe_url))
+        return False
 
-        return True
-
+    return True

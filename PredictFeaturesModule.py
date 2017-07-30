@@ -2,8 +2,9 @@ from __future__ import print_function
 
 from Data.VisualGenome.models import ObjectMapping
 from DesignPatterns.Detections import Detections
-from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator_with_batch, \
-    visual_genome_data_generator_with_batch, visual_genome_data_cnn_generator_with_batch
+from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator_with_batch, \
+    visual_genome_data_predicate_pairs_generator_with_batch
+
 from FeaturesExtraction.Lib.Zoo import ModelZoo
 import traceback
 import os
@@ -15,62 +16,20 @@ from keras import backend as K
 from keras.models import Model
 import sys
 import math
-from FeaturesExtraction.Utils.Boxes import BOX
+from FeaturesExtraction.Utils.Boxes import BOX, find_union_box
 from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH, get_img_resize, TRAINING_OBJECTS_CNN_PATH, \
-    TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img, get_mask_from_object
-import time
+    TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img, get_mask_from_object, get_time_and_date, PREDICATED_FEATURES_PATH
 from FeaturesExtraction.Utils.data import get_filtered_data, get_name_from_file
 from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
 from FilesManager.FilesManager import FilesManager
 from Utils.Logger import Logger
+import itertools
+from Utils.Utils import create_folder
 
-NOF_LABELS = 150
-TRAINING_PERCENT = 0.75
-VALIDATION_PERCENT = 0.05
-TESTING_PERCENT = 0.2
 NUM_EPOCHS = 1
 NUM_BATCHES = 128
 
-# If the allocation of training, validation and testing does not adds up to one
-used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
-if not used_percent == 1:
-    error_msg = 'Data used percent (train + test + validation) is {0} and should be 1'.format(used_percent)
-    print(error_msg)
-    raise Exception(error_msg)
-
 __author__ = 'roeih'
-
-
-def get_resize_images_array(detections, config):
-    """
-    This function calculates the resize image for each detection and returns a numpy ndarray
-    :param detections: a numpy Detections dtype array
-    :return: a numpy array of shape (len(detections), config.crop_width, config.crop_height , 3)
-    """
-    resized_img_lst = []
-    ind = 1
-
-    for detection in detections:
-        try:
-            box = detection[Detections.UnionBox]
-            url_data = detection[Detections.Url]
-            img = get_img(url_data)
-            patch = img[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
-            resized_img = get_img_resize(patch, config.crop_width, config.crop_height, type=config.padding_method)
-            resized_img_lst[detection[Detections.Id]] = resized_img
-
-            if ind % 10000 == 0:
-                logger.log("Proccessed 1000 detections to union box")
-
-            ind += 1
-
-        except Exception as e:
-            logger.log("Exception for detection_id: {0}, image: {1}".format(detection[Detections.Id],
-                                                                            detection[Detections.Url]))
-            logger.log(str(e))
-            traceback.print_exc()
-            resized_img_lst.append(np.zeros((config.crop_width, config.crop_height, 3)))
-    return np.array(resized_img_lst)
 
 
 def load_full_detections(detections_file_name):
@@ -88,6 +47,20 @@ def load_full_detections(detections_file_name):
         return detections
 
     return None
+
+
+def save_files(path, files, name="predicated_entities"):
+    """
+    This function save the files
+    """
+
+    # Save detections
+    detections_filename = open(os.path.join(path, "{0}.p".format(name)), 'wb')
+    # Pickle detections
+    cPickle.dump(files, detections_filename, protocol=cPickle.HIGHEST_PROTOCOL)
+    # Close the file
+    detections_filename.close()
+    logger.log("File Have been save in {}".format(detections_filename))
 
 
 def get_model(number_of_classes, weight_path, config):
@@ -135,63 +108,6 @@ def get_model(number_of_classes, weight_path, config):
     return model
 
 
-def save_files(files, name=""):
-    """
-    This function save the files 
-    """
-
-    # Save detections
-    detections_filename = open(os.path.join(VG_VisualModule_PICKLES_PATH, name), 'wb')
-    # Pickle detections
-    cPickle.dump(files, detections_filename, protocol=cPickle.HIGHEST_PROTOCOL)
-    # Close the file
-    detections_filename.close()
-    logger.log("File Have been save in {}".format(detections_filename))
-
-
-def sort_detections_by_url(detections):
-    """
-    This function removes detections with specific indices
-    :param detections: detections numpy dtype array
-    :return: sorted detections 
-    """
-    idx = np.where((detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2321818.jpg") |
-                   (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2334844.jpg") |
-                   (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K_2/3807.jpg") |
-                   (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K_2/2410658.jpg") |
-                   (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2374264.jpg"))
-    new_detections = np.delete(detections, idx)
-    return new_detections
-
-
-def load_predicts(file_name=""):
-    """
-    This function load the detection after predicated predicates and check for some statistics
-    :return: 
-    """
-
-    # load file
-    detections_file = open(os.path.join(VG_VisualModule_PICKLES_PATH, file_name))
-    # Pickle detections
-    detections = cPickle.load(detections_file)
-
-    tt = np.where((detections[Detections.PredictSubjectClassifications] == detections[Detections.Predicate]) &
-                  (detections[Detections.Predicate] != u'neg'))
-    logger.log('debug')
-
-
-def save_weights(predict_model, file_name=""):
-    """
-    This function save the weights of the last layer of Predicate Networks for late initialization in full training model
-    :param predict_model: the predict model
-    :param file_name: file name string which will be saved
-    :return: 
-    """
-    weights = predict_model.layers[-1].get_weights()[0]  # [2048, nof_classes=51]
-    save_files(weights, file_name)
-    logger.log("Saved the last layer weights [2048,51] ")
-
-
 def from_object_to_objects_mapping(objects, correct_labels, url):
     """
     This function get objects from entities and transforms it to object mapping list
@@ -220,17 +136,18 @@ def from_object_to_objects_mapping(objects, correct_labels, url):
     return objects_lst
 
 
-def predict_objects_for_module(entity, url_data, hierarchy_mapping_objects):
+def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_objects):
     """
-    
-    :param entity: 
-    :param url_data: 
-    :param hierarchy_mapping_objects: 
+    This function predicts objects for module later - object_probes [n, 150], object_features [n, 2048], object_labels
+    [n, 150]
+    :param objects: List of objects
+    :param entity: Entity visual genome class
+    :param url_data: a url data
+    :param hierarchy_mapping_objects: hierarchy_mapping for objects
     :return: 
     """
 
     ## Get probabilities
-    objects = from_object_to_objects_mapping(entity.objects, hierarchy_mapping_objects, url_data)
     # Create a data generator for VisualGenome for OBJECTS
     data_gen_val_objects_vg = visual_genome_data_cnn_generator_with_batch(data=objects,
                                                                           hierarchy_mapping=hierarchy_mapping_objects,
@@ -252,7 +169,7 @@ def predict_objects_for_module(entity, url_data, hierarchy_mapping_objects):
     entity.objects_labels = objects_labels
 
     ## Get object features
-    features_lst = []
+    resized_img_lst = []
     # Define the function
     for object in objects:
         try:
@@ -264,18 +181,143 @@ def predict_objects_for_module(entity, url_data, hierarchy_mapping_objects):
             patch = img[object_box[BOX.Y1]: object_box[BOX.Y2], object_box[BOX.X1]: object_box[BOX.X2], :]
             resized_img = get_img_resize(patch, config.crop_width, config.crop_height, type=config.padding_method)
             resized_img = np.expand_dims(resized_img, axis=0)
-            get_features_output_func = K.function([predict_model.layers[0].input], [predict_model.layers[-2].output])
-            features_model = get_features_output_func([resized_img])[0]
-            features_lst.append(features_model)
+            resized_img_lst.append(resized_img)
         except Exception as e:
             logger.log("Exception for object: {0}, image: {1}".format(object, url_data))
             logger.log(str(e))
             traceback.print_exc()
 
-    # Get the object features [len(objects), 2048]
-    objects_features = np.concatenate(features_lst)
+    resized_img_arr = np.concatenate(resized_img_lst)
+    size = len(resized_img_lst)
+    # We are predicting in one forward pass 128*3 images
+    batch_size = NUM_BATCHES * 3
+
+    if size % batch_size == 0:
+        num_of_batches_per_epoch = size / batch_size
+    else:
+        num_of_batches_per_epoch = size / batch_size + 1
+
+    features_lst = []
+    for batch in range(num_of_batches_per_epoch):
+        logger.log("Prediction Batch Number of Features is {0}/{1}".format(batch + 1, num_of_batches_per_epoch))
+        get_features_output_func = K.function([predict_model.layers[0].input], [predict_model.layers[-2].output])
+        # Get the object features [len(objects), 2048]
+        object_features = get_features_output_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+        features_lst.append(object_features)
+
     # Save features
-    entity.objects_features = objects_features
+    entity.objects_features = np.concatenate(features_lst)
+
+
+def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_predicates):
+    """
+    This function predicts predicates for module later - predicates_probes [n, n, 51], predicates_features [n, n, 2048],
+    predicates_labels [n, n, 51]
+    :param objects: List of objects
+    :param entity: Entity visual genome class
+    :param url_data: a url data
+    :param hierarchy_mapping_predicates: hierarchy_mapping for predicates
+    :return:
+    """
+
+    # Create object pairs
+    # Maybe list(itertools.permutations(objects, repeat=2))
+    objects_pairs = list(itertools.product(objects, repeat=2))
+    # Create a dict with key as pairs - (subject, object) and their values are predicates
+    relations_dict = {}
+    for relation in entity.relationships:
+        relations_dict[(relation.subject.names[0], relation.object.names[0])] = relation.predicate
+
+    # Create a data generator for VisualGenome for PREDICATES
+    data_gen_val_predicates_vg = visual_genome_data_predicate_pairs_generator_with_batch(data=objects_pairs,
+                                                                                         relations_dict=relations_dict,
+                                                                                         hierarchy_mapping=hierarchy_mapping_predicates,
+                                                                                         config=config,
+                                                                                         mode='validation',
+                                                                                         batch_size=NUM_BATCHES,
+                                                                                         evaluate=True)
+    # Get the Predicate probabilities [n, 51]
+    predicates_probes = predict_model.predict_generator(data_gen_val_predicates_vg,
+                                                    steps=int(math.ceil(len(objects_pairs) / float(NUM_BATCHES))),
+                                                    max_q_size=1, workers=1)
+    # Reshape the predicates probabilites [n, n, 51]
+    reshaped_predicates_probes = predicates_probes.reshape((len(objects), len(objects), len(hierarchy_mapping_predicates)))
+    # Save probabilities
+    entity.predicates_probes = reshaped_predicates_probes
+
+    ## Get labels
+    # Get the max argument
+    index_labels_per_sample = np.argmax(predicates_probes, axis=1)
+    # Get the object labels on hot vector per object [len(objects), 51]
+    predicates_labels = np.eye(len(hierarchy_mapping_predicates), dtype='uint8')[index_labels_per_sample.reshape(-1)]
+    # Reshape the predicates labels [n, n, 51]
+    reshaped_predicates_labels = predicates_labels.reshape((len(objects), len(objects), len(hierarchy_mapping_predicates)))
+    # Save labels
+    entity.predicates_labels = reshaped_predicates_labels
+
+    ## Get object features
+    resized_img_lst = []
+    # Define the function
+    for object_pair in objects_pairs:
+        try:
+            # Get Image
+            img = get_img(url_data)
+            # Get Subject and Object
+            subject = object_pair[0]
+            object = object_pair[1]
+            # Calc Union-Box
+            # Get the Subject mask: a dict with {x1,x2,y1,y2}
+            mask_subject = get_mask_from_object(subject)
+            # Saves as a box
+            subject_box = np.array([mask_subject['x1'], mask_subject['y1'], mask_subject['x2'], mask_subject['y2']])
+
+            # Get the Object mask: a dict with {x1,x2,y1,y2}
+            mask_object = get_mask_from_object(object)
+            # Saves as a box
+            object_box = np.array([mask_object['x1'], mask_object['y1'], mask_object['x2'], mask_object['y2']])
+
+            # Get the UNION box: a BOX (numpy array) with [x1,x2,y1,y2]
+            union_box = find_union_box(subject_box, object_box)
+
+            patch = img[union_box[BOX.Y1]: union_box[BOX.Y2], union_box[BOX.X1]: union_box[BOX.X2], :]
+            resized_img = get_img_resize(patch, config.crop_width, config.crop_height, type=config.padding_method)
+            resized_img = np.expand_dims(resized_img, axis=0)
+            resized_img_lst.append(resized_img)
+
+        except Exception as e:
+            logger.log("Exception for object: {0}, image: {1}".format(object_pair, url_data))
+            logger.log(str(e))
+            traceback.print_exc()
+
+    resized_img_arr = np.concatenate(resized_img_lst)
+
+    size = len(resized_img_lst)
+    # We are predicting in one forward pass 128*3 images
+    batch_size = NUM_BATCHES * 3
+
+    if size % batch_size == 0:
+        num_of_batches_per_epoch = size / batch_size
+    else:
+        num_of_batches_per_epoch = size / batch_size + 1
+
+    features_lst = []
+    for batch in range(num_of_batches_per_epoch):
+        logger.log("Prediction Batch Number of Features is {0}/{1}".format(batch + 1, num_of_batches_per_epoch))
+        get_features_output_func = K.function([predict_model.layers[0].input],
+                                              [predict_model.layers[-2].output])
+
+        # Get the object features [len(objects), 2048]
+        predicate_features = get_features_output_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+        features_lst.append(predicate_features)
+
+    # Concatenate to [n*n, 2048]
+    predicates_features = np.concatenate(features_lst)
+    # Number of features
+    number_of_features = predicates_features.shape[1]
+    # Reshape the predicates labels [n, n, 2048]
+    reshaped_predicates_features = predicates_features.reshape((len(objects), len(objects), number_of_features))
+    # Save features
+    entity.predicates_features = reshaped_predicates_features
 
 
 if __name__ == '__main__':
@@ -305,9 +347,13 @@ if __name__ == '__main__':
     # Define GPU training
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)
 
-    # BOTH MODULE + VISUAL
-    # detections = load_full_detections(detections_file_name="full_detections")
-    # detections = sort_detections_by_url(detections)
+    # Get time and date
+    time_and_date = get_time_and_date()
+
+    # Path for the training folder
+    path = os.path.join(PREDICATED_FEATURES_PATH, time_and_date)
+    # Create a new folder for training
+    create_folder(path)
 
     # Load detections dtype numpy array and hierarchy mappings
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
@@ -332,149 +378,44 @@ if __name__ == '__main__':
     object_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path, config=config)
     predict_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config)
 
-    # Save Weights
-    # save_weights(predict_model, file_name="last_layer_ratio3_weights.p")
-
     logger.log('Starting Prediction')
-
-    # region
-    # # Load Predicates
-    # # load_predicts(file_name="mini_predicated_predicates_with_neg_ratio1_Wed_Jun_14_20:25:16_2017.p")
-    #
-    # # Predict Predicates for some statistics
-    # logger.log('Predicting Probabilities - Predicates')
-    # predicted_objects = predict_model.predict_generator(data_gen_val_predicates_vg,
-    #                                                     steps=int(math.ceil(len(detections) / float(NUM_BATCHES))),
-    #                                                     max_q_size=1, workers=1)
-    # logger.log("Saving Predicates Probabilities")
-    # save_files(predicted_objects, name="mini_predicated_predicates_with_neg_ratio1_Wed_Jun_14_20:25:16_2017.p")
-    # logger.log("Finished successfully saving Predicates Probabilities")
-    # # Get the max argument
-    # index_predicates_labels_per_sample = np.argmax(predicted_objects, axis=1)
-    # # Get the inverse-mapping: int id to str label
-    # index_to_label_mapping_predicates = {label: id for id, label in hierarchy_mapping_predicates.iteritems()}
-    # labels_per_sample = np.array([index_to_label_mapping_predicates[label] for label in index_predicates_labels_per_sample])
-    # # Save detections in PredictSubjectClassifications
-    # detections[Detections.PredictSubjectClassifications] = labels_per_sample[:len(detections)]
-    # # Save detections
-    # logger.log("Saving predicates detections")
-    # save_files(detections, name="mini_predicated_predicates_with_neg_ratio1_Wed_Jun_14_20:25:16_2017.p")
-    # logger.log("Finished successfully saving predicated_detections")
-    #
-    # exit()
-    # endregion
-
     predicated_entities = []
+    ind = 0
+
     # Predict each entity
     for entity in entities:
-
-        logger.log('Predicting image id {0}'.format(entity.image.id))
-        # Get the url image
-        url_data = entity.image.url
-        # Predict objects per entity
-        predict_objects_for_module(entity, url_data, hierarchy_mapping_objects)
-
-        print("debug")
-        predicated_entities.append(entity)
-
-    # Create a data generator for VisualGenome for PREDICATES
-    data_gen_val_predicates_vg = visual_genome_data_generator_with_batch(data=detections,
-                                                                         hierarchy_mapping=hierarchy_mapping_predicates,
-                                                                         config=config, mode='valid',
-                                                                         classification=Detections.Predicate,
-                                                                         type_box=Detections.UnionBox,
-                                                                         batch_size=NUM_BATCHES,
-                                                                         evaluate=True)
-
-    logger.log('Predicting Probabilities - Objects')
-    # probes = object_model.predict_generator(data_gen_validation_vg, steps=len(detections) * 2, max_q_size=1, workers=1)
-    # Probabilities: [nof_detections * 2, 150]
-    objects_probes = object_model.predict_generator(data_gen_val_objects_vg,
-                                                    steps=int(math.ceil(len(detections) / float(NUM_BATCHES))),
-                                                    max_q_size=1, workers=1)
-    logger.log("Saving Objects Probabilities")
-    objects_probes_path = filemanager.get_file_path(
-        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "mini_objects_with_probs"))
-    filemanager.save_file(objects_probes_path, objects_probes)
-    logger.log("Finished successfully saving Objects Probabilities")
-    # region
-    # Check for duality
-    # s = set()
-    # for j in range(probes.shape[0]):
-    #     for i in range(probes.shape[0]):
-    #         if i == j:
-    #             continue
-    #         if np.alltrue(probes[j] == probes[i]):
-    #             s.add((j, i))
-    # logger.log(s)
-    # detections[Detections.SubjectConfidence] = probes[::2]
-    # detections[Detections.ObjectConfidence] = probes[1::2]
-    # endregion
-    # Slice the Subject prob (even index)
-    detections[Detections.SubjectConfidence] = np.split(objects_probes[::2], len(detections), axis=0)
-    # Slice the Object prob (odd index)
-    detections[Detections.ObjectConfidence] = np.split(objects_probes[1::2], len(detections), axis=0)
-    # Get the max probes for each sample
-    probes_per_sample = np.max(objects_probes, axis=1)
-    # Get the max argument
-    index_labels_per_sample = np.argmax(objects_probes, axis=1)
-
-    # Get the inverse-mapping: int id to str label
-    index_to_label_mapping = {label: id for id, label in hierarchy_mapping_objects.iteritems()}
-    labels_per_sample = np.array([index_to_label_mapping[label] for label in index_labels_per_sample])
-
-    # Slice the predicated Subject id (even index)
-    detections[Detections.PredictSubjectClassifications] = labels_per_sample[::2]
-    # Slice the predicated Object id (odd index)
-    detections[Detections.PredictObjectClassifications] = labels_per_sample[1::2]
-    logger.log('Finished Predicting Probabilities Successfully')
-
-    # Save detections
-    logger.log("Saving predicated_detections")
-    detections_probes_path = filemanager.get_file_path(
-        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "mini_detections_with_probs"))
-    filemanager.save_file(detections_probes_path, detections)
-    logger.log("Finished successfully saving predicated_detections")
-
-    # Get the Union-Box Features
-    # resized_img_mat = get_resize_images_array(detections, config)
-
-    logger.log('Calculating Union-Box Features')
-    # Define the function
-    get_features_output_func = K.function([predict_model.layers[0].input], [predict_model.layers[-2].output])
-    ind = 0
-    # Start measure time
-    start = time.time()
-
-    for detection in detections:
         try:
 
+            # Increment index
             ind += 1
-            box = detection[Detections.UnionBox]
-            url_data = detection[Detections.Url]
-            img = get_img(url_data)
-            patch = img[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
-            resized_img = get_img_resize(patch, config.crop_width, config.crop_height, type=config.padding_method)
-            resized_img = np.expand_dims(resized_img, axis=0)
-            features_model = get_features_output_func([resized_img])[0]
-            detection[Detections.UnionFeature] = features_model
-            # detection[Detections.UnionFeature] = np.split(features_model, len(detections), axis=0)
 
-            if ind % 10000 == 0:
-                logger.log("Iteration Number: {}".format(ind))
-                end = time.time()
-                logger.log("Proccessed 10000 detections to union features in time {}s ".format(end - start))
-                start = end
+            logger.log('Predicting image id {0} in iteration {1}'.format(entity.image.id, ind))
+            # Get the url image
+            url_data = entity.image.url
 
+            # Create Objects Mapping type
+            objects = from_object_to_objects_mapping(entity.objects, hierarchy_mapping_objects, url_data)
+
+            if len(objects) == 0:
+                logger.log("No Objects have been found")
+                continue
+
+            # Predict objects per entity
+            predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_objects)
+
+            # Predict predicates per entity
+            predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_predicates)
+
+            predicated_entities.append(entity)
         except Exception as e:
-            logger.log("Exception for detection_id: {0}, image: {1}".format(detection[Detections.Id],
-                                                                            detection[Detections.Url]))
+            logger.log('Exception in image_id: {0} with error: {1}'.format(entity.image.id, e))
+            save_files(path, predicated_entities, name="predicated_entities_iter{0}".format(ind))
             logger.log(str(e))
             traceback.print_exc()
 
-    logger.log("Finished to predict probabilities and union features")
+    logger.log('Finished Predicting entities')
 
-    # Save detections
-    logger.log("Saving predicated_detections")
-    filemanager.save_file(detections_probes_path, detections)
+    # Save entities
+    logger.log("Saving Predicated entities")
+    save_files(path, predicated_entities)
     logger.log("Finished successfully saving predicated_detections")
