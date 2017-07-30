@@ -245,7 +245,7 @@ def visual_genome_data_predicate_pairs_generator_with_batch(data, relations_dict
     """
     This function is a generator for Predicate  with pair of objects with batch-size
     :param evaluate:  A flag which indicates if we evaluate in PredictFeaturesModule
-    :param relations_dict: This dict contains key as pairs - (subject, object) and their values are predicates
+    :param relations_dict: This dict contains key as pairs - (subject, object) and their values are predicates used for labels
     :param batch_size: batch size
     :param data: dictionary of Data
     :param hierarchy_mapping: hierarchy mapping

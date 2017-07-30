@@ -29,7 +29,7 @@ from Utils.Utils import create_folder
 
 NUM_EPOCHS = 1
 # todo: consider increase NUM_BATCHES to 256 or 384 - don't forget that you have NUM_BATCHES * 3 in the code
-NUM_BATCHES = 128
+NUM_BATCHES = 128 * 3
 
 __author__ = 'roeih'
 
@@ -162,11 +162,14 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
     # Save probabilities
     entity.objects_probs = objects_probes
 
-    ## Get labels
-    # Get the max argument
+    ## Get GT labels
+    # Get the GT labels - [len(objects), ]
+    index_labels_per_gt_sample = np.array([hierarchy_mapping_objects[object.names[0]] for object in objects])
+    # Get the max argument from the network output - [len(objects), ]
     index_labels_per_sample = np.argmax(objects_probes, axis=1)
+    logger.log("The Objects accuracy is {0}".format(np.where(index_labels_per_gt_sample == index_labels_per_sample)[0].shape[0] / float(len(objects))))
     # Get the object labels on hot vector per object [len(objects), 150]
-    objects_labels = np.eye(len(hierarchy_mapping_objects), dtype='uint8')[index_labels_per_sample.reshape(-1)]
+    objects_labels = np.eye(len(hierarchy_mapping_objects), dtype='uint8')[index_labels_per_gt_sample.reshape(-1)]
     # Save labels
     entity.objects_labels = objects_labels
 
@@ -192,7 +195,8 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
     resized_img_arr = np.concatenate(resized_img_lst)
     size = len(resized_img_lst)
     # We are predicting in one forward pass 128*3 images
-    batch_size = NUM_BATCHES * 3
+    # batch_size = NUM_BATCHES * 3
+    batch_size = NUM_BATCHES
 
     if size % batch_size == 0:
         num_of_batches_per_epoch = size / batch_size
@@ -226,7 +230,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     # Create object pairs
     # Maybe list(itertools.permutations(objects, repeat=2))
     objects_pairs = list(itertools.product(objects, repeat=2))
-    # Create a dict with key as pairs - (subject, object) and their values are predicates
+    # Create a dict with key as pairs - (subject, object) and their values are predicates use for labels
     relations_dict = {}
     for relation in entity.relationships:
         relations_dict[(relation.subject.names[0], relation.object.names[0])] = relation.predicate
@@ -250,10 +254,16 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     entity.predicates_probes = reshaped_predicates_probes
 
     ## Get labels
-    # Get the max argument
+    # Get the GT labels - [ len(objects_pairs), ]
+    index_labels_per_gt_sample = np.array([hierarchy_mapping_predicates[relations_dict[(pair[0].names[0], pair[1].names[0])]]
+                  if (pair[0].names[0], pair[1].names[0]) in relations_dict else hierarchy_mapping_predicates['neg']
+                  for pair in objects_pairs])
+    # Get the max argument - [len(objects_pairs), ]
     index_labels_per_sample = np.argmax(predicates_probes, axis=1)
+    logger.log("The Relations accuracy is {0}".format(
+        np.where(index_labels_per_gt_sample == index_labels_per_sample)[0].shape[0] / float(len(objects_pairs))))
     # Get the object labels on hot vector per object [len(objects), 51]
-    predicates_labels = np.eye(len(hierarchy_mapping_predicates), dtype='uint8')[index_labels_per_sample.reshape(-1)]
+    predicates_labels = np.eye(len(hierarchy_mapping_predicates), dtype='uint8')[index_labels_per_gt_sample.reshape(-1)]
     # Reshape the predicates labels [n, n, 51]
     reshaped_predicates_labels = predicates_labels.reshape(
         (len(objects), len(objects), len(hierarchy_mapping_predicates)))
@@ -298,7 +308,8 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
 
     size = len(resized_img_lst)
     # We are predicting in one forward pass 128*3 images
-    batch_size = NUM_BATCHES * 3
+    # batch_size = NUM_BATCHES * 3
+    batch_size = NUM_BATCHES
 
     if size % batch_size == 0:
         num_of_batches_per_epoch = size / batch_size
