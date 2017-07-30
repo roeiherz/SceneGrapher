@@ -113,6 +113,11 @@ data:
             type: "pickle"
             doc:  "Detections (ONLY FROM 108000 ENTITIES) with Probabilities and predicate features includes positive and negative predicates 1X3"
 
+        detections_v2:
+          name: "FeaturesExtraction/PredicatedFeatures/Sat_Jul_29_14:07:09_2017/predicated_entities.p"
+          type: "pickle"
+          doc:  "1000 entites which included matrix style data of predicates and objects"
+
 features_extraction:
     visual:
         mini_detections_with_probs_and_features:
@@ -183,34 +188,34 @@ scene_graph_base_module:
 
     train:
         params:
-            name: "SceneGraphBaseModule/Train/params.yaml"
+            name: "scene_graph_base_module/train/params.yaml"
             type: "yaml"
             doc: "train parameters"
         final_filtered_data:
-            name: "SceneGraphBaseModule/Train/final_filtered_data.p"
+            name: "scene_graph_base_module/train/final_filtered_data.p"
             type: "pickle"
             doc:  "on top of filtered data - filter urls and negative predicates to be 1x1 and convert to Data class"
         saved_params:
-            name: "SceneGraphBaseModule/Train/saved_params"
+            name: "scene_graph_base_module/train/saved_params"
             type: "dir"
             doc: "dir storing saved params per set of hyper paramters"
     eval:
         final_eval_filtered_data:
-            name: "SceneGraphBaseModule/Eval/eval_module_data.p"
+            name: "scene_graph_base_module/eval/eval_module_data.p"
             type: "pickle"
             nof_objects: 3
             doc:  "on top of filtered data - filter urls"
             versions:
                 1:
-                  name: "SceneGraphBaseModule/Eval/eval_module_data_pos.p"
+                  name: "scene_graph_base_module/eval/eval_module_data_pos.p"
                   doc: "with positive examples only"
 
         module:
-            name: "SceneGraphBaseModule/Train/SavedParams/best_params.npy"
+            name: "scene_graph_base_module/train/SavedParams/best_params.npy"
             type: "pickle"
             doc:  "module weights to evaluate"
         stat:
-            name: "SceneGraphBaseModule/Eval/detections_stat.p"
+            name: "scene_graph_base_module/eval/detections_stat.p"
             type: "pickle"
             doc: "store detections stat tuple of (entity detectionsStat score) per image"
 

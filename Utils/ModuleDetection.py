@@ -1,5 +1,5 @@
 from DesignPatterns.DetectionsStats import DetectionsStats
-import os
+import numpy as np
 
 from FilesManager.FilesManager import FilesManager
 
@@ -8,14 +8,16 @@ class ModuleDetection():
     """
     Holds and maintain Image detection (used to evaluate the module)
     """
-    def __init__(self, entity, module):
+    def __init__(self, entity, reverse_object_id, reverse_predicate_id):
         """
         Constructor
         :param entity: visual genome entity
-        :param module: the module to evaluate
+        :param reverse_object_id: reverse object id map (convert id to object name)
+        :param reverse_predicate_id: reverse predicate id map (convert id to predicate name)
         """
-        # store module
-        self.module = module
+        # store reverse object/store id map (convert id to object/predicate name)
+        self.reverse_object_ids = reverse_object_id
+        self.reverse_predicate_ids = reverse_predicate_id
         # store the entity
         self.entity = entity
         # detections list
@@ -33,15 +35,10 @@ class ModuleDetection():
         :param confidence: the actual confidence
         :return:
         """
-        # finc visual genome subject and object
-        vg_subject = None
-        vg_object = None
-        # find subject and object
-        for object in self.entity.objects:
-            if object.id == global_subject_id:
-                vg_subject = object
-            if object.id == global_object_id:
-                vg_object = object
+        # func visual genome subject and object
+
+        vg_subject = self.entity.objects[global_subject_id.astype(np.int64)]
+        vg_object = self.entity.objects[global_object_id.astype(np.int64)]
 
         # find if exist in gt and gt_predicate
         is_gt = 0
@@ -56,9 +53,9 @@ class ModuleDetection():
                 break
 
         # predicated ids to names
-        pred_subject_name = self.module.reverse_object_ids[pred_subject]
-        pred_object_name = self.module.reverse_object_ids[pred_object]
-        pred_predicate_name = self.module.reverse_predicate_ids[pred_predicate]
+        pred_subject_name = self.reverse_object_ids[pred_subject]
+        pred_object_name = self.reverse_object_ids[pred_object]
+        pred_predicate_name = self.reverse_predicate_ids[pred_predicate]
 
         # store detection params to be converted to numpy object later
         detection = {"vg_subject" : vg_subject, "vg_object" : vg_object, "true_predicate" : true_predicate,
