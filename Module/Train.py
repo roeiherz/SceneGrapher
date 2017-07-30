@@ -1,4 +1,6 @@
 import inspect
+import sys
+sys.path.append("..")
 from multiprocessing import Process
 
 from FilesManager.FilesManager import FilesManager
@@ -151,43 +153,48 @@ def train(name="test",
         entities = filesmanager.load_file("data.visual_genome.detections_v2")
 
         # train module
-        accum_results = None
-        for entity in entities:
+        for epoch in range(nof_iterations):
+            accum_results = None
+            total_loss = 0
+            for entity in entities:
 
-            extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
-            extended_belief_object_shape[2] = NOF_OBJECTS
+                extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
+                extended_belief_object_shape[2] = NOF_OBJECTS
 
-            # create the feed dictionary
-            feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
-                         extended_belief_object_shape_ph: extended_belief_object_shape,
-                         visual_features_predicate_ph: entity.predicates_features,
-                         visual_features_object_ph: entity.objects_features,
-                         labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels}
+                # create the feed dictionary
+                feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
+                             extended_belief_object_shape_ph: extended_belief_object_shape,
+                             visual_features_predicate_ph: entity.predicates_features,
+                             visual_features_object_ph: entity.objects_features,
+                             labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels}
 
-            out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val = \
-                sess.run([out_belief_predicate, out_belief_object, loss, train_step],
-                         feed_dict=feed_dict)
+                out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val = \
+                    sess.run([out_belief_predicate, out_belief_object, loss, train_step],
+                             feed_dict=feed_dict)
+                
+                total_loss += loss_val
 
-            results = test(entity.predicates_labels, entity.objects_labels, out_belief_predicate_val, out_belief_object_val)
-            # accumulate results
-            if accum_results is None:
-                accum_results = results
-            else:
-                for key in results:
-                    accum_results[key] += results[key]
+                #results = test(entity.predicates_labels, entity.objects_labels, out_belief_predicate_val, out_belief_object_val)
+                results = test(entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
+                # accumulate results
+                if accum_results is None:
+                    accum_results = results
+                else:
+                    for key in results:
+                        accum_results[key] += results[key]
+        
             # print stat
-            obj_accuracy = float(results['obj_correct']) / results['obj_total']
-            predicate_pos_accuracy = float(results['predicates_pos_correct']) / results['predicates_pos_total']
-            predicate_all_accuracy = float(results['predicates_correct']) / results['predicates_total']
-            relationships_pos_accuracy = float(results['relationships_pos_correct']) / results['predicates_pos_total']
-            relationships_all_accuracy = float(results['relationships_correct']) / results['predicates_total']
-            relationships_accum_accuracy = float(accum_results['relationships_correct']) / accum_results[
-                'predicates_total']
+            obj_accuracy = float(accum_results['obj_correct']) / accum_results['obj_total']
+            predicate_pos_accuracy = float(accum_results['predicates_pos_correct']) / accum_results['predicates_pos_total']
+            predicate_all_accuracy = float(accum_results['predicates_correct']) / accum_results['predicates_total']
+            relationships_pos_accuracy = float(accum_results['relationships_pos_correct']) / accum_results['predicates_pos_total']
+            relationships_all_accuracy = float(accum_results['relationships_correct']) / accum_results['predicates_total']
 
-            logger.log("iter %d - loss %f - obj %f - pred %f - rela %f - all_pred %f - all rela %f accum - %f" %
-                       (i, loss_val, obj_accuracy, predicate_pos_accuracy, relationships_pos_accuracy,
-                        predicate_all_accuracy, relationships_all_accuracy, relationships_accum_accuracy))
 
+            logger.log("iter %d - loss %f - obj %f - pred %f - rela %f - all_pred %f - all rela %f" %
+                       (epoch, total_loss, obj_accuracy, predicate_pos_accuracy, relationships_pos_accuracy,
+                        predicate_all_accuracy, relationships_all_accuracy))
+        
         print("Debug")
 
         # save module

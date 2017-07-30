@@ -8,7 +8,7 @@ class Module(object):
     """
 
     def __init__(self, nof_predicates, nof_objects, visual_features_predicate_size, visual_features_object_size,
-                 rnn_steps=3, is_train=True,
+                 rnn_steps=1, is_train=True,
                  learning_rate=0.1, learning_rate_steps=1000, learning_rate_decay=0.5):
         """
         Construct module:
@@ -56,7 +56,7 @@ class Module(object):
         self.extended_belief_object_shape_ph = tf.placeholder(dtype=tf.int32, shape=(3), name="extended_belief_object_shape")
 
         # labels
-        if not self.is_train:
+        if self.is_train:
             self.labels_predicate_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, self.nof_predicates),
                                                       name="labels_predicate")
             self.labels_object_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects), name="labels_object")
