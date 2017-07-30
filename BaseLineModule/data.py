@@ -124,7 +124,7 @@ def prepare_eval_data():
         test_entities = entities[int(0.8 * nof_entities):]
 
         data = [test_entities, object_ids, predicate_ids]
-        filemanager.save_file("scene_graph_base_module.eval.final_filtered_data")
+        filemanager.save_file(data, "scene_graph_base_module.eval.final_filtered_data")
 
     return test_entities, object_ids, predicate_ids
 

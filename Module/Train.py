@@ -129,37 +129,46 @@ def train(name="test",
             sess.run(init)
 
         # fake data to test
-        N = 3
-        belief_predicate = np.zeros((N, N, NOF_PREDICATES))
-        belief_object = np.zeros((N, NOF_OBJECTS))
-        extended_belief_object_shape = np.asarray(belief_predicate.shape)
-        extended_belief_object_shape[2] = NOF_OBJECTS
-        visual_features_predicate = np.arange(2000, 2000 + N * N * VISUAL_FEATURES_PREDICATE_SIZE).reshape(N, N,
-                                                                                                           VISUAL_FEATURES_PREDICATE_SIZE)
-        visual_features_object = np.arange(3000, 3000 + N * VISUAL_FEATURES_OBJECT_SIZE).reshape(N,
-                                                                                                 VISUAL_FEATURES_OBJECT_SIZE)
-        labels_predicate = np.zeros((N, N, NOF_PREDICATES))
-        for i in range(N):
-            for j in range(N):
-                labels_predicate[i][j][i * j] = 1
-        labels_object = np.zeros((N, NOF_OBJECTS))
-        for i in range(N):
-            labels_object[i][i] = 1
+        # N = 3
+        # belief_predicate = np.zeros((N, N, NOF_PREDICATES))
+        # belief_object = np.zeros((N, NOF_OBJECTS))
+        # extended_belief_object_shape = np.asarray(belief_predicate.shape)
+        # extended_belief_object_shape[2] = NOF_OBJECTS
+        # visual_features_predicate = np.arange(2000, 2000 + N * N * VISUAL_FEATURES_PREDICATE_SIZE).reshape(N, N,
+        #                                                                                                    VISUAL_FEATURES_PREDICATE_SIZE)
+        # visual_features_object = np.arange(3000, 3000 + N * VISUAL_FEATURES_OBJECT_SIZE).reshape(N,
+        #                                                                                          VISUAL_FEATURES_OBJECT_SIZE)
+        # labels_predicate = np.zeros((N, N, NOF_PREDICATES))
+        # for i in range(N):
+        #     for j in range(N):
+        #         labels_predicate[i][j][i * j] = 1
+        # labels_object = np.zeros((N, NOF_OBJECTS))
+        # for i in range(N):
+        #     labels_object[i][i] = 1
 
-        feed_dict = {belief_predicate_ph: belief_predicate, belief_object_ph: belief_object,
-                     extended_belief_object_shape_ph: extended_belief_object_shape,
-                     visual_features_predicate_ph: visual_features_predicate,
-                     visual_features_object_ph: visual_features_object,
-                     labels_predicate_ph: labels_predicate, labels_object_ph: labels_object}
+
+        # read data
+        entities = filesmanager.load_file("data.visual_genome.detections_v2")
 
         # train module
         accum_results = None
-        for i in range(nof_iterations):
+        for entity in entities:
+
+            extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
+            extended_belief_object_shape[2] = NOF_OBJECTS
+
+            # create the feed dictionary
+            feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
+                         extended_belief_object_shape_ph: extended_belief_object_shape,
+                         visual_features_predicate_ph: entity.predicates_features,
+                         visual_features_object_ph: entity.objects_features,
+                         labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels}
+
             out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val = \
                 sess.run([out_belief_predicate, out_belief_object, loss, train_step],
                          feed_dict=feed_dict)
 
-            results = test(labels_predicate, labels_object, out_belief_predicate_val, out_belief_object_val)
+            results = test(entity.predicates_labels, entity.objects_labels, out_belief_predicate_val, out_belief_object_val)
             # accumulate results
             if accum_results is None:
                 accum_results = results

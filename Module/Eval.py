@@ -8,9 +8,10 @@ import tensorflow as tf
 import numpy as np
 
 from Train import NOF_OBJECTS, NOF_PREDICATES, VISUAL_FEATURES_OBJECT_SIZE, VISUAL_FEATURES_PREDICATE_SIZE
+from Utils.ModuleDetection import ModuleDetection
 
 
-def eval_image(labels_predicate, labels_object, out_belief_predicate_val, out_belief_object_val, k=100):
+def eval_image(img, reverse_object_ids, reverse_predicate_ids, labels_predicate, labels_object, out_belief_predicate_val, out_belief_object_val, k=100):
     """
     Scene Graph Classification -
     R@k metric (measures the fraction of ground truth relationships
@@ -23,6 +24,9 @@ def eval_image(labels_predicate, labels_object, out_belief_predicate_val, out_be
     :return: image score, number of the gt triplets that appear in the k most confident predictions,
                          number of the gt triplets
     """
+    # create module detections
+    detections = ModuleDetection(img, reverse_object_ids, reverse_predicate_ids)
+
     # iterate over each relation to predict and find k highest predictions
     top_predictions = np.zeros((0,))
     top_likelihoods = np.zeros((0,))
@@ -72,10 +76,10 @@ def eval_image(labels_predicate, labels_object, out_belief_predicate_val, out_be
     global_obj_ids = top_k_global_object_ids[top_k_indices]
     likelihoods = top_likelihoods[top_k_indices]
     triplets = np.unravel_index(predictions.astype(int), predict_prob.shape)
-    # for i in range(k):
-    #     detections.add_detection(global_subject_id=global_sub_ids[i], global_object_id=global_obj_ids[i],
-    #                              pred_subject=triplets[0][i], pred_object=triplets[2][i], pred_predicate=triplets[1][i],
-    #                              top_k_index=i, confidence=likelihoods[i])
+    for i in range(k):
+        detections.add_detection(global_subject_id=global_sub_ids[i], global_object_id=global_obj_ids[i],
+                                 pred_subject=triplets[0][i], pred_object=triplets[2][i], pred_predicate=triplets[1][i],
+                                 top_k_index=i, confidence=likelihoods[i])
 
     predicats_gt = np.argmax(labels_predicate, axis=2)
     objects_gt = np.argmax(labels_object, axis=1)
@@ -104,7 +108,7 @@ def eval_image(labels_predicate, labels_object, out_belief_predicate_val, out_be
                 img_score += 1
 
     img_score_precent = float(img_score) / nof_pos_relationship
-    # detections.save_stat(score=img_score_precent)
+    detections.save_stat(score=img_score_precent)
 
     return img_score_precent, img_score, nof_pos_relationship
 
@@ -156,7 +160,6 @@ def eval(nof_iterations=100, load_module_name="test", gpu=0):
     :return: nothing - output to logger instead
     """
     filesmanager = FilesManager()
-    logger_path = filesmanager.get_file_path("logs")
     # create logger
     logger = Logger()
 
@@ -193,6 +196,16 @@ def eval(nof_iterations=100, load_module_name="test", gpu=0):
     summary_writer = tf.summary.FileWriter(tf_logs_path, graph=tf.get_default_graph())
     summaries = tf.summary.merge_all()
 
+    # read data
+    module_data = filesmanager.load_file("scene_graph_base_module.eval.final_eval_filtered_data")
+
+    entities = module_data[0]
+    object_ids = module_data[1]
+    predicate_ids = module_data[2]
+
+    reverse_object_ids = {object_ids[id]: id for id in object_ids}
+    reverse_predicate_ids = {predicate_ids[id]: id for id in predicate_ids}
+
     with tf.Session() as sess:
         # Restore variables from disk.
         module_path = filesmanager.get_file_path("sg_module.train.saver")
@@ -227,12 +240,14 @@ def eval(nof_iterations=100, load_module_name="test", gpu=0):
         correct = 0
         total = 0
         for i in range(nof_iterations):
+            entity = entities[i]
+
             out_belief_predicate_val, out_belief_object_val = \
                 sess.run([out_belief_predicate, out_belief_object],
                          feed_dict=feed_dict)
 
             # eval image
-            k_metric_res, correct_image, total_image = eval_image(labels_predicate, labels_object,
+            k_metric_res, correct_image, total_image = eval_image(entity, reverse_object_ids, reverse_predicate_ids, labels_predicate, labels_object,
                                                                   out_belief_predicate_val,
                                                                   out_belief_object_val)
             correct += correct_image
@@ -248,7 +263,7 @@ def eval(nof_iterations=100, load_module_name="test", gpu=0):
 
         for i in range(NOF_PREDICATES):
             if total_predicate[i] != 0:
-                logger.log("{0} recall@5 is {1} (total - {2}, correct {3})".format(str(i),
+                logger.log("{0} recall@5 is {1} (total - {2}, correct {3})".format(reverse_predicate_ids[i],
                                                                                    float(correct_predicate[i]) /
                                                                                    total_predicate[i],
                                                                                    total_predicate[i],

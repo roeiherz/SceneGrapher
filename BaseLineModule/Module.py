@@ -1,13 +1,13 @@
+import cPickle
+import gc
+
 import numpy as np
 
 from LangModule import LangModule
-from VisualModule import VisualModule
-from ModuleDetection import ModuleDetection
-import cPickle
-from Utils.Utils import softmax_multi_dim
-import gc
-
 from Utils.Logger import Logger
+from Utils.ModuleDetection import ModuleDetection
+from Utils.Utils import softmax_multi_dim
+from VisualModule import VisualModule
 
 class Module(object):
     """
@@ -374,7 +374,7 @@ class Module(object):
                 continue
 
             # create module detections
-            detections = ModuleDetection(img, self)
+            detections = ModuleDetection(img, self.reverse_object_ids, self.reverse_predicate_ids)
 
             # iterate over each relation to predict and find k highest predictions
             top_predictions = np.zeros((0,))
