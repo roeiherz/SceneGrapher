@@ -515,7 +515,6 @@ def Objects_AR_Histogram():
     This functions calcs the Aspect Ration in Objects in VisualGenome dataset
     """
 
-    import matplotlib
     from matplotlib import pyplot as plt
 
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(
@@ -523,7 +522,6 @@ def Objects_AR_Histogram():
     # Get Visual Genome Data objects
     objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="mini_objects")
     objects_ar_list = [object.height / float(object.width) for object in objects]
-    plt.switch_backend('agg').figure()
     plt.switch_backend('agg').hist(objects_ar_list, bins=100, range=[0, 20], normed=1, histtype='bar')
     plt.switch_backend('agg').title('Objects Aspect Ratio histogram')
     plt.switch_backend('agg').savefig("Objects_AR_Histogram.jpg")
