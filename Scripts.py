@@ -516,7 +516,6 @@ def Objects_AR_Histogram():
     """
 
     import matplotlib
-    matplotlib.use('agg')
     from matplotlib import pyplot as plt
 
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(
@@ -524,9 +523,10 @@ def Objects_AR_Histogram():
     # Get Visual Genome Data objects
     objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="mini_objects")
     objects_ar_list = [object.height / float(object.width) for object in objects]
-    plt.hist(objects_ar_list, bins=100, range=[0, 20], normed=1, histtype='bar')
-    plt.title('Objects Aspect Ratio histogram')
-    plt.savefig("Objects_AR_Histogram.jpg")
+    plt.switch_backend('agg').figure()
+    plt.switch_backend('agg').hist(objects_ar_list, bins=100, range=[0, 20], normed=1, histtype='bar')
+    plt.switch_backend('agg').title('Objects Aspect Ratio histogram')
+    plt.switch_backend('agg').savefig("Objects_AR_Histogram.jpg")
 
 
 if __name__ == '__main__':
