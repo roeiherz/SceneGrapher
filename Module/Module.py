@@ -253,10 +253,10 @@ class Module(object):
             loss = tf.add(tf.reduce_sum(loss_predicate), tf.reduce_sum(loss_object), name="loss")
 
             # minimize
-            global_step = tf.Variable(0, trainable=False)
-            learning_rate = tf.train.exponential_decay(self.learning_rate, global_step, self.learning_rate_steps,
+            self.global_step = tf.Variable(0, trainable=False)
+            self.learning_rate_var = tf.train.exponential_decay(self.learning_rate, self.global_step, self.learning_rate_steps,
                                                        self.learning_rate_decay, staircase=True)
-            train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+            train_step = tf.train.GradientDescentOptimizer(self.learning_rate_var).minimize(loss)
 
         return loss, train_step
 

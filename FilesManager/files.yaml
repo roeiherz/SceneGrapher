@@ -114,7 +114,7 @@ data:
             doc:  "Detections (ONLY FROM 108000 ENTITIES) with Probabilities and predicate features includes positive and negative predicates 1X3"
 
         detections_v2:
-          name: "FeaturesExtraction/PredicatedFeatures/Sat_Jul_29_14:07:09_2017/predicated_entities.p"
+          name: "FeaturesExtraction/PredicatedFeatures/Sun_Jul_30_22:53:54_2017/predicated_entities.p"
           type: "pickle"
           doc:  "1000 entites which included matrix style data of predicates and objects"
 

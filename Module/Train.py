@@ -57,8 +57,8 @@ def test(labels_predicate, labels_object, out_belief_predicate_val, out_belief_o
     results["predicates_pos_correct"] = np.sum(predicats_gt_pos == predicats_pred_pos)
     # number of correct relationships
     object_true_indices = np.where(objects_gt == objects_pred)
-    predicats_gt_true = predicats_gt[object_true_indices, object_true_indices]
-    predicats_pred_true = predicats_pred[object_true_indices, object_true_indices]
+    predicats_gt_true = predicats_gt[object_true_indices[0], :][:, object_true_indices[0]]
+    predicats_pred_true = predicats_pred[object_true_indices[0],:][:, object_true_indices[0]]    
     results["relationships_correct"] = np.sum(predicats_gt_true == predicats_pred_true)
     # number of correct postive relationships
     pos_true_indices = np.where(predicats_gt_true != NOF_PREDICATES - 1)
@@ -168,14 +168,14 @@ def train(name="test",
                              visual_features_object_ph: entity.objects_features,
                              labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels}
 
-                out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val = \
-                    sess.run([out_belief_predicate, out_belief_object, loss, train_step],
+                out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val, lr = \
+                    sess.run([out_belief_predicate, out_belief_object, loss, train_step, module.learning_rate_var],
                              feed_dict=feed_dict)
                 
                 total_loss += loss_val
 
-                #results = test(entity.predicates_labels, entity.objects_labels, out_belief_predicate_val, out_belief_object_val)
-                results = test(entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
+                results = test(entity.predicates_labels, entity.objects_labels, out_belief_predicate_val, out_belief_object_val)
+                #results = test(entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
                 # accumulate results
                 if accum_results is None:
                     accum_results = results
@@ -191,9 +191,9 @@ def train(name="test",
             relationships_all_accuracy = float(accum_results['relationships_correct']) / accum_results['predicates_total']
 
 
-            logger.log("iter %d - loss %f - obj %f - pred %f - rela %f - all_pred %f - all rela %f" %
+            logger.log("iter %d - loss %f - obj %f - pred %f - rela %f - all_pred %f - all rela %f - lr %f" %
                        (epoch, total_loss, obj_accuracy, predicate_pos_accuracy, relationships_pos_accuracy,
-                        predicate_all_accuracy, relationships_all_accuracy))
+                        predicate_all_accuracy, relationships_all_accuracy, lr))
         
         print("Debug")
 
