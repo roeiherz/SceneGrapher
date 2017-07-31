@@ -53,11 +53,11 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
     object_path_token = "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(object_file_name))
 
     # Check if pickles are already created
-    objects_path = filemanager.get_file_path(object_path_token)
+    objects_path = FilesManager().get_file_path(object_path_token)
 
     if os.path.isfile(objects_path):
-        logger.log('File is already exist {0}'.format(objects_path))
-        objects = filemanager.load_file(object_path_token)
+        Logger().log('File is already exist {0}'.format(objects_path))
+        objects = FilesManager().load_file(object_path_token)
         return objects
 
     # Bad urls which should be sorted out
@@ -93,12 +93,12 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
             objects_lst.append(new_object_mapping)
 
         idx += 1
-        logger.log("Finished img: {}".format(idx))
+        Logger().log("Finished img: {}".format(idx))
 
     # Pickle objects_lst
     objects_array = np.array(objects_lst)
     # Save the objects files to the disk
-    filemanager.save_file(object_path_token, objects_array)
+    FilesManager().save_file(object_path_token, objects_array)
     return objects_array
 
 
@@ -197,7 +197,7 @@ def sorting_urls(train_imgs, test_imgs, val_imgs):
 if __name__ == '__main__':
 
     # Define FileManager
-    filemanager = FilesManager()
+    file_manager = FilesManager()
     # Define Logger
     logger = Logger()
 
@@ -231,11 +231,11 @@ if __name__ == '__main__':
     create_folder(path)
     # loading model weights
     if config.loading_model:
-        net_weights = filemanager.get_file_path(config.loading_model_token)
+        net_weights = file_manager.get_file_path(config.loading_model_token)
         logger.log("Loading Weights from: {}".format(net_weights))
     else:
         # The Weights for training
-        net_weights = filemanager.get_file_path(config.base_net_weights)
+        net_weights = file_manager.get_file_path(config.base_net_weights)
         logger.log("Taking Base Weights from: {}".format(net_weights))
     net_weights_path = os.path.join(path, config.model_weights_name)
     logger.log("The new Model Weights will be Saved: {}".format(net_weights_path))
@@ -248,7 +248,7 @@ if __name__ == '__main__':
     entities, hierarchy_mapping_objects, _ = get_filtered_data(filtered_data_file_name="mini_filtered_data")
 
     # Get Visual Genome Data objects
-    objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="mini_objects")
+    objects = preprocessing_objects(file_manager, entities, hierarchy_mapping_objects, object_file_name="mini_objects")
 
     # If there is too much data tak only part pf the data
     if len(objects) > MAX_NOF_SAMPLES_THR:

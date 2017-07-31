@@ -1,12 +1,14 @@
+from matplotlib import pyplot as plt
 import time
 import cPickle
 import os
 import numpy as np
 from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
 from FilesManager.FilesManager import FilesManager
-from TrainCNN import VisualGenome_PICKLES_PATH
 from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
-    HIERARCHY_MAPPING, plot_graph, POSITIVE_NEGATIVE_RATIO, DATA_PATH, CLASSES_COUNT_FILE, RELATIONS_COUNT_FILE
+    HIERARCHY_MAPPING, plot_graph, POSITIVE_NEGATIVE_RATIO, DATA_PATH, CLASSES_COUNT_FILE, RELATIONS_COUNT_FILE, \
+    VisualGenome_PICKLES_PATH
+from TrainCNN import preprocessing_objects
 from Utils.Utils import create_folder
 from FeaturesExtraction.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data
 from PredictVisualModel import get_resize_images_array, load_full_detections
@@ -19,7 +21,7 @@ from Utils.Logger import Logger
 def check_loading_pickle_time():
     start = time.time()
     print("hello")
-    f = cPickle.load(file("keras_frcnn/Data/VisualGenome/final_entities.p", 'rb'))
+    f = cPickle.load(open("keras_frcnn/Data/VisualGenome/final_entities.p"))
 
     end = time.time()
     print(end - start)
@@ -49,7 +51,7 @@ def save_pickles(classes_count=None, classes_count_name="", hierarchy_mapping=No
     # Check if hierarchy_mapping is not None
     if hierarchy_mapping:
         # Save hierarchy_mapping file
-        hierarchy_mapping_file = file(os.path.join(VisualGenome_PICKLES_PATH, iter + '_' + hierarchy_mapping_name),
+        hierarchy_mapping_file = open(os.path.join(VisualGenome_PICKLES_PATH, iter + '_' + hierarchy_mapping_name),
                                       'wb')
         # Pickle hierarchy_mapping
         cPickle.dump(hierarchy_mapping, hierarchy_mapping_file, protocol=cPickle.HIGHEST_PROTOCOL)
@@ -262,7 +264,7 @@ def save_hierarchy_mapping():
     # Save hierarchy_mapping_per_objects file
     hierarchy_mapping_file = open(os.path.join(
         "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/VisualModule/Data/VisualGenome/hierarchy_mapping_objects.p"),
-                                  'wb')
+        'wb')
     # Pickle hierarchy_mapping_per_objects
     cPickle.dump(hierarchy_mapping_objects, hierarchy_mapping_file, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
@@ -270,7 +272,7 @@ def save_hierarchy_mapping():
     # Save hierarchy_mapping_per_predicates file
     hierarchy_mapping_file2 = open(os.path.join(
         "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/VisualModule/Data/VisualGenome/hierarchy_mapping_predicates.p"),
-                                   'wb')
+        'wb')
     # Pickle hierarchy_mapping_per_objects
     cPickle.dump(hierarchy_mapping_predicates, hierarchy_mapping_file2, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
@@ -306,7 +308,7 @@ def delete_ind_from_detections():
     detections = load_full_detections(detections_file_name="mini_filtered_detections.p")
 
     idx = np.where((detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2321818.jpg") |
-               (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2334844.jpg"))
+                   (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2334844.jpg"))
     new_detections = np.delete(detections, idx)
 
     # Save detections
@@ -508,18 +510,37 @@ def get_mini_url():
     filtered_detections_file.close()
     print("debug")
 
-if __name__ == '__main__':
 
+def Objects_AR_Histogram():
+    """
+    This functions calcs the Aspect Ration in Objects in VisualGenome dataset
+    """
+    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(
+        filtered_data_file_name="full_filtered_data")
+    # Get Visual Genome Data objects
+    objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="full_objects")
+    objects_ar_list = [object.height / float(object.width) for object in objects]
+    plt.figure()
+    plt.hist(objects_ar_list, bins=100, range=[0, 20], normed=1, histtype='bar')
+    plt.title('Objects Aspect Ratio histogram')
+    plt.savefig("Objects_AR_Histogram.jpg")
+
+
+if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
 
-    filemanager = FilesManager()
+    file_manager = FilesManager()
     logger = Logger()
+
+    Objects_AR_Histogram()
+
+    exit()
 
     # Filter the data
     filtered_module_data = get_module_filter_data(objects_count_file_name="mini_classes_count.p",
-                                                  # entities_file_name="mini_entities.p",
-                                                  entities_file_name="full_entities.p",
+                                                  entities_file_name="mini_entities.p",
+                                                  # entities_file_name="full_entities.p",
                                                   predicates_count_file_name="mini_predicates_count.p", nof_objects=150,
                                                   nof_predicates=50, create_negative=True,
                                                   positive_negative_ratio=POSITIVE_NEGATIVE_RATIO)
