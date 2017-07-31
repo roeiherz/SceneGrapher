@@ -520,11 +520,10 @@ def Objects_AR_Histogram():
     from matplotlib import pyplot as plt
 
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(
-        filtered_data_file_name="full_filtered_data")
+        filtered_data_file_name="mini_filtered_data")
     # Get Visual Genome Data objects
-    objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="full_objects")
+    objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="mini_objects")
     objects_ar_list = [object.height / float(object.width) for object in objects]
-    plt.figure()
     plt.hist(objects_ar_list, bins=100, range=[0, 20], normed=1, histtype='bar')
     plt.title('Objects Aspect Ratio histogram')
     plt.savefig("Objects_AR_Histogram.jpg")
