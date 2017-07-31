@@ -1,4 +1,3 @@
-from matplotlib import pyplot as plt
 import time
 import cPickle
 import os
@@ -515,6 +514,11 @@ def Objects_AR_Histogram():
     """
     This functions calcs the Aspect Ration in Objects in VisualGenome dataset
     """
+
+    import matplotlib
+    matplotlib.use('agg')
+    from matplotlib import pyplot as plt
+
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(
         filtered_data_file_name="full_filtered_data")
     # Get Visual Genome Data objects
