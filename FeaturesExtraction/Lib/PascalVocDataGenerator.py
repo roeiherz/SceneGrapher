@@ -1,6 +1,6 @@
 import random
 import numpy as np
-from FeaturesExtraction.Lib.DataAugmention import augment_pascal_voc
+from FeaturesExtraction.Lib.DataAugmentation import augment_pascal_voc
 from FeaturesExtraction.Utils.Boxes import iou
 from FeaturesExtraction.Utils.Utils import convert_img_bgr_to_rgb
 import cv2
@@ -66,7 +66,7 @@ class PascalVocDataGenerator(object):
             img = self._get_img(img_data)
             x_img = convert_img_bgr_to_rgb(img)
 
-            if self._mode == 'train' and self._config.jitter:
+            if self._mode == 'train' and self._config.use_jitter:
                 # Augment only in training
                 img_data_aug, x_img = augment_pascal_voc(img, img_data, self._config)
 

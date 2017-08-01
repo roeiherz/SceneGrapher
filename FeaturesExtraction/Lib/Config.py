@@ -1,3 +1,5 @@
+from FeaturesExtraction.Lib.DataAugmentation import Jitter
+
 __author__ = 'roeih'
 
 from keras import backend as K
@@ -7,22 +9,26 @@ class Config:
     """
     This class represents Config file
     """
+
     def __init__(self, gpu_num):
 
         # Do we continuing to train or start from fresh
         self.loading_model = True
-        self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Thu_Jul_13_13:37:54_2017"
+        self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Mon_Jul_24_19:58:35_2017"
         self.loading_model_token = "scene_graph_base_module.visual_module.object_cnn"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
-        self.use_cache_dir = True
+        self.use_cache_dir = False
         # Load weights
         self.load_weights = True
         # Replace the Dense layer
         self.replace_top = False
         # If we replace top, what is the old top number of classes
         if self.replace_top:
-            self.nof_classes = 150
+            self.nof_classes = 50
+
+        # The Training is only with positive samples
+        self.only_pos = True
 
         # location of pre-trained weights for the base network
         # weight files can be found at:
@@ -33,24 +39,26 @@ class Config:
         else:
             self.base_net_weights = "scene_graph_base_module.visual_module.image_net_tf"
 
-        # For debugging
-        self.debug = False
+        # Use of Jitter
+        self.use_jitter = False
+        self.use_translation_jitter = False
+        self.use_rotation_jitter = False
+        self.use_flip_jitter = False
+        # Set each sample mean to 0.
+        self.use_samplewise_center = False
+        # Divide each sample by its std.
+        self.use_samplewise_std_normalization = False
+        # Global Contrast Normalization
+        self.use_gcn =False
+
+        # Set Jitter
+        self.Set_Jitter()
 
         # Define the GPU number
         self.gpu_num = gpu_num
 
-        # Normalize images while training
-        self.normalize = False
-
-        # setting for Data augmentation
-        # todo: create a jitter class for future use
-        self.jitter = False
-        self.use_horizontal_flips = False
-        self.use_vertical_flips = False
-        self.scale_augment = False
-        self.random_rotate = False
-        self.random_rotate_scale = 180
-        self.dataset = "VisualGenome"
+        # For debugging
+        self.debug = False
 
         # anchor box scales 
         self.anchor_box_scales = [128, 256, 512]
@@ -60,7 +68,6 @@ class Config:
 
         # size to resize the smallest side of the image
         self.im_size = 600
-
         self.image_width = 800
         self.image_height = 600
         # size to resize
@@ -88,4 +95,45 @@ class Config:
         self.classifier_min_overlap = 0.1
         self.classifier_max_overlap = 0.5
 
+    def Set_Jitter(self):
+        """
+        This function set the jitter
+        """
+        # Setting for Data augmentation
+        if self.use_jitter and self.use_rotation_jitter:
+            rotation_range = 90.
+        else:
+            rotation_range = 0.
+        if self.use_jitter and self.use_translation_jitter:
+            width_shift_range = 0.2
+            height_shift_range = 0.2
+        else:
+            width_shift_range = 0.
+            height_shift_range = 0.
+        if self.use_jitter and self.use_samplewise_center:
+            samplewise_center = True
+        else:
+            samplewise_center = False
+        if self.use_jitter and self.use_samplewise_std_normalization:
+            samplewise_std_normalization = True
+        else:
+            samplewise_std_normalization = False
 
+        if self.use_gcn:
+            gcn = True
+        else:
+            gcn = False
+
+        self.jitter = Jitter(samplewise_center=samplewise_center,
+                             samplewise_std_normalization=samplewise_std_normalization,
+                             global_contrast_normalization=False,
+                             width_shift_range=width_shift_range,
+                             height_shift_range=height_shift_range,
+                             zca_whitening=False,
+                             rotation_range=rotation_range,
+                             rescale=None,
+                             horizontal_flip=False,
+                             vertical_flip=False,
+                             preprocessing_function=None,
+                             fill_mode='nearest',
+                             cval=0.)

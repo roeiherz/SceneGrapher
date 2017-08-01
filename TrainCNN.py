@@ -248,7 +248,7 @@ if __name__ == '__main__':
     entities, hierarchy_mapping_objects, _ = get_filtered_data(filtered_data_file_name="mini_filtered_data")
 
     # Get Visual Genome Data objects
-    objects = preprocessing_objects(file_manager, entities, hierarchy_mapping_objects, object_file_name="mini_objects")
+    objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="mini_objects")
 
     # If there is too much data tak only part pf the data
     if len(objects) > MAX_NOF_SAMPLES_THR:

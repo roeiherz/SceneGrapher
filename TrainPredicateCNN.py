@@ -266,16 +266,20 @@ if __name__ == '__main__':
 
     # Load filtered data
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(
-                                                        filtered_data_file_name="full_filtered_data",
+                                                        filtered_data_file_name="mini_filtered_data",
                                                         # "mini_filtered_data",
                                                         category='entities_visual_module')
 
+    if config.only_pos and "neg" in hierarchy_mapping_predicates:
+        # Remove negative label from hierarchy_mapping_predicates because we want to train only positive
+        hierarchy_mapping_predicates.pop("neg")
+
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                                        relation_file_name="full_relations")
+                                        relation_file_name="mini_relations")
 
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="full_detections")
+    detections = process_to_detections(relations, detections_file_name="mini_detections")
 
     # Get new negative - positive ratio
     detections = pick_different_negative_sample_ratio(detections, ratio=3.0/10)

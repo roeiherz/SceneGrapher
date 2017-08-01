@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 
 from DesignPatterns.Detections import Detections
-from FeaturesExtraction.Lib.DataAugmention import augment_visual_genome
+from FeaturesExtraction.Lib.DataAugmentation import augment_visual_genome
 from FeaturesExtraction.Utils.Boxes import iou, BOX, find_union_box
 from FeaturesExtraction.Utils.Utils import VG_DATA_PATH, get_mask_from_object, get_img_resize, get_img
 
@@ -117,7 +117,7 @@ def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, co
                         resized_img = get_img_resize(patch, config.crop_width, config.crop_height,
                                                      type=config.padding_method)
 
-                        if mode == 'train' and config.jitter:
+                        if mode == 'train' and config.use_jitter:
                             # Augment only in training
                             # todo: create a regular jitter for each patch increase the number of patches by some constant
                             # resized_img = augment_visual_genome(resized_img, detection, config, mask)
@@ -222,7 +222,7 @@ def visual_genome_data_parallel_generator(data, hierarchy_mapping, config, mode)
                     resized_img = get_img_resize(patch, config.crop_width, config.crop_height,
                                                  type=config.padding_method)
 
-                    if mode == 'train' and config.jitter:
+                    if mode == 'train' and config.use_jitter:
                         # Augment only in training
                         # todo: create a regular jitter for each patch increase the number of patches by some constant
                         # resized_img = augment_visual_genome(resized_img, detection, config, mask)
@@ -297,7 +297,7 @@ def visual_genome_data_predicate_pairs_generator_with_batch(data, relations_dict
                         continue
 
                     # In-case we want to normalize
-                    if config.normalize:
+                    if config.use_jitter:
                         # Subtract mean and normalize
                         mean_image = np.mean(img, axis=0)
                         img -= mean_image
@@ -347,7 +347,7 @@ def visual_genome_data_predicate_pairs_generator_with_batch(data, relations_dict
                     resized_img = get_img_resize(patch_union, config.crop_width, config.crop_height,
                                                  type=config.padding_method)
 
-                    if mode == 'train' and config.jitter:
+                    if mode == 'train' and config.use_jitter:
                         # Augment only in training
                         # todo: create a regular jitter for each patch increase the number of patches by some constant
                         # resized_img = augment_visual_genome(resized_img, detection, config, mask)
@@ -418,7 +418,7 @@ def visual_genome_data_predicate_generator_with_batch(data, hierarchy_mapping, c
                         continue
 
                     # In-case we want to normalize
-                    if config.normalize:
+                    if config.use_jitter:
                         # Subtract mean and normalize
                         mean_image = np.mean(img, axis=0)
                         img -= mean_image
@@ -453,7 +453,7 @@ def visual_genome_data_predicate_generator_with_batch(data, hierarchy_mapping, c
                     resized_img = get_img_resize(patch_subject, config.crop_width, config.crop_height,
                                                  type=config.padding_method)
 
-                    if mode == 'train' and config.jitter:
+                    if mode == 'train' and config.use_jitter:
                         # Augment only in training
                         # todo: create a regular jitter for each patch increase the number of patches by some constant
                         # resized_img = augment_visual_genome(resized_img, detection, config, mask)
@@ -505,7 +505,7 @@ def visual_genome_data_generator(data, hierarchy_mapping, config, mode, classifi
                     continue
 
                 # In-case we want to normalize
-                if config.normalize:
+                if config.use_jitter:
                     # Subtract mean and normalize
                     mean_image = np.mean(img, axis=0)
                     img -= mean_image
@@ -540,7 +540,7 @@ def visual_genome_data_generator(data, hierarchy_mapping, config, mode, classifi
                 resized_img = get_img_resize(patch_subject, config.crop_width, config.crop_height,
                                              type=config.padding_method)
 
-                if mode == 'train' and config.jitter:
+                if mode == 'train' and config.use_jitter:
                     # Augment only in training
                     # todo: create a regular jitter for each patch increase the number of patches by some constant
                     # resized_img = augment_visual_genome(resized_img, detection, config, mask)
@@ -604,17 +604,9 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
                         continue
 
                     # In-case we want to normalize
-                    if config.normalize:
-                        # Subtract mean and normalize
-                        mean_image = np.mean(img, axis=0)
-                        img -= mean_image
-                        img /= 128.
-
-                        # Zero-center by mean pixel
-                        # norm_img = img.astype(np.float32)
-                        # norm_img[:, :, 0] -= 103.939
-                        # norm_img[:, :, 1] -= 116.779
-                        # norm_img[:, :, 2] -= 123.68
+                    if config.use_jitter:
+                        img = config.jitter.random_transform(img.astype("float32"))
+                        img = config.jitter.standardize(img)
 
                     # Get the lable of object
                     label = object.names[0]
@@ -641,7 +633,7 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
                     resized_img = get_img_resize(patch, config.crop_width, config.crop_height,
                                                  type=config.padding_method)
 
-                    if mode == 'train' and config.jitter:
+                    if mode == 'train' and config.use_jitter:
                         # Augment only in training
                         # todo: create a regular jitter for each patch increase the number of patches by some constant
                         resized_img = augment_visual_genome(resized_img, object, config, mask)
@@ -688,7 +680,7 @@ def visual_genome_data_cnn_generator(data, hierarchy_mapping, config, mode):
                     continue
 
                 # In-case we want to normalize
-                if config.normalize:
+                if config.use_jitter:
                     # Subtract mean and normalize
                     mean_image = np.mean(img, axis=0)
                     img -= mean_image
@@ -725,9 +717,12 @@ def visual_genome_data_cnn_generator(data, hierarchy_mapping, config, mode):
                 resized_img = get_img_resize(patch, config.crop_width, config.crop_height,
                                              type=config.padding_method)
 
-                if mode == 'train' and config.jitter:
+                if mode == 'train' and config.use_jitter:
                     # Augment only in training
                     # todo: create a regular jitter for each patch increase the number of patches by some constant
+
+
+
                     resized_img = augment_visual_genome(resized_img, object, config, mask)
 
                 # Expand dimensions - add batch dimension for the numpy
