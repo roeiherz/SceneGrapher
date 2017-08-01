@@ -1,5 +1,6 @@
 import inspect
 import sys
+
 sys.path.append("..")
 from multiprocessing import Process
 
@@ -18,10 +19,19 @@ VISUAL_FEATURES_OBJECT_SIZE = 2048
 NOF_PREDICATES = 51
 # NOF_PREDICATES = 2
 NOF_OBJECTS = 150
-
-
 # NOF_OBJECTS = 2
 
+# negative vs positive factor
+POS_NEG_FACTOR = 3
+
+# save model every number of iterations
+SAVE_MODEL_ITERATIONS = 100
+
+# test every number of iterations
+TEST_ITERATIONS = 10
+
+# percentage of test data
+TEST_PERCENT = 10
 
 
 def test(labels_predicate, labels_object, out_belief_predicate_val, out_belief_object_val):
@@ -47,7 +57,7 @@ def test(labels_predicate, labels_object, out_belief_predicate_val, out_belief_o
     pos_indices = np.where(predicats_gt != NOF_PREDICATES - 1)
     results["predicates_pos_total"] = pos_indices[0].shape[0]
 
-    # number of object correct predictipns
+    # number of object correct predictions
     results["obj_correct"] = np.sum(objects_gt == objects_pred)
     # number of correct predicate
     results["predicates_correct"] = np.sum(predicats_gt == predicats_pred)
@@ -58,9 +68,9 @@ def test(labels_predicate, labels_object, out_belief_predicate_val, out_belief_o
     # number of correct relationships
     object_true_indices = np.where(objects_gt == objects_pred)
     predicats_gt_true = predicats_gt[object_true_indices[0], :][:, object_true_indices[0]]
-    predicats_pred_true = predicats_pred[object_true_indices[0],:][:, object_true_indices[0]]    
+    predicats_pred_true = predicats_pred[object_true_indices[0], :][:, object_true_indices[0]]
     results["relationships_correct"] = np.sum(predicats_gt_true == predicats_pred_true)
-    # number of correct postive relationships
+    # number of correct positive relationships
     pos_true_indices = np.where(predicats_gt_true != NOF_PREDICATES - 1)
     predicats_gt_pos_true = predicats_gt_true[pos_true_indices]
     predicats_pred_pos_true = predicats_pred_true[pos_true_indices]
@@ -151,23 +161,26 @@ def train(name="test",
 
         # read data
         entities = filesmanager.load_file("data.visual_genome.detections_v2")
-
+        max_train_entity = len(entities) * (100 - TEST_PERCENT) / 100
+        train_entities = entities[:max_train_entity]
+        test_entities = entities[max_train_entity + 1:]
         # train module
         for epoch in range(nof_iterations):
             accum_results = None
             total_loss = 0
-            for entity in entities:
+            for entity in train_entities:
                 # get shape of extended object to be used by the module
                 extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
                 extended_belief_object_shape[2] = NOF_OBJECTS
+
                 # give lower weight to negatives
                 predicates_labels = entity.predicates_labels.astype(float)
-		predicates_labels[:, :,:NOF_PREDICATES-2] = 0
-                factor = float(np.sum(entity.predicates_labels[:, :,:NOF_PREDICATES-2])) / np.sum(entity.predicates_labels) / 3 - 1
-                #print(factor)
+                predicates_labels[:, :, :NOF_PREDICATES - 2] = 0
+                factor = float(np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2])) / np.sum(
+                    entity.predicates_labels) / POS_NEG_FACTOR - 1
                 predicates_labels *= factor
-		#predicates_labels *= - 0.99
-                predicates_labels += entity.predicates_labels		
+                predicates_labels += entity.predicates_labels
+
                 # create the feed dictionary
                 feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
                              extended_belief_object_shape_ph: extended_belief_object_shape,
@@ -175,36 +188,84 @@ def train(name="test",
                              visual_features_object_ph: entity.objects_features,
                              labels_predicate_ph: predicates_labels, labels_object_ph: entity.objects_labels}
 
+                # run the network
                 out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val, lr = \
                     sess.run([out_belief_predicate, out_belief_object, loss, train_step, module.learning_rate_var],
                              feed_dict=feed_dict)
-                
-                total_loss += loss_val
 
-                results = test(entity.predicates_labels, entity.objects_labels, out_belief_predicate_val, out_belief_object_val)
-                #results = test(entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
+                # statistic
+                total_loss += loss_val
+                results = test(entity.predicates_labels, entity.objects_labels, out_belief_predicate_val,
+                               out_belief_object_val)
+                # results = test(entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
                 # accumulate results
                 if accum_results is None:
                     accum_results = results
                 else:
                     for key in results:
                         accum_results[key] += results[key]
-        
+
             # print stat
             obj_accuracy = float(accum_results['obj_correct']) / accum_results['obj_total']
-            predicate_pos_accuracy = float(accum_results['predicates_pos_correct']) / accum_results['predicates_pos_total']
+            predicate_pos_accuracy = float(accum_results['predicates_pos_correct']) / accum_results[
+                'predicates_pos_total']
             predicate_all_accuracy = float(accum_results['predicates_correct']) / accum_results['predicates_total']
-            relationships_pos_accuracy = float(accum_results['relationships_pos_correct']) / accum_results['predicates_pos_total']
-            relationships_all_accuracy = float(accum_results['relationships_correct']) / accum_results['predicates_total']
-
+            relationships_pos_accuracy = float(accum_results['relationships_pos_correct']) / accum_results[
+                'predicates_pos_total']
+            relationships_all_accuracy = float(accum_results['relationships_correct']) / accum_results[
+                'predicates_total']
 
             logger.log("iter %d - loss %f - obj %f - pred %f - rela %f - all_pred %f - all rela %f - lr %f" %
                        (epoch, total_loss, obj_accuracy, predicate_pos_accuracy, relationships_pos_accuracy,
                         predicate_all_accuracy, relationships_all_accuracy, lr))
-            if epoch % 100 == 0:
+
+            if epoch % TEST_ITERATIONS == 0:
+                accum_test_results = None
+                for entity in test_entities:
+                    # get shape of extended object to be used by the module
+                    extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
+                    extended_belief_object_shape[2] = NOF_OBJECTS
+
+                    # create the feed dictionary
+                    feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
+                                 extended_belief_object_shape_ph: extended_belief_object_shape,
+                                 visual_features_predicate_ph: entity.predicates_features,
+                                 visual_features_object_ph: entity.objects_features,
+                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels}
+
+                    # run the network
+                    out_belief_predicate_val, out_belief_object_val = sess.run(
+                        [out_belief_predicate, out_belief_object],
+                        feed_dict=feed_dict)
+
+                    # statistic
+                    results = test(entity.predicates_labels, entity.objects_labels, out_belief_predicate_val,
+                                   out_belief_object_val)
+                    # accumulate results
+                    if accum_test_results is None:
+                        accum_test_results = results
+                    else:
+                        for key in results:
+                            accum_test_results[key] += results[key]
+
+                # print stat
+                obj_accuracy = float(accum_test_results['obj_correct']) / accum_test_results['obj_total']
+                predicate_pos_accuracy = float(accum_test_results['predicates_pos_correct']) / accum_test_results[
+                    'predicates_pos_total']
+                predicate_all_accuracy = float(accum_test_results['predicates_correct']) / accum_test_results['predicates_total']
+                relationships_pos_accuracy = float(accum_test_results['relationships_pos_correct']) / accum_test_results[
+                    'predicates_pos_total']
+                relationships_all_accuracy = float(accum_test_results['relationships_correct']) / accum_test_results[
+                    'predicates_total']
+
+                logger.log("TEST - loss %f - obj %f - pred %f - rela %f - all_pred %f - all rela %f" %
+                           (epoch, total_loss, obj_accuracy, predicate_pos_accuracy, relationships_pos_accuracy,
+                            predicate_all_accuracy, relationships_all_accuracy))
+
+            if epoch % SAVE_MODEL_ITERATIONS == 0:
                 module_path_save = os.path.join(module_path, name + "_module.ckpt")
                 save_path = saver.save(sess, module_path_save)
-                logger.log("Model saved in file: %s" % save_path) 
+                logger.log("Model saved in file: %s" % save_path)
         print("Debug")
 
         # save module
