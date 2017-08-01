@@ -109,7 +109,7 @@ class Module(object):
             self.nn_predicate_b_3 = tf.get_variable(name="b3", shape=(out_size),
                                                     initializer=tf.truncated_normal_initializer())
 
-    def nn_predicate(self, features, out_shape, scope_name="nn_predicate"):
+    def nn_predicate(self, features, in_belief_predicate, out_shape, scope_name="nn_predicate"):
         """
         simple nn to convert features to belief
         :param features: features tensor
@@ -121,11 +121,14 @@ class Module(object):
         with tf.variable_scope(scope_name):
             # Create neural network
             input_features = tf.reshape(features, (-1, in_size))
+            
             h1 = tf.nn.tanh(tf.matmul(input_features, self.nn_predicate_w_1) + self.nn_predicate_b_1, name="h1")
             h2 = tf.nn.tanh(tf.matmul(h1, self.nn_predicate_w_2) + self.nn_predicate_b_2, name="h2")
-            y = tf.add(tf.matmul(h2, self.nn_predicate_w_3), self.nn_predicate_b_3, name="y")
+            delta = tf.add(tf.matmul(h2, self.nn_predicate_w_3), self.nn_predicate_b_3, name="delta")
+            in_belief_shaped = tf.reshape(in_belief_predicate, tf.shape(delta))
+            y = tf.add(delta, in_belief_shaped, name="y")
 
-            out = tf.nn.softmax(y, name="y")
+            out = tf.nn.softmax(y, name="out")
 
             # reshape to fit the required output dims
             y = tf.reshape(y, out_shape)
@@ -134,9 +137,9 @@ class Module(object):
         return out , y
     def nn_object_weights(self, in_size, out_size):
         # h1_size = 2 * in_size
-        h1_size = 100
+        h1_size = 200
         # h2_size = 2 * in_size
-        h2_size = 100
+        h2_size = 200
 
         with tf.variable_scope("nn_object_weights"):
             # Define the initialization of the first layer
@@ -157,7 +160,7 @@ class Module(object):
             self.nn_object_b_3 = tf.get_variable(name="b3", shape=(out_size),
                                                  initializer=tf.truncated_normal_initializer())
 
-    def nn_object(self, features, out_size, scope_name="nn_object"):
+    def nn_object(self, features, in_belief_object, out_size, scope_name="nn_object"):
         """
         simple nn to convert features to belief
         :param features: features tensor
@@ -171,7 +174,8 @@ class Module(object):
             # Create neural network
             h1 = tf.nn.tanh(tf.matmul(features, self.nn_object_w_1) + self.nn_object_b_1, name="h1")
             h2 = tf.nn.tanh(tf.matmul(h1, self.nn_object_w_2) + self.nn_object_b_2, name="h2")
-            y = tf.add(tf.matmul(h2, self.nn_object_w_3), self.nn_object_b_3, name="y")
+            delta = tf.add(tf.matmul(h2, self.nn_object_w_3), self.nn_object_b_3, name="delta")
+            y = tf.add(delta, in_belief_object, name="y")
 
             out = tf.nn.softmax(y, name="out")
 
@@ -222,11 +226,11 @@ class Module(object):
                     axis=1, name="object_all_features")
 
             # fully cnn to calc belief predicate for every subject and object
-            out_belief_predicate, last_layer_predicate = self.nn_predicate(predicate_all_features,
+            out_belief_predicate, last_layer_predicate = self.nn_predicate(predicate_all_features, in_belief_predicate,
                                       out_shape=tf.shape(in_belief_predicate))
 
             # fully cnn to calc belief object for every object
-            out_belief_object, last_layer_object = self.nn_object(object_all_features, out_size=self.nof_objects)
+            out_belief_object, last_layer_object = self.nn_object(object_all_features, in_belief_object, out_size=self.nof_objects)
 
             return out_belief_predicate, out_belief_object, last_layer_predicate, last_layer_object
 
@@ -250,13 +254,13 @@ class Module(object):
                                                                      name="loss_predicate")
             loss_object = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph, logits=self.last_layer_object,
                                                                   name="loss_object")
-            loss = tf.add(tf.reduce_sum(loss_predicate), tf.reduce_sum(loss_object), name="loss")
+            loss = tf.add(tf.reduce_sum(loss_predicate), 10 * tf.reduce_sum(loss_object), name="loss")
 
             # minimize
             self.global_step = tf.Variable(0, trainable=False)
             self.learning_rate_var = tf.train.exponential_decay(self.learning_rate, self.global_step, self.learning_rate_steps,
-                                                       self.learning_rate_decay, staircase=True)
-            train_step = tf.train.GradientDescentOptimizer(self.learning_rate_var).minimize(loss)
+                                                      self.learning_rate_decay, staircase=True)
+            train_step = tf.train.GradientDescentOptimizer(self.learning_rate_var).minimize(loss, global_step=self.global_step)
 
         return loss, train_step
 

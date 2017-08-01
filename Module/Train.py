@@ -157,16 +157,23 @@ def train(name="test",
             accum_results = None
             total_loss = 0
             for entity in entities:
-
+                # get shape of extended object to be used by the module
                 extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
                 extended_belief_object_shape[2] = NOF_OBJECTS
-
+                # give lower weight to negatives
+                predicates_labels = entity.predicates_labels.astype(float)
+		predicates_labels[:, :,:NOF_PREDICATES-2] = 0
+                factor = float(np.sum(entity.predicates_labels[:, :,:NOF_PREDICATES-2])) / np.sum(entity.predicates_labels) / 3 - 1
+                #print(factor)
+                predicates_labels *= factor
+		#predicates_labels *= - 0.99
+                predicates_labels += entity.predicates_labels		
                 # create the feed dictionary
                 feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
                              extended_belief_object_shape_ph: extended_belief_object_shape,
                              visual_features_predicate_ph: entity.predicates_features,
                              visual_features_object_ph: entity.objects_features,
-                             labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels}
+                             labels_predicate_ph: predicates_labels, labels_object_ph: entity.objects_labels}
 
                 out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val, lr = \
                     sess.run([out_belief_predicate, out_belief_object, loss, train_step, module.learning_rate_var],
@@ -194,7 +201,10 @@ def train(name="test",
             logger.log("iter %d - loss %f - obj %f - pred %f - rela %f - all_pred %f - all rela %f - lr %f" %
                        (epoch, total_loss, obj_accuracy, predicate_pos_accuracy, relationships_pos_accuracy,
                         predicate_all_accuracy, relationships_all_accuracy, lr))
-        
+            if epoch % 100 == 0:
+                module_path_save = os.path.join(module_path, name + "_module.ckpt")
+                save_path = saver.save(sess, module_path_save)
+                logger.log("Model saved in file: %s" % save_path) 
         print("Debug")
 
         # save module
