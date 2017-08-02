@@ -13,7 +13,7 @@ class Config:
     def __init__(self, gpu_num):
 
         # Do we continuing to train or start from fresh
-        self.loading_model = True
+        self.loading_model = False
         self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Mon_Jul_24_19:58:35_2017"
         self.loading_model_token = "scene_graph_base_module.visual_module.object_cnn"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
@@ -28,7 +28,7 @@ class Config:
             self.nof_classes = 50
 
         # The Training is only with positive samples
-        self.only_pos = True
+        self.only_pos = False
 
         # location of pre-trained weights for the base network
         # weight files can be found at:

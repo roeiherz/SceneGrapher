@@ -15,7 +15,8 @@ from keras.models import Model
 import sys
 import math
 from FeaturesExtraction.Utils.Boxes import BOX
-from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH, get_img_resize, TRAINING_OBJECTS_CNN_PATH, TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img
+from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH, get_img_resize, TRAINING_OBJECTS_CNN_PATH, \
+    TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img
 import time
 from FeaturesExtraction.Utils.data import get_filtered_data, get_name_from_file, process_to_detections
 from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
@@ -64,7 +65,7 @@ def get_resize_images_array(detections, config):
 
         except Exception as e:
             logger.log("Exception for detection_id: {0}, image: {1}".format(detection[Detections.Id],
-                                                                       detection[Detections.Url]))
+                                                                            detection[Detections.Url]))
             logger.log(str(e))
             traceback.print_exc()
             resized_img_lst.append(np.zeros((config.crop_width, config.crop_height, 3)))
@@ -78,7 +79,7 @@ def load_full_detections(detections_file_name):
     """
     # Check if pickles are already created
     detections_path = FilesManager().get_file_path(
-                        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(detections_file_name)))
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(detections_file_name)))
 
     if os.path.isfile(detections_path):
         logger.log('Detections numpy array is Loading from: {0}'.format(detections_path))
@@ -185,7 +186,7 @@ def save_weights(predict_model, file_name=""):
     :param file_name: file name string which will be saved
     :return: 
     """
-    weights = predict_model.layers[-1].get_weights()[0] # [2048, nof_classes=51]
+    weights = predict_model.layers[-1].get_weights()[0]  # [2048, nof_classes=51]
     save_files(weights, file_name)
     logger.log("Saved the last layer weights [2048,51] ")
 
@@ -218,7 +219,7 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)
 
     # BOTH MODULE + VISUAL
-    detections = load_full_detections(detections_file_name="mini_detections")
+    detections = load_full_detections(detections_file_name="full_detections")
     detections = sort_detections_by_url(detections)
 
     # region
@@ -233,8 +234,8 @@ if __name__ == '__main__':
 
     # Load detections dtype numpy array and hierarchy mappings
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                   "mini_filtered_data",
-                                                                                   category='entities')
+                                                                                          "mini_filtered_data",
+                                                                                          category='entities')
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
         logger.log("Error: No object training folder or predicate training folder has been given")
@@ -273,7 +274,7 @@ if __name__ == '__main__':
 
     # Get the object and predicate model
     object_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path, config=config)
-    predict_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config)
+    predicate_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config)
 
     # Save Weights
     # save_weights(predict_model, file_name="last_layer_ratio3_weights.p")
@@ -286,9 +287,10 @@ if __name__ == '__main__':
 
     # Predict Predicates for some statistics
     logger.log('Predicting Probabilities - Predicates')
-    predicted_objects = predict_model.predict_generator(data_gen_val_predicates_vg,
-                                                        steps=int(math.ceil(len(detections) / float(NUM_BATCHES * 3))),
-                                                        max_q_size=1, workers=1)
+
+    predicted_objects = predicate_model.predict_generator(data_gen_val_predicates_vg,
+                                                          steps=int(math.ceil(len(detections) / float(NUM_BATCHES))),
+                                                          max_q_size=1, workers=1)
     logger.log("Saving Predicates Probabilities")
     save_files(predicted_objects, name="mini_predicated_predicates_010817.p")
     logger.log("Finished successfully saving Predicates Probabilities")
@@ -296,7 +298,8 @@ if __name__ == '__main__':
     index_predicates_labels_per_sample = np.argmax(predicted_objects, axis=1)
     # Get the inverse-mapping: int id to str label
     index_to_label_mapping_predicates = {label: id for id, label in hierarchy_mapping_predicates.iteritems()}
-    labels_per_sample = np.array([index_to_label_mapping_predicates[label] for label in index_predicates_labels_per_sample])
+    labels_per_sample = np.array(
+        [index_to_label_mapping_predicates[label] for label in index_predicates_labels_per_sample])
     # Save detections in PredictSubjectClassifications
     detections[Detections.PredictSubjectClassifications] = labels_per_sample[:len(detections)]
     # Save detections
@@ -349,7 +352,7 @@ if __name__ == '__main__':
 
     logger.log('Calculating Union-Box Features')
     # Define the function
-    get_features_output_func = K.function([predict_model.layers[0].input], [predict_model.layers[-2].output])
+    get_features_output_func = K.function([predicate_model.layers[0].input], [predicate_model.layers[-2].output])
     ind = 0
     # Start measure time
     start = time.time()
@@ -376,7 +379,7 @@ if __name__ == '__main__':
 
         except Exception as e:
             logger.log("Exception for detection_id: {0}, image: {1}".format(detection[Detections.Id],
-                                                                       detection[Detections.Url]))
+                                                                            detection[Detections.Url]))
             logger.log(str(e))
             traceback.print_exc()
 

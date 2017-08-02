@@ -68,20 +68,36 @@ data:
             name: "Data/VisualGenome/mini_visual_filtered_relations.p"
             type: "pickle"
             doc:  "Relations (ONLY FROM 500 ENTITIES) includes positive and negative predicates 1X3"
+        mini_relations_all_data:
+            name: "Data/VisualGenome/mini_visual_filtered_relations_all_data.p"
+            type: "pickle"
+            doc:  "Relations (ONLY FROM 1000 ENTITIES) includes positive and negative predicates 1X3"
         full_relations:
             name: "Data/VisualGenome/full_visual_filtered_relations.p"
             type: "pickle"
             doc:  "Relations (ONLY FROM 54000 ENTITIES) includes positive and negative predicates 1X3"
+        full_relations_pos:
+            name: "Data/VisualGenome/full_visual_filtered_relations_only_pos.p"
+            type: "pickle"
+            doc:  "Relations (ONLY FROM 54000 ENTITIES) includes *ONLY* positive "
 
         # Detections (for TrainPredicateCNN)
         mini_detections:
             name: "Data/VisualGenome/mini_visual_filtered_detections.p"
             type: "pickle"
             doc:  "Detections (ONLY FROM 500 ENTITIES) includes positive and negative predicates 1X3"
+        mini_detections_all_data:
+            name: "Data/VisualGenome/mini_visual_filtered_detections_all_data.p"
+            type: "pickle"
+            doc:  "Detections (ONLY FROM 1000 ENTITIES) includes positive and negative predicates 1X3"
         full_detections:
             name: "Data/VisualGenome/full_visual_filtered_detections.p"
             type: "pickle"
             doc:  "Detections (ONLY FROM 54000 ENTITIES) includes positive and negative predicates 1X3"
+        full_detections_only_pos:
+            name: "Data/VisualGenome/full_visual_filtered_detections_only_pos.p"
+            type: "pickle"
+            doc:  "Detections (ONLY FROM 54000 ENTITIES) includes *ONLY* positive"
 
         # Objects (for TrainCNN)
         mini_objects:

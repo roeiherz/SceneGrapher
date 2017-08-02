@@ -8,6 +8,7 @@ from DesignPatterns.Detections import Detections
 from FeaturesExtraction.Lib.DataAugmentation import augment_visual_genome
 from FeaturesExtraction.Utils.Boxes import iou, BOX, find_union_box
 from FeaturesExtraction.Utils.Utils import VG_DATA_PATH, get_mask_from_object, get_img_resize, get_img
+from Utils.Logger import Logger
 
 __author__ = 'roeih'
 
@@ -396,7 +397,12 @@ def visual_genome_data_predicate_generator_with_batch(data, hierarchy_mapping, c
 
     correct_labels = hierarchy_mapping.keys()
     size = len(data)
-    num_of_batches_per_epoch = size / batch_size
+
+    # The number of batches per epoch depends if size % batch_size == 0
+    if size % batch_size == 0:
+        num_of_batches_per_epoch = size / batch_size
+    else:
+        num_of_batches_per_epoch = size / batch_size + 1
 
     while True:
 
@@ -409,8 +415,14 @@ def visual_genome_data_predicate_generator_with_batch(data, hierarchy_mapping, c
                 if evaluate:
                     print("Prediction Batch Number is {0}/{1}".format(batch_num + 1, num_of_batches_per_epoch))
 
+                # Define number of samples per batch
+                if batch_size * (batch_num + 1) >= size:
+                    nof_samples_per_batch = size - batch_size * batch_num
+                else:
+                    nof_samples_per_batch = batch_size
+
                 # Start one batch
-                for current_index in range(batch_size):
+                for current_index in range(nof_samples_per_batch):
                     # Get detection
                     ind = batch_num * batch_size + current_index
                     detection = data[ind]
@@ -440,6 +452,7 @@ def visual_genome_data_predicate_generator_with_batch(data, hierarchy_mapping, c
 
                     # Check if it is a correct label
                     if label not in correct_labels:
+                        Logger().log("WARNING: label isn't familiar")
                         continue
 
                     # Get the label uuid

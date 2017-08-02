@@ -229,7 +229,7 @@ def create_predicate_count(entities_file_read="", entities_file_save=""):
     # entities = cPickle.load(open(entities_path_read, "rb"))
     # Load detections dtype numpy array and hierarchy mappings
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                          "mini_filtered_data",
+                                                                                          "full_filtered_data",
                                                                                           category='entities')
 
     # Init dict
@@ -550,10 +550,10 @@ if __name__ == '__main__':
     exit()
 
     # Filter the data
-    filtered_module_data = get_module_filter_data(objects_count_file_name="mini_classes_count.p",
-                                                  entities_file_name="mini_entities.p",
+    filtered_module_data = get_module_filter_data(objects_count_file_name="full_classes_count.p",
+                                                  entities_file_name="full_entities.p",
                                                   # entities_file_name="full_entities.p",
-                                                  predicates_count_file_name="mini_predicates_count.p", nof_objects=150,
+                                                  predicates_count_file_name="full_predicates_count.p", nof_objects=150,
                                                   nof_predicates=50, create_negative=True,
                                                   positive_negative_ratio=POSITIVE_NEGATIVE_RATIO)
 
