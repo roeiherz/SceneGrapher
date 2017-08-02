@@ -312,6 +312,7 @@ def visual_genome_data_predicate_pairs_generator_with_batch(data, relations_dict
                     # Get the label of object
                     if (detection[0].names[0], detection[1].names[0]) in relations_dict:
                         label = relations_dict[(detection[0].names[0], detection[1].names[0])]
+
                     else:
                         # Negative label
                         label = "neg"
@@ -319,6 +320,10 @@ def visual_genome_data_predicate_pairs_generator_with_batch(data, relations_dict
                     # Check if it is a correct label
                     if label not in correct_labels:
                         continue
+
+                    # print("{0}, {1}: {2}".format(detection[0].names[0], detection[1].names[0], label))
+
+
 
                     # Get the label uuid
                     label_id = hierarchy_mapping[label]
@@ -411,7 +416,7 @@ def visual_genome_data_predicate_generator_with_batch(data, hierarchy_mapping, c
                     detection = data[ind]
 
                     # Get image
-                    img = get_img(detection[Detections.Url])
+                    img = get_img(detection[Detections.Url], download=True)
 
                     if img is None:
                         print("Coulden't get the image")

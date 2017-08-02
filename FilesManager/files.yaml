@@ -67,41 +67,41 @@ data:
         mini_relations:
             name: "Data/VisualGenome/mini_visual_filtered_relations.p"
             type: "pickle"
-            doc:  "Relations (ONLY FROM 1000 ENTITIES) includes positive and negative predicates 1X3"
+            doc:  "Relations (ONLY FROM 500 ENTITIES) includes positive and negative predicates 1X3"
         full_relations:
             name: "Data/VisualGenome/full_visual_filtered_relations.p"
             type: "pickle"
-            doc:  "Relations (ONLY FROM 108000 ENTITIES) includes positive and negative predicates 1X3"
+            doc:  "Relations (ONLY FROM 54000 ENTITIES) includes positive and negative predicates 1X3"
 
         # Detections (for TrainPredicateCNN)
         mini_detections:
             name: "Data/VisualGenome/mini_visual_filtered_detections.p"
             type: "pickle"
-            doc:  "Detections (ONLY FROM 1000 ENTITIES) includes positive and negative predicates 1X3"
+            doc:  "Detections (ONLY FROM 500 ENTITIES) includes positive and negative predicates 1X3"
         full_detections:
             name: "Data/VisualGenome/full_visual_filtered_detections.p"
             type: "pickle"
-            doc:  "Detections (ONLY FROM 108000 ENTITIES) includes positive and negative predicates 1X3"
+            doc:  "Detections (ONLY FROM 54000 ENTITIES) includes positive and negative predicates 1X3"
 
         # Objects (for TrainCNN)
         mini_objects:
             name: "Data/VisualGenome/mini_visual_filtered_objects.p"
             type: "pickle"
-            doc:  "Objects (ONLY FROM 1000 ENTITIES) only positive"
+            doc:  "Objects (ONLY FROM 500 ENTITIES) only positive"
         full_objects:
             name: "Data/VisualGenome/full_visual_filtered_objects.p"
             type: "pickle"
-            doc:  "Objects (ONLY FROM 108000 ENTITIES) only positive"
+            doc:  "Objects (ONLY FROM 54000 ENTITIES) only positive"
 
         # Objects with Probabilities (for PredictVisualModel)
         mini_objects_with_probs:
             name: "Data/VisualGenome/mini_objects_with_probs.p"
             type: "pickle"
-            doc:  "Objects (ONLY FROM 1000 ENTITIES) with Probabilities includes positive and negative predicates 1X3"
+            doc:  "Objects (ONLY FROM 500 ENTITIES) with Probabilities includes positive and negative predicates 1X3"
         full_objects_with_probs:
             name: "Data/VisualGenome/full_objects_with_probs.p"
             type: "pickle"
-            doc:  "Objects (ONLY FROM 108000 ENTITIES) with Probabilities includes positive and negative predicates 1X3"
+            doc:  "Objects (ONLY FROM 54000 ENTITIES) with Probabilities includes positive and negative predicates 1X3"
 
         # Detections with Probabilities and Predicate Features (for PredictVisualModel)
         mini_detections_with_probs:
@@ -116,7 +116,7 @@ data:
         detections_v2:
           name: "FeaturesExtraction/PredicatedFeatures/Sun_Jul_30_22:53:54_2017/predicated_entities.p"
           type: "pickle"
-          doc:  "1000 entites which included matrix style data of predicates and objects"
+          doc:  "1000 entities which included matrix style data of predicates and objects"
 
 features_extraction:
     visual:

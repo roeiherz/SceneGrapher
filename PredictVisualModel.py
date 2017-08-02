@@ -17,7 +17,7 @@ import math
 from FeaturesExtraction.Utils.Boxes import BOX
 from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH, get_img_resize, TRAINING_OBJECTS_CNN_PATH, TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img
 import time
-from FeaturesExtraction.Utils.data import get_filtered_data, get_name_from_file
+from FeaturesExtraction.Utils.data import get_filtered_data, get_name_from_file, process_to_detections
 from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
 from FilesManager.FilesManager import FilesManager
 from Utils.Logger import Logger
@@ -77,7 +77,7 @@ def load_full_detections(detections_file_name):
     :return: detections
     """
     # Check if pickles are already created
-    detections_path = filemanager.get_file_path(
+    detections_path = FilesManager().get_file_path(
                         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(detections_file_name)))
 
     if os.path.isfile(detections_path):
@@ -139,7 +139,7 @@ def save_files(files, name=""):
     """
 
     # Save detections
-    detections_filename = open(os.path.join(VG_VisualModule_PICKLES_PATH, name), 'wb')
+    detections_filename = open(name, 'wb')
     # Pickle detections
     cPickle.dump(files, detections_filename, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
@@ -218,7 +218,7 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)
 
     # BOTH MODULE + VISUAL
-    detections = load_full_detections(detections_file_name="full_detections")
+    detections = load_full_detections(detections_file_name="mini_detections")
     detections = sort_detections_by_url(detections)
 
     # region
@@ -232,7 +232,7 @@ if __name__ == '__main__':
     # endregion
 
     # Load detections dtype numpy array and hierarchy mappings
-    _, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
+    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
                                                                                    "mini_filtered_data",
                                                                                    category='entities')
     # Check the training folders from which we take the weights aren't empty
@@ -248,6 +248,12 @@ if __name__ == '__main__':
 
     # Set the number of classes
     number_of_classes_objects = len(hierarchy_mapping_objects)
+
+    if config.only_pos and "neg" in hierarchy_mapping_predicates:
+        # Remove negative label from hierarchy_mapping_predicates because we want to train only positive
+        hierarchy_mapping_predicates.pop("neg")
+        detections = detections[detections[Detections.Predicate] != "neg"]
+
     number_of_classes_predicates = len(hierarchy_mapping_predicates)
 
     # Create a data generator for VisualGenome for OBJECTS
@@ -270,39 +276,38 @@ if __name__ == '__main__':
     predict_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config)
 
     # Save Weights
-    save_weights(predict_model, file_name="last_layer_ratio3_weights.p")
+    # save_weights(predict_model, file_name="last_layer_ratio3_weights.p")
 
     logger.log('Starting Prediction')
 
     # region
-    # # Load Predicates
-    # # load_predicts(file_name="mini_predicated_predicates_with_neg_ratio1_Wed_Jun_14_20:25:16_2017.p")
-    #
-    # # Predict Predicates for some statistics
-    # logger.log('Predicting Probabilities - Predicates')
-    # predicted_objects = predict_model.predict_generator(data_gen_val_predicates_vg,
-    #                                                     steps=int(math.ceil(len(detections) / float(NUM_BATCHES))),
-    #                                                     max_q_size=1, workers=1)
-    # logger.log("Saving Predicates Probabilities")
-    # save_files(predicted_objects, name="mini_predicated_predicates_with_neg_ratio1_Wed_Jun_14_20:25:16_2017.p")
-    # logger.log("Finished successfully saving Predicates Probabilities")
-    # # Get the max argument
-    # index_predicates_labels_per_sample = np.argmax(predicted_objects, axis=1)
-    # # Get the inverse-mapping: int id to str label
-    # index_to_label_mapping_predicates = {label: id for id, label in hierarchy_mapping_predicates.iteritems()}
-    # labels_per_sample = np.array([index_to_label_mapping_predicates[label] for label in index_predicates_labels_per_sample])
-    # # Save detections in PredictSubjectClassifications
-    # detections[Detections.PredictSubjectClassifications] = labels_per_sample[:len(detections)]
-    # # Save detections
-    # logger.log("Saving predicates detections")
-    # save_files(detections, name="mini_predicated_predicates_with_neg_ratio1_Wed_Jun_14_20:25:16_2017.p")
-    # logger.log("Finished successfully saving predicated_detections")
-    #
-    # exit()
+    # Load Predicates
+    # load_predicts(file_name="mini_predicated_predicates_with_neg_ratio1_Wed_Jun_14_20:25:16_2017.p")
+
+    # Predict Predicates for some statistics
+    logger.log('Predicting Probabilities - Predicates')
+    predicted_objects = predict_model.predict_generator(data_gen_val_predicates_vg,
+                                                        steps=int(math.ceil(len(detections) / float(NUM_BATCHES * 3))),
+                                                        max_q_size=1, workers=1)
+    logger.log("Saving Predicates Probabilities")
+    save_files(predicted_objects, name="mini_predicated_predicates_010817.p")
+    logger.log("Finished successfully saving Predicates Probabilities")
+    # Get the max argument
+    index_predicates_labels_per_sample = np.argmax(predicted_objects, axis=1)
+    # Get the inverse-mapping: int id to str label
+    index_to_label_mapping_predicates = {label: id for id, label in hierarchy_mapping_predicates.iteritems()}
+    labels_per_sample = np.array([index_to_label_mapping_predicates[label] for label in index_predicates_labels_per_sample])
+    # Save detections in PredictSubjectClassifications
+    detections[Detections.PredictSubjectClassifications] = labels_per_sample[:len(detections)]
+    # Save detections
+    logger.log("Saving predicates detections")
+    save_files(detections, name="mini_predicated_predicates_010817.p")
+    logger.log("Finished successfully saving predicated_detections")
+
+    exit()
     # endregion
 
     logger.log('Predicting Probabilities - Objects')
-    # probes = object_model.predict_generator(data_gen_validation_vg, steps=len(detections) * 2, max_q_size=1, workers=1)
     # Probabilities: [nof_detections * 2, 150]
     objects_probes = object_model.predict_generator(data_gen_val_objects_vg,
                                                     steps=int(math.ceil(len(detections) / float(NUM_BATCHES))),
@@ -312,19 +317,7 @@ if __name__ == '__main__':
         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "mini_objects_with_probs"))
     filemanager.save_file(objects_probes_path, objects_probes)
     logger.log("Finished successfully saving Objects Probabilities")
-    # region
-    # Check for duality
-    # s = set()
-    # for j in range(probes.shape[0]):
-    #     for i in range(probes.shape[0]):
-    #         if i == j:
-    #             continue
-    #         if np.alltrue(probes[j] == probes[i]):
-    #             s.add((j, i))
-    # logger.log(s)
-    # detections[Detections.SubjectConfidence] = probes[::2]
-    # detections[Detections.ObjectConfidence] = probes[1::2]
-    # endregion
+
     # Slice the Subject prob (even index)
     detections[Detections.SubjectConfidence] = np.split(objects_probes[::2], len(detections), axis=0)
     # Slice the Object prob (odd index)

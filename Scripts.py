@@ -225,8 +225,13 @@ def create_predicate_count(entities_file_read="", entities_file_save=""):
     """
 
     # Load entities
-    entities_path_read = os.path.join(VisualGenome_PICKLES_PATH, entities_file_read)
-    entities = cPickle.load(open(entities_path_read, "rb"))
+    # entities_path_read = os.path.join(VisualGenome_PICKLES_PATH, entities_file_read)
+    # entities = cPickle.load(open(entities_path_read, "rb"))
+    # Load detections dtype numpy array and hierarchy mappings
+    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
+                                                                                          "mini_filtered_data",
+                                                                                          category='entities')
+
     # Init dict
     predict_count_dict = {}
 
@@ -535,6 +540,10 @@ if __name__ == '__main__':
 
     file_manager = FilesManager()
     logger = Logger()
+
+    create_predicate_count()
+
+    exit()
 
     Objects_AR_Histogram()
 

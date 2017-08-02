@@ -28,6 +28,8 @@ VALIDATION_PERCENT = 0.05
 TESTING_PERCENT = 0.2
 NUM_EPOCHS = 90
 NUM_BATCHES = 128
+RATIO = 3.0 / 10
+
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -107,11 +109,11 @@ def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mappi
     relations_path_token = "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(relation_file_name))
 
     # Check if pickles are already created
-    relations_path = filemanager.get_file_path(relations_path_token)
+    relations_path = FilesManager().get_file_path(relations_path_token)
 
     if os.path.isfile(relations_path):
-        logger.log('File is already exist {0}'.format(relations_path))
-        relations = filemanager.load_file(relations_path_token)
+        Logger().log('File is already exist {0}'.format(relations_path))
+        relations = FilesManager().load_file(relations_path_token)
         return relations
 
     # Get the whole objects from entities
@@ -151,13 +153,13 @@ def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mappi
             relations_lst.append(new_relation_mapping)
 
         idx += 1
-        logger.log("Finished img: {}".format(idx))
+        Logger().log("Finished img: {}".format(idx))
 
     # Pickle objects_lst
     relations_array = np.array(relations_lst)
 
     # Save the objects files to the disk
-    filemanager.save_file(relations_path_token, relations_array)
+    FilesManager().save_file(relations_path_token, relations_array)
 
     return relations_array
 
@@ -273,6 +275,7 @@ if __name__ == '__main__':
     if config.only_pos and "neg" in hierarchy_mapping_predicates:
         # Remove negative label from hierarchy_mapping_predicates because we want to train only positive
         hierarchy_mapping_predicates.pop("neg")
+        RATIO = 0
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
@@ -282,7 +285,7 @@ if __name__ == '__main__':
     detections = process_to_detections(relations, detections_file_name="mini_detections")
 
     # Get new negative - positive ratio
-    detections = pick_different_negative_sample_ratio(detections, ratio=3.0/10)
+    detections = pick_different_negative_sample_ratio(detections, ratio=RATIO)
 
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
@@ -299,7 +302,8 @@ if __name__ == '__main__':
                                                                           hierarchy_mapping=hierarchy_mapping_predicates,
                                                                           config=config, mode='train',
                                                                           classification=Detections.Predicate,
-                                                                          type_box=Detections.UnionBox, batch_size=NUM_BATCHES)
+                                                                          type_box=Detections.UnionBox,
+                                                                          batch_size=NUM_BATCHES)
 
     # Create a data generator for VisualGenome
     data_gen_test_vg = visual_genome_data_predicate_generator_with_batch(data=test_imgs,

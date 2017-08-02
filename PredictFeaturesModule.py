@@ -167,7 +167,8 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
     index_labels_per_gt_sample = np.array([hierarchy_mapping_objects[object.names[0]] for object in objects])
     # Get the max argument from the network output - [len(objects), ]
     index_labels_per_sample = np.argmax(objects_probes, axis=1)
-    logger.log("The Objects accuracy is {0}".format(np.where(index_labels_per_gt_sample == index_labels_per_sample)[0].shape[0] / float(len(objects))))
+    logger.log("The Objects accuracy is {0}".format(
+        np.where(index_labels_per_gt_sample == index_labels_per_sample)[0].shape[0] / float(len(objects))))
     # Get the object labels on hot vector per object [len(objects), 150]
     objects_labels = np.eye(len(hierarchy_mapping_objects), dtype='uint8')[index_labels_per_gt_sample.reshape(-1)]
     # Save labels
@@ -255,13 +256,20 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
 
     ## Get labels
     # Get the GT labels - [ len(objects_pairs), ]
-    index_labels_per_gt_sample = np.array([hierarchy_mapping_predicates[relations_dict[(pair[0].names[0], pair[1].names[0])]]
-                  if (pair[0].names[0], pair[1].names[0]) in relations_dict else hierarchy_mapping_predicates['neg']
-                  for pair in objects_pairs])
+    index_labels_per_gt_sample = np.array(
+        [hierarchy_mapping_predicates[relations_dict[(pair[0].names[0], pair[1].names[0])]]
+         if (pair[0].names[0], pair[1].names[0]) in relations_dict else hierarchy_mapping_predicates['neg']
+         for pair in objects_pairs])
     # Get the max argument - [len(objects_pairs), ]
     index_labels_per_sample = np.argmax(predicates_probes, axis=1)
+
+    # tt = predicates_probes.argsort(axis=1)[:, ::-1][:, :5]
+    # inv_map = {v: k for k, v in hierarchy_mapping_predicates.iteritems()}
+    # cc = [[inv_map[tt[j, i]] for i in range(tt.shape[1])] for j in range(tt.shape[0])]
+
     logger.log("The Relations accuracy is {0}".format(
         np.where(index_labels_per_gt_sample == index_labels_per_sample)[0].shape[0] / float(len(objects_pairs))))
+
     # Get the object labels on hot vector per object [len(objects), 51]
     predicates_labels = np.eye(len(hierarchy_mapping_predicates), dtype='uint8')[index_labels_per_gt_sample.reshape(-1)]
     # Reshape the predicates labels [n, n, 51]
@@ -387,6 +395,10 @@ if __name__ == '__main__':
                                              WEIGHTS_NAME)
     predicates_model_weight_path = os.path.join(TRAINING_PREDICATE_CNN_PATH, predicates_training_dir_name,
                                                 WEIGHTS_NAME)
+
+    if config.only_pos and "neg" in hierarchy_mapping_predicates:
+        # Remove negative label from hierarchy_mapping_predicates because we want to train only positive
+        hierarchy_mapping_predicates.pop("neg")
 
     # Set the number of classes
     number_of_classes_objects = len(hierarchy_mapping_objects)
