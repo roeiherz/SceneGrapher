@@ -22,7 +22,7 @@ NOF_OBJECTS = 150
 # NOF_OBJECTS = 2
 
 # negative vs positive factor
-POS_NEG_FACTOR = 3
+POS_NEG_FACTOR = 5
 
 # save model every number of iterations
 SAVE_MODEL_ITERATIONS = 100
@@ -135,7 +135,7 @@ def train(name="test",
         module_path = filesmanager.get_file_path("sg_module.train.saver")
         module_path_load = os.path.join(module_path, load_module_name)
         if os.path.exists(module_path_load + ".index") and use_saved_module:
-            saver.restore(sess, module_path)
+            saver.restore(sess, module_path_load)
             logger.log("Model restored.")
         else:
             sess.run(init)
@@ -165,7 +165,8 @@ def train(name="test",
         train_entities = entities[:max_train_entity]
         test_entities = entities[max_train_entity + 1:]
         # train module
-        for epoch in range(nof_iterations):
+        lr = learning_rate
+        for epoch in range(1, nof_iterations):
             accum_results = None
             total_loss = 0
             for entity in train_entities:
@@ -186,11 +187,11 @@ def train(name="test",
                              extended_belief_object_shape_ph: extended_belief_object_shape,
                              visual_features_predicate_ph: entity.predicates_features,
                              visual_features_object_ph: entity.objects_features,
-                             labels_predicate_ph: predicates_labels, labels_object_ph: entity.objects_labels}
+                             labels_predicate_ph: predicates_labels, labels_object_ph: entity.objects_labels, module.lr_ph : lr}
 
                 # run the network
-                out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val, lr = \
-                    sess.run([out_belief_predicate, out_belief_object, loss, train_step, module.learning_rate_var],
+                out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val = \
+                    sess.run([out_belief_predicate, out_belief_object, loss, train_step],
                              feed_dict=feed_dict)
 
                 # statistic
@@ -258,14 +259,17 @@ def train(name="test",
                 relationships_all_accuracy = float(accum_test_results['relationships_correct']) / accum_test_results[
                     'predicates_total']
 
-                logger.log("TEST - loss %f - obj %f - pred %f - rela %f - all_pred %f - all rela %f" %
-                           (epoch, total_loss, obj_accuracy, predicate_pos_accuracy, relationships_pos_accuracy,
+                logger.log("TEST - obj %f - pred %f - rela %f - all_pred %f - all rela %f" %
+                           (obj_accuracy, predicate_pos_accuracy, relationships_pos_accuracy,
                             predicate_all_accuracy, relationships_all_accuracy))
 
             if epoch % SAVE_MODEL_ITERATIONS == 0:
                 module_path_save = os.path.join(module_path, name + "_module.ckpt")
                 save_path = saver.save(sess, module_path_save)
                 logger.log("Model saved in file: %s" % save_path)
+            if epoch % learning_rate_steps == 0:
+                lr *= learning_rate_decay
+
         print("Debug")
 
         # save module
