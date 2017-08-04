@@ -28,8 +28,7 @@ import itertools
 from Utils.Utils import create_folder
 
 NUM_EPOCHS = 1
-# todo: consider increase NUM_BATCHES to 256 or 384 - don't forget that you have NUM_BATCHES * 3 in the code
-NUM_BATCHES = 128 * 3
+NUM_BATCHES = 128 * 2
 
 __author__ = 'roeih'
 
@@ -65,9 +64,10 @@ def save_files(path, files, name="predicated_entities"):
     logger.log("File Have been save in {}".format(detections_filename))
 
 
-def get_model(number_of_classes, weight_path, config):
+def get_model(number_of_classes, weight_path, config, activation="softmax"):
     """
         This function loads the model
+        :param activation: softmax is the default, otherwise its none
         :param weight_path: model weights path
         :param number_of_classes: number of classes
         :param config: config file
@@ -85,7 +85,7 @@ def get_model(number_of_classes, weight_path, config):
     net = ModelZoo()
     model_resnet50 = net.resnet50_base(img_input, trainable=True)
     model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
-    output_resnet50 = Dense(number_of_classes, kernel_initializer="he_normal", activation='softmax', name='fc')(
+    output_resnet50 = Dense(number_of_classes, kernel_initializer="he_normal", activation=activation, name='fc')(
         model_resnet50)
 
     # Define the model
@@ -204,6 +204,7 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
     else:
         num_of_batches_per_epoch = size / batch_size + 1
 
+    objects_outputs_without_softmax = []
     features_lst = []
     for batch in range(num_of_batches_per_epoch):
         logger.log(
@@ -213,8 +214,22 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
         object_features = get_features_output_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
         features_lst.append(object_features)
 
-    # Save features
+        logger.log(
+            "Prediction Batch Number of Outputs with no activation from *Objects* is {0}/{1}".format(batch + 1,
+            num_of_batches_per_epoch))
+
+        get_noactivation_outputs_func = K.function([objects_no_activation_model.layers[0].input],
+                                                   [objects_no_activation_model.layers[-1].output])
+
+        # Get the object features [len(objects), 150]
+        objects_noactivation_outputs = get_noactivation_outputs_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+        objects_outputs_without_softmax.append(objects_noactivation_outputs)
+
+    # Save objects features - [len(objects), 2048]
     entity.objects_features = np.concatenate(features_lst)
+
+    # Save objects output with no activation (no softmax) - [len(objects), 150]
+    entity.objects_outputs_with_no_activations = np.concatenate(objects_outputs_without_softmax)
 
 
 def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_predicates):
@@ -263,12 +278,46 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     # Get the max argument - [len(objects_pairs), ]
     index_labels_per_sample = np.argmax(predicates_probes, axis=1)
 
-    # tt = predicates_probes.argsort(axis=1)[:, ::-1][:, :5]
-    # inv_map = {v: k for k, v in hierarchy_mapping_predicates.iteritems()}
-    # cc = [[inv_map[tt[j, i]] for i in range(tt.shape[1])] for j in range(tt.shape[0])]
+    # Check how many positives and negatives relation we have
+    pos_indices = []
+    id = -1
+    for pair in objects_pairs:
+        id += 1
+        sub = pair[0]
+        obj = pair[1]
+        if (sub.names[0], obj.names[0]) in relations_dict and relations_dict[(sub.names[0], obj.names[0])] != "neg":
+            pos_indices.append(id)
 
-    logger.log("The Relations accuracy is {0}".format(
+    logger.log("The Total number of Relations is {0} while positive is {1} and negative is {2}".
+               format(len(objects_pairs), len(pos_indices), len(objects_pairs) - len(pos_indices)))
+
+    # pos_predicates_probes = predicates_probes[np.array(pos_indices)]
+    # top5_pos_labels = pos_predicates_probes.argsort(axis=1)[:, ::-1][:, :5]
+    # pos_pairs_gt = np.array(objects_pairs)[np.array(pos_indices)]
+    # pos_labels_gt = index_labels_per_gt_sample[np.array(pos_indices)]
+    # inv_map = {v: k for k, v in hierarchy_mapping_predicates.iteritems()}
+    # cc = [[inv_map[top5_pos_labels[j, i]] for i in range(top5_pos_labels.shape[1])] for j in range(top5_pos_labels.shape[0])]
+
+    logger.log("The Total Relations accuracy is {0}".format(
         np.where(index_labels_per_gt_sample == index_labels_per_sample)[0].shape[0] / float(len(objects_pairs))))
+
+    # Check for no divide by zero because we don't have any *POSITIVE* relations
+    if np.sum(index_labels_per_gt_sample != hierarchy_mapping_predicates['neg']) == 0:
+        logger.log("The Positive Relations accuracy is 0 - We have no positive relations")
+    else:
+        logger.log("The Positive Relations accuracy is {0}".format(
+            np.where((index_labels_per_gt_sample == index_labels_per_sample) &
+                     (index_labels_per_gt_sample != hierarchy_mapping_predicates['neg']))[0].shape[0] /
+            float(np.sum(index_labels_per_gt_sample != hierarchy_mapping_predicates['neg']))))
+
+    # Check for no divide by zero because we don't have any *NEGATIVE* relations
+    if np.sum(index_labels_per_gt_sample == hierarchy_mapping_predicates['neg']) == 0:
+        logger.log("The Negative Relations accuracy is 0 - We have no negative relations")
+    else:
+        logger.log("The Negative Relations accuracy is {0}".format(
+            np.where((index_labels_per_gt_sample == index_labels_per_sample) &
+                     (index_labels_per_gt_sample == hierarchy_mapping_predicates['neg']))[0].shape[0] /
+            float(np.sum(index_labels_per_gt_sample == hierarchy_mapping_predicates['neg']))))
 
     # Get the object labels on hot vector per object [len(objects), 51]
     predicates_labels = np.eye(len(hierarchy_mapping_predicates), dtype='uint8')[index_labels_per_gt_sample.reshape(-1)]
@@ -325,9 +374,11 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
         num_of_batches_per_epoch = size / batch_size + 1
 
     features_lst = []
+    predicates_outputs_without_softmax = []
+
     for batch in range(num_of_batches_per_epoch):
         logger.log(
-            "Prediction Batch Number of Features from *Objects* is {0}/{1}".format(batch + 1, num_of_batches_per_epoch))
+            "Prediction Batch Number of Features from *Relations* is {0}/{1}".format(batch + 1, num_of_batches_per_epoch))
         get_features_output_func = K.function([predict_model.layers[0].input],
                                               [predict_model.layers[-2].output])
 
@@ -336,15 +387,34 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
             0]
         features_lst.append(predicate_features)
 
+        logger.log(
+            "Prediction Batch Number of Outputs with no activation from *Relations* is {0}/{1}".format(batch + 1, num_of_batches_per_epoch))
+        get_noactivation_outputs_func = K.function([predicates_no_activation_model.layers[0].input],
+                                              [predicates_no_activation_model.layers[-1].output])
+
+        # Get the object features [len(objects), 150]
+        predict_noactivation_outputs = get_noactivation_outputs_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+        predicates_outputs_without_softmax.append(predict_noactivation_outputs)
+
     # Concatenate to [n*n, 2048]
     predicates_features = np.concatenate(features_lst)
     # Number of features
     number_of_features = predicates_features.shape[1]
     # Reshape the predicates labels [n, n, 2048]
     reshaped_predicates_features = predicates_features.reshape((len(objects), len(objects), number_of_features))
-    # Save features
+    # Save predicates features
     entity.predicates_features = reshaped_predicates_features
 
+    # Concatenate to [n*n, 51]
+    predicates_outputs_with_no_activation = np.concatenate(predicates_outputs_without_softmax)
+    # Number of features
+    number_of_outputs = predicates_outputs_with_no_activation.shape[1]
+    # Reshape the predicates labels [n, n, 51]
+    reshaped_predicates_outputs_with_no_activation = predicates_outputs_with_no_activation.reshape((len(objects),
+                                                                                                    len(objects),
+                                                                                                    number_of_outputs))
+    # Save predicate outputs with no activations (no softmax)
+    entity.predicates_outputs_with_no_activation = reshaped_predicates_outputs_with_no_activation
 
 if __name__ == '__main__':
 
@@ -408,6 +478,12 @@ if __name__ == '__main__':
     object_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path, config=config)
     predict_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config)
 
+    # Get objects model without activation (no softmax) in the last Dense layer
+    objects_no_activation_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path,
+                                            config=config, activation=None)
+    predicates_no_activation_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path,
+                                               config=config, activation=None)
+
     logger.log('Starting Prediction')
     predicated_entities = []
     ind = 0
@@ -415,6 +491,9 @@ if __name__ == '__main__':
     # Predict each entity
     for entity in entities:
         try:
+
+            if entity.image.id != 2339172:
+                continue
 
             # Increment index
             ind += 1

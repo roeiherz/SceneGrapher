@@ -288,7 +288,7 @@ if __name__ == '__main__':
     # Get new negative - positive ratio
     detections = pick_different_negative_sample_ratio(detections, ratio=RATIO)
 
-    logger.log('Number of detections after sorting negatives: {}'.format(len(detections)))
+    logger.log('Number of detections after sorting negatives: {0} with RATIO: {1}'.format(len(detections), RATIO))
 
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,

@@ -68,6 +68,10 @@ data:
             name: "Data/VisualGenome/mini_visual_filtered_relations.p"
             type: "pickle"
             doc:  "Relations (ONLY FROM 500 ENTITIES) includes positive and negative predicates 1X3"
+        mini_relations_module:
+            name: "Data/VisualGenome/mini_module_filtered_relations.p"
+            type: "pickle"
+            doc:  "Relations (ONLY FROM 500 ENTITIES) includes positive and negative predicates 1X3"
         mini_relations_all_data:
             name: "Data/VisualGenome/mini_visual_filtered_relations_all_data.p"
             type: "pickle"
@@ -85,7 +89,11 @@ data:
         mini_detections:
             name: "Data/VisualGenome/mini_visual_filtered_detections.p"
             type: "pickle"
-            doc:  "Detections (ONLY FROM 500 ENTITIES) includes positive and negative predicates 1X3"
+            doc:  "Detections (ONLY FROM VISUAL 500 ENTITIES) includes positive and negative predicates 1X3"
+        mini_detections_module:
+            name: "Data/VisualGenome/mini_module_filtered_detections.p"
+            type: "pickle"
+            doc:  "Detections (ONLY FROM MODULE 500 ENTITIES) includes positive and negative predicates 1X3"
         mini_detections_all_data:
             name: "Data/VisualGenome/mini_visual_filtered_detections_all_data.p"
             type: "pickle"

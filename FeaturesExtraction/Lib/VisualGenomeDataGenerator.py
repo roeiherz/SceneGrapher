@@ -431,7 +431,7 @@ def visual_genome_data_predicate_generator_with_batch(data, hierarchy_mapping, c
                     img = get_img(detection[Detections.Url], download=True)
 
                     if img is None:
-                        print("Coulden't get the image")
+                        Logger().log("Coulden't get the image in url {}".format(detection[Detections.Url]))
                         continue
 
                     # In-case we want to normalize

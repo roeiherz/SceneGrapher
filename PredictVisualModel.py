@@ -21,6 +21,7 @@ import time
 from FeaturesExtraction.Utils.data import get_filtered_data, get_name_from_file, process_to_detections
 from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
 from FilesManager.FilesManager import FilesManager
+from TrainPredicateCNN import preprocessing_relations, pick_different_negative_sample_ratio
 from Utils.Logger import Logger
 
 NOF_LABELS = 150
@@ -29,6 +30,7 @@ VALIDATION_PERCENT = 0.05
 TESTING_PERCENT = 0.2
 NUM_EPOCHS = 1
 NUM_BATCHES = 128
+RATIO = 3.0 / 10
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -219,23 +221,23 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)
 
     # BOTH MODULE + VISUAL
-    detections = load_full_detections(detections_file_name="full_detections")
-    detections = sort_detections_by_url(detections)
-
-    # region
-    # Load hierarchy mappings
-    # Get the hierarchy mapping objects
-    # hierarchy_mapping_objects = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH,
-    #                                                            "hierarchy_mapping_objects.p")))
-    # Get the hierarchy mapping predicates
-    # hierarchy_mapping_predicates = cPickle.load(open(os.path.join(VG_VisualModule_PICKLES_PATH,
-    #                                                               "hierarchy_mapping_predicates.p")))
-    # endregion
+    # detections = load_full_detections(detections_file_name="mini_detections")
+    # detections = sort_detections_by_url(detections)
 
     # Load detections dtype numpy array and hierarchy mappings
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
                                                                                           "mini_filtered_data",
-                                                                                          category='entities')
+                                                                                          category='entities_module')
+
+    # Get Visual Genome Data relations
+    relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
+                                        relation_file_name="mini_relations_module")
+
+    # Process relations to numpy Detections dtype
+    detections = process_to_detections(relations, detections_file_name="mini_detections_module")
+
+    detections = sort_detections_by_url(detections)
+
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
         logger.log("Error: No object training folder or predicate training folder has been given")
@@ -254,6 +256,12 @@ if __name__ == '__main__':
         # Remove negative label from hierarchy_mapping_predicates because we want to train only positive
         hierarchy_mapping_predicates.pop("neg")
         detections = detections[detections[Detections.Predicate] != "neg"]
+        RATIO = 0.0
+
+    # Get new negative - positive ratio
+    detections = pick_different_negative_sample_ratio(detections, ratio=RATIO)
+
+    logger.log('Number of detections after sorting negatives: {0} with RATIO: {1}'.format(len(detections), RATIO))
 
     number_of_classes_predicates = len(hierarchy_mapping_predicates)
 
