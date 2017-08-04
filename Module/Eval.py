@@ -1,5 +1,8 @@
 import inspect
 import os
+import sys
+
+sys.path.append("..")
 
 from FilesManager.FilesManager import FilesManager
 from Module import Module
@@ -7,7 +10,7 @@ from Utils.Logger import Logger
 import tensorflow as tf
 import numpy as np
 
-from Train import NOF_OBJECTS, NOF_PREDICATES, VISUAL_FEATURES_OBJECT_SIZE, VISUAL_FEATURES_PREDICATE_SIZE
+from Train import NOF_OBJECTS, NOF_PREDICATES, VISUAL_FEATURES_OBJECT_SIZE, VISUAL_FEATURES_PREDICATE_SIZE, TEST_PERCENT
 from Utils.ModuleDetection import ModuleDetection
 
 
@@ -49,7 +52,7 @@ def eval_image(img, reverse_object_ids, reverse_predicate_ids, labels_predicate,
             predict_prob = np.multiply.outer(subject_prob, np.multiply.outer(predicate_prob.flatten(), object_prob))
 
             # remove negative probabilties
-            predict_prob[:, 0:NOF_PREDICATES - 1, :] = 0
+            predict_prob[:, NOF_PREDICATES - 1, :] = 0
 
             # get the highset probabilities
             max_k_predictions = np.argsort(predict_prob.flatten())[-k:]
@@ -76,10 +79,10 @@ def eval_image(img, reverse_object_ids, reverse_predicate_ids, labels_predicate,
     global_obj_ids = top_k_global_object_ids[top_k_indices]
     likelihoods = top_likelihoods[top_k_indices]
     triplets = np.unravel_index(predictions.astype(int), predict_prob.shape)
-    for i in range(k):
-        detections.add_detection(global_subject_id=global_sub_ids[i], global_object_id=global_obj_ids[i],
-                                 pred_subject=triplets[0][i], pred_object=triplets[2][i], pred_predicate=triplets[1][i],
-                                 top_k_index=i, confidence=likelihoods[i])
+    #for i in range(k):
+    #    detections.add_detection(global_subject_id=global_sub_ids[i], global_object_id=global_obj_ids[i],
+    #                             pred_subject=triplets[0][i], pred_object=triplets[2][i], pred_predicate=triplets[1][i],
+    #                             top_k_index=i, confidence=likelihoods[i])
 
     predicats_gt = np.argmax(labels_predicate, axis=2)
     objects_gt = np.argmax(labels_object, axis=1)
@@ -107,8 +110,12 @@ def eval_image(img, reverse_object_ids, reverse_predicate_ids, labels_predicate,
             if len(indices) != 0:
                 img_score += 1
 
-    img_score_precent = float(img_score) / nof_pos_relationship
-    detections.save_stat(score=img_score_precent)
+    if nof_pos_relationship != 0:
+        img_score_precent = float(img_score) / nof_pos_relationship
+    else:
+        img_score_precent = 0
+
+    #detections.save_stat(score=img_score_precent)
 
     return img_score_precent, img_score, nof_pos_relationship
 
@@ -148,7 +155,7 @@ def predicate_class_recall(labels_predicate, out_belief_predicate_val, k=5):
     return correct, total
 
 
-def eval(nof_iterations=100, load_module_name="test", gpu=0):
+def eval(nof_iterations=100, load_module_name="test4", gpu=1):
     """
     Evaluate module:
     - Scene Graph Classification - R@k metric (measures the fraction of ground truth relationships
@@ -181,8 +188,6 @@ def eval(nof_iterations=100, load_module_name="test", gpu=0):
 
     # get input place holders
     belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph = module.get_in_ph()
-    # get labels place holders
-    labels_predicate_ph, labels_object_ph = module.get_labels_ph()
     # get module output
     out_belief_predicate, out_belief_object = module.get_output()
 
@@ -197,12 +202,12 @@ def eval(nof_iterations=100, load_module_name="test", gpu=0):
     summaries = tf.summary.merge_all()
 
     # read data
-    module_data = filesmanager.load_file("scene_graph_base_module.eval.final_eval_filtered_data")
-
-    entities = module_data[0]
-    object_ids = module_data[1]
-    predicate_ids = module_data[2]
-
+    entities = filesmanager.load_file("data.visual_genome.detections_v2")
+    max_train_entity = len(entities) * (100 - TEST_PERCENT) / 100
+    train_entities = entities[:max_train_entity]
+    test_entities = entities[max_train_entity + 1:]
+    object_ids = {str(i):i for i in range(NOF_OBJECTS)}
+    predicate_ids = {str(i):i for i in range(NOF_PREDICATES)}
     reverse_object_ids = {object_ids[id]: id for id in object_ids}
     reverse_predicate_ids = {predicate_ids[id]: id for id in predicate_ids}
 
@@ -217,46 +222,49 @@ def eval(nof_iterations=100, load_module_name="test", gpu=0):
             raise Exception("Module not found")
 
         # fake data to test
-        N = 3
-        belief_predicate = np.arange(N * N * NOF_PREDICATES).reshape(N, N, NOF_PREDICATES)
-        belief_object = np.arange(1000, 1000 + N * NOF_OBJECTS).reshape(N, NOF_OBJECTS)
-        extended_belief_object_shape = np.asarray(belief_predicate.shape)
-        extended_belief_object_shape[2] = NOF_OBJECTS
-        visual_features_predicate = np.arange(2000, 2000 + N * N * VISUAL_FEATURES_PREDICATE_SIZE).reshape(N, N,
-                                                                                                           VISUAL_FEATURES_PREDICATE_SIZE)
-        visual_features_object = np.arange(3000, 3000 + N * VISUAL_FEATURES_OBJECT_SIZE).reshape(N,
-                                                                                                 VISUAL_FEATURES_OBJECT_SIZE)
-        labels_predicate = np.ones((N, N, NOF_PREDICATES))
-        labels_object = np.ones((N, NOF_OBJECTS))
-        feed_dict = {belief_predicate_ph: belief_predicate, belief_object_ph: belief_object,
-                     extended_belief_object_shape_ph: extended_belief_object_shape,
-                     visual_features_predicate_ph: visual_features_predicate,
-                     visual_features_object_ph: visual_features_object,
-                     labels_predicate_ph: labels_predicate, labels_object_ph: labels_object}
-
+        #N = 3
+        #belief_predicate = np.arange(N * N * NOF_PREDICATES).reshape(N, N, NOF_PREDICATES)
+        #belief_object = np.arange(1000, 1000 + N * NOF_OBJECTS).reshape(N, NOF_OBJECTS)
+        #extended_belief_object_shape = np.asarray(belief_predicate.shape)
+        #extended_belief_object_shape[2] = NOF_OBJECTS
+        #visual_features_predicate = np.arange(2000, 2000 + N * N * VISUAL_FEATURES_PREDICATE_SIZE).reshape(N, N,
+        #                                                                                                   VISUAL_FEATURES_PREDICATE_SIZE)
+        #visual_features_object = np.arange(3000, 3000 + N * VISUAL_FEATURES_OBJECT_SIZE).reshape(N,
+        #                                                                                         VISUAL_FEATURES_OBJECT_SIZE)
+        #labels_predicate = np.ones((N, N, NOF_PREDICATES))
+        #labels_object = np.ones((N, NOF_OBJECTS))
+        
         # eval module
         correct_predicate = np.zeros(NOF_PREDICATES)
         total_predicate = np.zeros(NOF_PREDICATES)
         correct = 0
         total = 0
-        for i in range(nof_iterations):
-            entity = entities[i]
+        for entity in test_entities:
+            # get shape of extended object to be used by the module
+            extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
+            extended_belief_object_shape[2] = NOF_OBJECTS
+
+            # create the feed dictionary
+            feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
+                         extended_belief_object_shape_ph: extended_belief_object_shape,
+                         visual_features_predicate_ph: entity.predicates_features,
+                         visual_features_object_ph: entity.objects_features}
 
             out_belief_predicate_val, out_belief_object_val = \
                 sess.run([out_belief_predicate, out_belief_object],
                          feed_dict=feed_dict)
 
             # eval image
-            k_metric_res, correct_image, total_image = eval_image(entity, reverse_object_ids, reverse_predicate_ids, labels_predicate, labels_object,
+            k_metric_res, correct_image, total_image = eval_image(entity, reverse_object_ids, reverse_predicate_ids, entity.predicates_labels, entity.objects_labels,
                                                                   out_belief_predicate_val,
                                                                   out_belief_object_val)
             correct += correct_image
             total += total_image
             total_score = float(correct) / total
-            logger.log("result %d - %f - total %f" % (i, k_metric_res, total_score))
+            logger.log("result - %f - total %f" % (k_metric_res, total_score))
 
             # eval per predicate
-            correct_predicate_image, total_predicate_image = predicate_class_recall(labels_predicate,
+            correct_predicate_image, total_predicate_image = predicate_class_recall(entity.predicates_labels,
                                                                                     out_belief_predicate_val)
             correct_predicate += correct_predicate_image
             total_predicate += total_predicate_image
