@@ -28,7 +28,7 @@ import itertools
 from Utils.Utils import create_folder
 
 NUM_EPOCHS = 1
-NUM_BATCHES = 128 * 2
+NUM_BATCHES = 128 * 3
 
 __author__ = 'roeih'
 
@@ -167,8 +167,13 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
     index_labels_per_gt_sample = np.array([hierarchy_mapping_objects[object.names[0]] for object in objects])
     # Get the max argument from the network output - [len(objects), ]
     index_labels_per_sample = np.argmax(objects_probes, axis=1)
+
+    logger.log("The Total number of Objects is {0} and {1} of them are positives".format(
+        len(objects),
+        np.where(index_labels_per_gt_sample == index_labels_per_sample)[0].shape[0]))
     logger.log("The Objects accuracy is {0}".format(
         np.where(index_labels_per_gt_sample == index_labels_per_sample)[0].shape[0] / float(len(objects))))
+
     # Get the object labels on hot vector per object [len(objects), 150]
     objects_labels = np.eye(len(hierarchy_mapping_objects), dtype='uint8')[index_labels_per_gt_sample.reshape(-1)]
     # Save labels
@@ -288,7 +293,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
         if (sub.names[0], obj.names[0]) in relations_dict and relations_dict[(sub.names[0], obj.names[0])] != "neg":
             pos_indices.append(id)
 
-    logger.log("The Total number of Relations is {0} while positive is {1} and negative is {2}".
+    logger.log("The Total number of Relations is {0} while {1} of them positives and {2} of them negatives ".
                format(len(objects_pairs), len(pos_indices), len(objects_pairs) - len(pos_indices)))
 
     # pos_predicates_probes = predicates_probes[np.array(pos_indices)]
@@ -492,13 +497,10 @@ if __name__ == '__main__':
     for entity in entities:
         try:
 
-            if entity.image.id != 2339172:
-                continue
-
             # Increment index
             ind += 1
 
-            logger.log('Predicting image id {0} in iteration {1}'.format(entity.image.id, ind))
+            logger.log('Predicting image id {0} in iteration {1} \n'.format(entity.image.id, ind))
             # Get the url image
             url_data = entity.image.url
 

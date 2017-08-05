@@ -140,7 +140,12 @@ data:
         detections_v2:
           name: "FeaturesExtraction/PredicatedFeatures/Sun_Jul_30_22:53:54_2017/predicated_entities.p"
           type: "pickle"
-          doc:  "1000 entities which included matrix style data of predicates and objects"
+          doc:  "1000 entities which included matrix style data of predicates and objects with bad predicate data"
+
+        detections_v3:
+          name: "FeaturesExtraction/PredicatedFeatures/Sat_Aug__5_14:15:02_2017/predicated_entities.p"
+          type: "pickle"
+          doc:  "1000 entities which included matrix style data of predicates and objects trained on both pos and neg predicates (ratio 3/10) without fine-tuned"
 
 features_extraction:
     visual:
@@ -196,9 +201,14 @@ scene_graph_base_module:
                     doc: "trained 650000 positives without negative examples"
 
         predicate_cnn:
-            name: "FeaturesExtraction/PredicatesCNN/Fri_Jun__2_20:00:24_2017/model_vg_resnet50.hdf5"
+            name: "FeaturesExtraction/PredicatesCNN/Wed_Aug__2_21:38:55_2017/model_vg_resnet50.hdf5"
             type: "dir"
-            doc: "path to predicate cnn. A network which trained on the best 50 most probable predicats in the data (without neg)"
+            doc: "path to predicate cnn. A network which trained on the best 50 most probable predicats in the data (without neg) wiht the NEW DATA"
+            versions:
+                1:
+                    date: "02:06:17"
+                    name: "FeaturesExtraction/PredicatesCNN/Fri_Jun__2_20:00:24_2017/model_vg_resnet50.hdf5"
+                    doc: "path to predicate cnn. A network which trained on the best 50 most probable predicats in the data (without neg)"
 
         image_net_tf:
             name: "Data/VisualGenome/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5"
