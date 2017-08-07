@@ -29,6 +29,7 @@ from Utils.Utils import create_folder
 
 NUM_EPOCHS = 1
 NUM_BATCHES = 128 * 3
+SPLIT_CONST = 18013
 
 __author__ = 'roeih'
 
