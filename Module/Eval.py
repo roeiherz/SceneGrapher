@@ -37,6 +37,8 @@ def eval_image(img, reverse_object_ids, reverse_predicate_ids, labels_predicate,
     top_k_global_object_ids = np.zeros((0,))
 
     N = labels_object.shape[0]
+    if N == 1:
+        return 0, 0, 0
 
     for subject_index in range(N):
         for object_index in range(N):
@@ -55,7 +57,8 @@ def eval_image(img, reverse_object_ids, reverse_predicate_ids, labels_predicate,
             predict_prob[:, NOF_PREDICATES - 1, :] = 0
 
             # get the highset probabilities
-            max_k_predictions = np.argsort(predict_prob.flatten())[-k:]
+            #max_k_predictions = np.argsort(predict_prob.flatten())[-k:]
+            max_k_predictions = np.argpartition(predict_prob.flatten(),-k)[-k:]
             max_k_predictions_triplets = np.unravel_index(max_k_predictions, predict_prob.shape)
             max_k_subjects = max_k_predictions_triplets[0]
             max_k_predicates = max_k_predictions_triplets[1]
@@ -155,7 +158,7 @@ def predicate_class_recall(labels_predicate, out_belief_predicate_val, k=5):
     return correct, total
 
 
-def eval(nof_iterations=100, load_module_name="test4", gpu=1):
+def eval(nof_iterations=100, load_module_name="test9_2", gpu=2):
     """
     Evaluate module:
     - Scene Graph Classification - R@k metric (measures the fraction of ground truth relationships
@@ -250,22 +253,20 @@ def eval(nof_iterations=100, load_module_name="test4", gpu=1):
                          visual_features_predicate_ph: entity.predicates_features,
                          visual_features_object_ph: entity.objects_features}
 
-            out_belief_predicate_val, out_belief_object_val = \
-                sess.run([out_belief_predicate, out_belief_object],
-                         feed_dict=feed_dict)
+            #out_belief_predicate_val, out_belief_object_val = \
+            #    sess.run([out_belief_predicate, out_belief_object],
+            #             feed_dict=feed_dict)
 
             # eval image
-            k_metric_res, correct_image, total_image = eval_image(entity, reverse_object_ids, reverse_predicate_ids, entity.predicates_labels, entity.objects_labels,
-                                                                  out_belief_predicate_val,
-                                                                  out_belief_object_val)
+            k_metric_res, correct_image, total_image = eval_image(entity, reverse_object_ids, reverse_predicate_ids, entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
             correct += correct_image
             total += total_image
             total_score = float(correct) / total
-            logger.log("result - %f - total %f" % (k_metric_res, total_score))
+            logger.log("result - %f (%d / %d) - total %f" % (k_metric_res, correct_image, total_image, total_score))
 
             # eval per predicate
             correct_predicate_image, total_predicate_image = predicate_class_recall(entity.predicates_labels,
-                                                                                    out_belief_predicate_val)
+                                                                                    entity.predicates_probes)
             correct_predicate += correct_predicate_image
             total_predicate += total_predicate_image
 

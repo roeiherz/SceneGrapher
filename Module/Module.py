@@ -97,22 +97,22 @@ class Module(object):
         with tf.variable_scope("nn_predicate_weights"):
             # create predicate nn weights just once for all rnn stages
             # Define the initialization of the first layer
-            self.nn_predicate_w_1 = tf.get_variable(name="w1", 
-                                                    initializer=tf.zeros((in_size, h1_size)))
-            self.nn_predicate_b_1 = tf.get_variable(name="b1",
-                                                    initializer=tf.zeros((h1_size)))
+            self.nn_predicate_w_1 = tf.get_variable(name="w1", shape=(in_size, h1_size),
+                                                    initializer=tf.truncated_normal_initializer())
+            self.nn_predicate_b_1 = tf.get_variable(name="b1", shape=(h1_size),
+                                                    initializer=tf.truncated_normal_initializer())
 
             # Define the initialization of the second layer
-            self.nn_predicate_w_2 = tf.get_variable(name="w2", 
-                                                    initializer=tf.zeros((h1_size, h2_size)))
-            self.nn_predicate_b_2 = tf.get_variable(name="b2",
-                                                    initializer=tf.zeros((h2_size)))
+            self.nn_predicate_w_2 = tf.get_variable(name="w2", shape=(h1_size, h2_size),
+                                                    initializer=tf.truncated_normal_initializer())
+            self.nn_predicate_b_2 = tf.get_variable(name="b2", shape=(h2_size),
+                                                    initializer=tf.truncated_normal_initializer())
 
             # Define the initialization of the third layer
-            self.nn_predicate_w_3 = tf.get_variable(name="w3",
-                                                    initializer=tf.zeros((h2_size, out_size)))
-            self.nn_predicate_b_3 = tf.get_variable(name="b3",
-                                                    initializer=tf.zeros((out_size)))
+            self.nn_predicate_w_3 = tf.get_variable(name="w3", shape=(h2_size, out_size),
+                                                    initializer=tf.truncated_normal_initializer())
+            self.nn_predicate_b_3 = tf.get_variable(name="b3", shape=(out_size),
+                                                    initializer=tf.truncated_normal_initializer())
 
     def nn_predicate(self, features, in_belief_predicate, out_shape, scope_name="nn_predicate"):
         """
@@ -129,7 +129,7 @@ class Module(object):
             
             h1 = tf.nn.tanh(tf.matmul(input_features, self.nn_predicate_w_1) + self.nn_predicate_b_1, name="h1")
             h2 = tf.nn.tanh(tf.matmul(h1, self.nn_predicate_w_2) + self.nn_predicate_b_2, name="h2")
-            delta = tf.add(tf.matmul(h2, self.nn_predicate_w_3), self.nn_predicate_b_3, name="delta")
+            delta = tf.nn.tanh(tf.add(tf.matmul(h2, self.nn_predicate_w_3), self.nn_predicate_b_3, name="delta"))
             in_belief_shaped = tf.reshape(in_belief_predicate, tf.shape(delta))
             y = tf.add(delta, in_belief_shaped, name="y")
 
@@ -148,22 +148,22 @@ class Module(object):
 
         with tf.variable_scope("nn_object_weights"):
             # Define the initialization of the first layer
-            self.nn_object_w_1 = tf.get_variable(name="w1", 
-                                                 initializer=tf.zeros((in_size, h1_size)))
-            self.nn_object_b_1 = tf.get_variable(name="b1", 
-                                                 initializer=tf.zeros((h1_size)))
+            self.nn_object_w_1 = tf.get_variable(name="w1", shape=(in_size, h1_size),
+                                                 initializer=tf.truncated_normal_initializer())
+            self.nn_object_b_1 = tf.get_variable(name="b1", shape=(h1_size),
+                                                 initializer=tf.truncated_normal_initializer())
 
             # Define the initialization of the second layer
-            self.nn_object_w_2 = tf.get_variable(name="w2",
-                                                 initializer=tf.zeros((h1_size, h2_size)))
-            self.nn_object_b_2 = tf.get_variable(name="b2",
-                                                 initializer=tf.zeros((h2_size)))
+            self.nn_object_w_2 = tf.get_variable(name="w2", shape=(h1_size, h2_size),
+                                                 initializer=tf.truncated_normal_initializer())
+            self.nn_object_b_2 = tf.get_variable(name="b2", shape=(h2_size),
+                                                 initializer=tf.truncated_normal_initializer())
 
             # Define the initialization of the third layer
-            self.nn_object_w_3 = tf.get_variable(name="w3",
-                                                 initializer=tf.zeros((h2_size, out_size)))
-            self.nn_object_b_3 = tf.get_variable(name="b3", 
-                                                 initializer=tf.zeros((out_size)))
+            self.nn_object_w_3 = tf.get_variable(name="w3", shape=(h2_size, out_size),
+                                                 initializer=tf.truncated_normal_initializer())
+            self.nn_object_b_3 = tf.get_variable(name="b3", shape=(out_size),
+                                                 initializer=tf.truncated_normal_initializer())
 
     def nn_object(self, features, in_belief_object, out_size, scope_name="nn_object"):
         """
@@ -179,7 +179,7 @@ class Module(object):
             # Create neural network
             h1 = tf.nn.tanh(tf.matmul(features, self.nn_object_w_1) + self.nn_object_b_1, name="h1")
             h2 = tf.nn.tanh(tf.matmul(h1, self.nn_object_w_2) + self.nn_object_b_2, name="h2")
-            delta = tf.nn.softmax(tf.add(tf.matmul(h2, self.nn_object_w_3), self.nn_object_b_3), name="delta")
+            delta = tf.nn.tanh(tf.add(tf.matmul(h2, self.nn_object_w_3), self.nn_object_b_3, name="delta"))
             y = tf.add(delta, in_belief_object, name="y")
 
             out = tf.nn.softmax(y, name="out")
@@ -259,8 +259,9 @@ class Module(object):
                                                                      name="loss_predicate")
             loss_object = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph, logits=self.last_layer_object,
                                                                   name="loss_object")
-            #loss = tf.add(tf.reduce_sum(loss_predicate), 10 * tf.reduce_sum(loss_object), name="loss")
-            loss = tf.reduce_mean(loss_object)
+            loss = tf.add(tf.reduce_mean(loss_predicate), 2 * tf.reduce_mean(loss_object), name="loss")
+            #loss = tf.reduce_mean(loss_object)
+            loss = tf.reduce_mean(loss_predicate)
 
             # minimize
             train_step = tf.train.GradientDescentOptimizer(self.lr_ph).minimize(loss)
