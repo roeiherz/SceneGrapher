@@ -22,7 +22,7 @@ NOF_OBJECTS = 150
 # NOF_OBJECTS = 2
 
 # negative vs positive factor
-POS_NEG_FACTOR = 5
+POS_NEG_FACTOR = 10
 
 # save model every number of iterations
 SAVE_MODEL_ITERATIONS = 100
@@ -160,7 +160,7 @@ def train(name="test",
 
 
         # read data
-        entities = filesmanager.load_file("data.visual_genome.detections_v2")
+        entities = filesmanager.load_file("data.visual_genome.detections_v3")
         max_train_entity = len(entities) * (100 - TEST_PERCENT) / 100
         train_entities = entities[:max_train_entity]
         test_entities = entities[max_train_entity + 1:]
@@ -198,7 +198,7 @@ def train(name="test",
                 total_loss += loss_val
                 results = test(entity.predicates_labels, entity.objects_labels, out_belief_predicate_val,
                                out_belief_object_val)
-                # results = test(entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
+                #results = test(entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
                 # accumulate results
                 if accum_results is None:
                     accum_results = results
@@ -298,6 +298,7 @@ if __name__ == "__main__":
         load_model_name = process_params["load_model_name"]
         use_saved_model = process_params["use_saved_model"]
         gpu = process_params["gpu"]
+        train(name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name, use_saved_model, gpu)
         p = Process(target=train, args=(
             name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
             use_saved_model, gpu))
