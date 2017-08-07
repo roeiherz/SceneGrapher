@@ -458,8 +458,11 @@ if __name__ == '__main__':
 
     # Load detections dtype numpy array and hierarchy mappings
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                          "mini_filtered_data",
-                                                                                          category='entities')
+                                                                                          'full_filtered_data',
+                                                                                          # "mini_filtered_data",
+                                                                                          category='entities_visual_module')
+                                                                                          # category='entities')
+
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
         logger.log("Error: No object training folder or predicate training folder has been given")
@@ -492,6 +495,10 @@ if __name__ == '__main__':
     logger.log('Starting Prediction')
     predicated_entities = []
     ind = 0
+
+    entities = entities[:18013]
+    # entities = entities[18013:36026]
+    # entities = entities[36026:54039]
 
     # Predict each entity
     for entity in entities:
