@@ -497,8 +497,8 @@ if __name__ == '__main__':
     predicated_entities = []
     ind = 0
 
-    entities = entities[:18013]
-    # entities = entities[18013:36026]
+    # entities = entities[:18013]
+    entities = entities[18013:36026]
     # entities = entities[36026:54039]
 
     # Predict each entity
