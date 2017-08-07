@@ -221,13 +221,14 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
 
         logger.log(
             "Prediction Batch Number of Outputs with no activation from *Objects* is {0}/{1}".format(batch + 1,
-            num_of_batches_per_epoch))
+                                                                                                     num_of_batches_per_epoch))
 
         get_noactivation_outputs_func = K.function([objects_no_activation_model.layers[0].input],
                                                    [objects_no_activation_model.layers[-1].output])
 
         # Get the object features [len(objects), 150]
-        objects_noactivation_outputs = get_noactivation_outputs_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+        objects_noactivation_outputs = \
+        get_noactivation_outputs_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
         objects_outputs_without_softmax.append(objects_noactivation_outputs)
 
     # Save objects features - [len(objects), 2048]
@@ -383,7 +384,8 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
 
     for batch in range(num_of_batches_per_epoch):
         logger.log(
-            "Prediction Batch Number of Features from *Relations* is {0}/{1}".format(batch + 1, num_of_batches_per_epoch))
+            "Prediction Batch Number of Features from *Relations* is {0}/{1}".format(batch + 1,
+                                                                                     num_of_batches_per_epoch))
         get_features_output_func = K.function([predict_model.layers[0].input],
                                               [predict_model.layers[-2].output])
 
@@ -393,12 +395,14 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
         features_lst.append(predicate_features)
 
         logger.log(
-            "Prediction Batch Number of Outputs with no activation from *Relations* is {0}/{1}".format(batch + 1, num_of_batches_per_epoch))
+            "Prediction Batch Number of Outputs with no activation from *Relations* is {0}/{1}".format(batch + 1,
+                                                                                                       num_of_batches_per_epoch))
         get_noactivation_outputs_func = K.function([predicates_no_activation_model.layers[0].input],
-                                              [predicates_no_activation_model.layers[-1].output])
+                                                   [predicates_no_activation_model.layers[-1].output])
 
         # Get the object features [len(objects), 150]
-        predict_noactivation_outputs = get_noactivation_outputs_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+        predict_noactivation_outputs = \
+        get_noactivation_outputs_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
         predicates_outputs_without_softmax.append(predict_noactivation_outputs)
 
     # Concatenate to [n*n, 2048]
@@ -420,6 +424,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
                                                                                                     number_of_outputs))
     # Save predicate outputs with no activations (no softmax)
     entity.predicates_outputs_with_no_activation = reshaped_predicates_outputs_with_no_activation
+
 
 if __name__ == '__main__':
 
@@ -496,9 +501,14 @@ if __name__ == '__main__':
     ind = 0
 
     total_entities = entities[:18013]
+    # total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
     SPLIT_ENT = 1000
     num_of_iters = int(math.ceil(float(len(total_entities)) / SPLIT_ENT))
+
+    logger.log(
+        '\nTotal number of entities is {0}, number of batches per iteration is {1} and number of iterations is {2}\n'.
+        format(len(total_entities), SPLIT_ENT, num_of_iters))
 
     # The prediction is per batch
     for batch_idx in range(num_of_iters):
@@ -513,7 +523,6 @@ if __name__ == '__main__':
         # Predict each entity
         for entity in entities:
             try:
-                continue
                 # Increment index
                 ind += 1
 
@@ -546,7 +555,9 @@ if __name__ == '__main__':
         # Save entities
         logger.log("Saving Predicated entities")
         save_files(path, predicated_entities, name='predicated_entities_{0}_to_{1}'.format(SPLIT_ENT * batch_idx,
-                                                                                           min(SPLIT_ENT * (batch_idx + 1), len(total_entities))))
+                                                                                           min(SPLIT_ENT * (
+                                                                                           batch_idx + 1),
+                                                                                               len(total_entities))))
         logger.log("Finished successfully saving predicated_detections Batch Prediction {0} / {1}"
                    .format(batch_idx, num_of_iters - 1))
 
