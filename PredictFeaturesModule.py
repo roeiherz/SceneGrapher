@@ -91,7 +91,7 @@ def get_model(number_of_classes, weight_path, config, activation="softmax"):
     # Define the model
     model = Model(inputs=img_input, outputs=output_resnet50, name='resnet50')
     # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
-    model.summary()
+    # model.summary()
 
     # Load pre-trained weights for ResNet50
     try:
@@ -160,13 +160,14 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
                                                     steps=int(math.ceil(len(objects) / float(NUM_BATCHES))),
                                                     max_q_size=1, workers=1)
     # Save probabilities
-    entity.objects_probs = objects_probes
+    entity.objects_probs = np.copy(objects_probes)
+    del objects_probes
 
     ## Get GT labels
     # Get the GT labels - [len(objects), ]
     index_labels_per_gt_sample = np.array([hierarchy_mapping_objects[object.names[0]] for object in objects])
     # Get the max argument from the network output - [len(objects), ]
-    index_labels_per_sample = np.argmax(objects_probes, axis=1)
+    index_labels_per_sample = np.argmax(entity.objects_probs, axis=1)
 
     logger.log("The Total number of Objects is {0} and {1} of them are positives".format(
         len(objects),
@@ -200,6 +201,7 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
 
     resized_img_arr = np.concatenate(resized_img_lst)
     size = len(resized_img_lst)
+
     # We are predicting in one forward pass 128*3 images
     # batch_size = NUM_BATCHES * 3
     batch_size = NUM_BATCHES
@@ -273,7 +275,8 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     reshaped_predicates_probes = predicates_probes.reshape(
         (len(objects), len(objects), len(hierarchy_mapping_predicates)))
     # Save probabilities
-    entity.predicates_probes = reshaped_predicates_probes
+    entity.predicates_probes = np.copy(reshaped_predicates_probes)
+    del predicates_probes
 
     ## Get labels
     # Get the GT labels - [ len(objects_pairs), ]
@@ -282,7 +285,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
          if (pair[0].names[0], pair[1].names[0]) in relations_dict else hierarchy_mapping_predicates['neg']
          for pair in objects_pairs])
     # Get the max argument - [len(objects_pairs), ]
-    index_labels_per_sample = np.argmax(predicates_probes, axis=1)
+    index_labels_per_sample = np.argmax(entity.predicates_probes, axis=1)
 
     # Check how many positives and negatives relation we have
     pos_indices = []
@@ -455,6 +458,7 @@ if __name__ == '__main__':
 
     # Get time and date
     time_and_date = get_time_and_date()
+    time_and_date = "Mon_Aug__7_13:38:12_2017"
 
     # Path for the training folder
     path = os.path.join(PREDICATED_FEATURES_PATH, time_and_date)
@@ -487,16 +491,6 @@ if __name__ == '__main__':
     number_of_classes_objects = len(hierarchy_mapping_objects)
     number_of_classes_predicates = len(hierarchy_mapping_predicates)
 
-    # Get the object and predicate model
-    object_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path, config=config)
-    predict_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config)
-
-    # Get objects model without activation (no softmax) in the last Dense layer
-    objects_no_activation_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path,
-                                            config=config, activation=None)
-    predicates_no_activation_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path,
-                                               config=config, activation=None)
-
     logger.log('Starting Prediction')
     ind = 0
 
@@ -512,6 +506,20 @@ if __name__ == '__main__':
 
     # The prediction is per batch
     for batch_idx in range(num_of_iters):
+
+        # Current batch
+        if batch_idx < 1:
+            continue
+
+        # Get the object and predicate model
+        object_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path, config=config)
+        predict_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config)
+
+        # Get objects model without activation (no softmax) in the last Dense layer
+        objects_no_activation_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path,
+                                                config=config, activation=None)
+        predicates_no_activation_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path,
+                                                   config=config, activation=None)
         predicated_entities = []
         entities = total_entities[SPLIT_ENT * batch_idx: SPLIT_ENT * (batch_idx + 1)]
 
@@ -560,5 +568,13 @@ if __name__ == '__main__':
                                                                                                len(total_entities))))
         logger.log("Finished successfully saving predicated_detections Batch Prediction {0} / {1}"
                    .format(batch_idx, num_of_iters - 1))
+
+        # Clear Memory
+        del object_model
+        del predict_model
+        del objects_no_activation_model
+        del predicates_no_activation_model
+        del predicated_entities
+        K.clear_session()
 
     logger.log('Finished Predicting entities')
