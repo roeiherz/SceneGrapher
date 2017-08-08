@@ -494,15 +494,16 @@ if __name__ == '__main__':
     predicates_no_activation_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path,
                                                config=config, activation=None)
 
+    # Get the functions for later predict features and outputs without softmax
     noactivation_outputs_predicate_func = K.function([predicates_no_activation_model.layers[0].input],
                                                      [predicates_no_activation_model.layers[-1].output])
 
     features_output_predicate_func = K.function([predicate_model.layers[0].input],
                                                 [predicate_model.layers[-2].output])
-    #
+
     noactivation_outputs_object_func = K.function([objects_no_activation_model.layers[0].input],
                                                   [objects_no_activation_model.layers[-1].output])
-    #
+
     features_output_object_func = K.function([object_model.layers[0].input],
                                              [object_model.layers[-2].output])
 
