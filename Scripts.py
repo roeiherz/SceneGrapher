@@ -1,4 +1,7 @@
+import traceback
+
 import matplotlib
+
 matplotlib.use('agg')
 from matplotlib import pyplot as plt
 import time
@@ -9,15 +12,17 @@ from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
 from FilesManager.FilesManager import FilesManager
 from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
     HIERARCHY_MAPPING, plot_graph, POSITIVE_NEGATIVE_RATIO, DATA_PATH, CLASSES_COUNT_FILE, RELATIONS_COUNT_FILE, \
-    VisualGenome_PICKLES_PATH
+    VisualGenome_PICKLES_PATH, TRAINING_OBJECTS_CNN_PATH, WEIGHTS_NAME, TRAINING_PREDICATE_CNN_PATH, \
+    PREDICATED_FEATURES_PATH
 from TrainCNN import preprocessing_objects
 from Utils.Utils import create_folder
 from FeaturesExtraction.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data
-from PredictVisualModel import get_resize_images_array, load_full_detections
+from PredictVisualModel import get_resize_images_array, load_full_detections, get_model
 from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH
 from FeaturesExtraction.Lib.Config import Config
 from DesignPatterns.Detections import Detections
 from Utils.Logger import Logger
+from keras import backend as K
 
 
 def check_loading_pickle_time():
@@ -534,12 +539,92 @@ def Objects_AR_Histogram():
     plt.savefig("Objects_AR_Histogram.jpg")
 
 
+def test_predicted_features(gpu_num=0, objects_training_dir_name="", predicates_training_dir_name="",
+                            predicted_features_dir_name="", predicted_features_file_name=""):
+    """
+    This function loads the predicted features from PredictFeaturesModule output, and checks the features from
+        objects and predicates are fit to the probabilities
+    :param gpu_num: number of gpu which will be used
+    :param objects_training_dir_name: the name of the folder which we will be loading object model
+    :param predicates_training_dir_name: the name of the folder which we will be loading predicate model
+    :param predicted_features_dir_name: the name of the folder which we will be loading predicted features
+    :param predicted_features_file_name: the name of the file which we will be loading predicted features
+    :return: 
+    """
+
+    # Load class config
+    config = Config(gpu_num)
+
+    # Define GPU training
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)
+
+    # Load detections dtype numpy array and hierarchy mappings
+    _, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
+                                                                                   "mini_filtered_data",
+                                                                                   category='entities_visual_module')
+
+    # Load the weight paths
+    objects_model_weight_path = os.path.join(TRAINING_OBJECTS_CNN_PATH, objects_training_dir_name,
+                                             WEIGHTS_NAME)
+    predicates_model_weight_path = os.path.join(TRAINING_PREDICATE_CNN_PATH, predicates_training_dir_name,
+                                                WEIGHTS_NAME)
+    predicted_features_path = os.path.join(PREDICATED_FEATURES_PATH, predicted_features_dir_name)
+
+    predicted_features_file_name = os.path.join(predicted_features_path, predicted_features_file_name)
+
+    Logger().log("Loading the predicted features file")
+    predicted_features_entities = cPickle.load(open(predicted_features_file_name))
+
+    # Set the number of classes
+    number_of_classes_objects = len(hierarchy_mapping_objects)
+    number_of_classes_predicates = len(hierarchy_mapping_predicates)
+
+    Logger().log("Loading the object and predicate models")
+    object_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path, config=config)
+    predicate_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config)
+
+    features_output_object_func = K.function([object_model.layers[-1].input],
+                                             [object_model.layers[-1].output])
+
+    features_output_predicate_func = K.function([predicate_model.layers[-1].input],
+                                                [predicate_model.layers[-1].output])
+    for entity in predicted_features_entities:
+        try:
+            Logger().log("Start testing Entity: {0}".format(entity.image.id))
+            # Assert objects probabilites
+            objects_probes = features_output_object_func([entity.objects_features])[0]
+            np.testing.assert_almost_equal(entity.objects_probs, objects_probes, decimal=5)
+
+            # Assert predicates probabilites
+            # [len(objects) * len(objects), 2048]
+            reshaped_predicate_features = entity.predicates_features.reshape(len(entity.objects) * len(entity.objects),
+                                                                            2048)
+            predicates_probes = features_output_predicate_func([reshaped_predicate_features])[0]
+
+            # [len(objects), len(objects), 51]
+            predicates_probes_reshaped = predicates_probes.reshape(len(entity.objects), len(entity.objects), 51)
+            np.testing.assert_almost_equal(entity.predicates_probes, predicates_probes_reshaped, decimal=5)
+        except Exception as e:
+            Logger().log('Exception in image_id: {0} with error: {1}'.format(entity.image.id, e))
+            Logger().log(str(e))
+            traceback.print_exc()
+
+    Logger().log("Finished testing")
+
+
 if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
 
     file_manager = FilesManager()
     logger = Logger()
+
+    test_predicted_features(gpu_num=2, objects_training_dir_name="Mon_Jul_24_19:58:35_2017",
+                            predicates_training_dir_name="Wed_Aug__2_21:55:12_2017",
+                            # predicted_features_dir_name="Tue_Aug__8_23:28:18_2017",
+                            predicted_features_dir_name="Wed_Aug__9_10:04:43_2017",
+                            predicted_features_file_name="predicated_entities_0_to_1000.p")
+    exit()
 
     create_predicate_count()
 

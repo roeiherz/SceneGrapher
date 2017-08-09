@@ -121,18 +121,18 @@ def get_model(number_of_classes, weight_path, config):
 
     # Load pre-trained weights for ResNet50
     try:
-        logger.log("Start loading Weights")
+        Logger().log("Start loading Weights")
         model.load_weights(weight_path, by_name=True)
-        logger.log('Finished successfully loading weights from {}'.format(weight_path))
+        Logger().log('Finished successfully loading weights from {}'.format(weight_path))
 
     except Exception as e:
-        logger.log('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
+        Logger().log('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
         ))
         raise Exception(e)
 
-    logger.log('Finished successfully loading Model')
+    Logger().log('Finished successfully loading Model')
     return model
 
 

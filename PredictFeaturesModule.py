@@ -43,7 +43,7 @@ def load_full_detections(detections_file_name):
         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(detections_file_name)))
 
     if os.path.isfile(detections_path):
-        logger.log('Detections numpy array is Loading from: {0}'.format(detections_path))
+        Logger().log('Detections numpy array is Loading from: {0}'.format(detections_path))
         detections = cPickle.load(open(detections_path, 'rb'))
         return detections
 
@@ -61,7 +61,7 @@ def save_files(path, files, name="predicated_entities"):
     cPickle.dump(files, detections_filename, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
     detections_filename.close()
-    logger.log("File Have been save in {}".format(detections_filename))
+    Logger().log("File Have been save in {}".format(detections_filename))
 
 
 def get_model(number_of_classes, weight_path, config, activation="softmax"):
@@ -95,18 +95,18 @@ def get_model(number_of_classes, weight_path, config, activation="softmax"):
 
     # Load pre-trained weights for ResNet50
     try:
-        logger.log("Start loading Weights")
+        Logger().log("Start loading Weights")
         model.load_weights(weight_path, by_name=True)
-        logger.log('Finished successfully loading weights from {}'.format(weight_path))
+        Logger().log('Finished successfully loading weights from {}'.format(weight_path))
 
     except Exception as e:
-        logger.log('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
+        Logger().log('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
         ))
         raise Exception(e)
 
-    logger.log('Finished successfully loading Model')
+    Logger().log('Finished successfully loading Model')
     return model
 
 
@@ -178,7 +178,7 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
     # Get the object labels on hot vector per object [len(objects), 150]
     objects_labels = np.eye(len(hierarchy_mapping_objects), dtype='uint8')[index_labels_per_gt_sample.reshape(-1)]
     # Save labels
-    entity.objects_labels = objects_labels
+    entity.objects_labels = np.copy(objects_labels)
 
     ## Get object features
     resized_img_lst = []
@@ -226,15 +226,14 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
                                                                                                      num_of_batches_per_epoch))
 
         # Get the object features [len(objects), 150]
-        objects_noactivation_outputs = \
-            noactivation_outputs_object_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+        objects_noactivation_outputs = noactivation_outputs_object_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
         objects_outputs_without_softmax.append(objects_noactivation_outputs)
 
     # Save objects features - [len(objects), 2048]
-    entity.objects_features = np.concatenate(features_lst)
+    entity.objects_features = np.copy(np.concatenate(features_lst))
 
     # Save objects output with no activation (no softmax) - [len(objects), 150]
-    entity.objects_outputs_with_no_activations = np.concatenate(objects_outputs_without_softmax)
+    entity.objects_outputs_with_no_activations = np.copy(np.concatenate(objects_outputs_without_softmax))
 
 
 def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_predicates):
@@ -331,7 +330,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     reshaped_predicates_labels = predicates_labels.reshape(
         (len(objects), len(objects), len(hierarchy_mapping_predicates)))
     # Save labels
-    entity.predicates_labels = reshaped_predicates_labels
+    entity.predicates_labels = np.copy(reshaped_predicates_labels)
 
     ## Get object features
     resized_img_lst = []
@@ -387,9 +386,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
             "Prediction Batch Number of Features from *Relations* is {0}/{1}".format(batch + 1,
                                                                                      num_of_batches_per_epoch))
         # Get the object features [len(objects), 2048]
-        predicate_features = \
-            features_output_predicate_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[
-                0]
+        predicate_features = features_output_predicate_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
         features_lst.append(predicate_features)
 
         logger.log(
@@ -408,7 +405,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     # Reshape the predicates labels [n, n, 2048]
     reshaped_predicates_features = predicates_features.reshape((len(objects), len(objects), number_of_features))
     # Save predicates features
-    entity.predicates_features = reshaped_predicates_features
+    entity.predicates_features = np.copy(reshaped_predicates_features)
 
     # Concatenate to [n*n, 51]
     predicates_outputs_with_no_activation = np.concatenate(predicates_outputs_without_softmax)
@@ -419,11 +416,10 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
                                                                                                     len(objects),
                                                                                                     number_of_outputs))
     # Save predicate outputs with no activations (no softmax)
-    entity.predicates_outputs_with_no_activation = reshaped_predicates_outputs_with_no_activation
+    entity.predicates_outputs_with_no_activation = np.copy(reshaped_predicates_outputs_with_no_activation)
 
 
 if __name__ == '__main__':
-
     # Define FileManager
     filemanager = FilesManager()
     # Define Logger
@@ -451,7 +447,7 @@ if __name__ == '__main__':
 
     # Get time and date
     time_and_date = get_time_and_date()
-    # time_and_date = "Mon_Aug__7_13:38:12_2017"
+    # time_and_date = "Tue_Aug__8_23:28:18_2017"
 
     # Path for the training folder
     path = os.path.join(PREDICATED_FEATURES_PATH, time_and_date)
@@ -519,14 +515,14 @@ if __name__ == '__main__':
 
     logger.log(
         '\nTotal number of entities is {0}, number of batches per iteration is {1} and number of iterations is {2}\n'.
-            format(len(total_entities), SPLIT_ENT, num_of_iters))
+            format(len(total_entities), SPLIT_ENT, num_of_iters - 1))
 
     # The prediction is per batch
     for batch_idx in range(num_of_iters):
 
-        # # Current batch
-        # if batch_idx < 1:
-        #     continue
+        # Current batch
+        if batch_idx > 1:
+            continue
 
         predicated_entities = []
         entities = total_entities[SPLIT_ENT * batch_idx: SPLIT_ENT * (batch_idx + 1)]
@@ -578,7 +574,7 @@ if __name__ == '__main__':
                    .format(batch_idx, num_of_iters - 1))
 
         # Clear Memory
-        # del predicated_entities
+        del predicated_entities
         # K.clear_session()
 
     logger.log('Finished Predicting entities')
