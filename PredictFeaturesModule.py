@@ -226,7 +226,8 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
                                                                                                      num_of_batches_per_epoch))
 
         # Get the object features [len(objects), 150]
-        objects_noactivation_outputs = noactivation_outputs_object_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+        objects_noactivation_outputs = \
+        noactivation_outputs_object_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
         objects_outputs_without_softmax.append(objects_noactivation_outputs)
 
     # Save objects features - [len(objects), 2048]
@@ -386,7 +387,8 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
             "Prediction Batch Number of Features from *Relations* is {0}/{1}".format(batch + 1,
                                                                                      num_of_batches_per_epoch))
         # Get the object features [len(objects), 2048]
-        predicate_features = features_output_predicate_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+        predicate_features = \
+        features_output_predicate_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
         features_lst.append(predicate_features)
 
         logger.log(
@@ -459,7 +461,7 @@ if __name__ == '__main__':
                                                                                           'full_filtered_data',
                                                                                           # "mini_filtered_data",
                                                                                           category='entities_visual_module')
-                                                                                          # category='entities')
+    # category='entities')
 
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
@@ -519,67 +521,69 @@ if __name__ == '__main__':
 
     # The prediction is per batch
     for batch_idx in range(num_of_iters):
-		try:
+        try:
 
-			# Current batch
-			if batch_idx > 1:
-				continue
+            # Current batch
+            if batch_idx > 0:
+                break
 
-			predicated_entities = []
-			entities = total_entities[SPLIT_ENT * batch_idx: SPLIT_ENT * (batch_idx + 1)]
+            predicated_entities = []
+            entities = total_entities[SPLIT_ENT * batch_idx: SPLIT_ENT * (batch_idx + 1)]
 
-			logger.log('Started Batch Prediction {0} / {1} entities taken from {2}:{3} and number of entities is {4}'.
-					   format(batch_idx, num_of_iters - 1, SPLIT_ENT * batch_idx,
-							  min(SPLIT_ENT * (batch_idx + 1), len(total_entities)),
-							  len(entities)))
+            logger.log('Started Batch Prediction {0} / {1} entities taken from {2}:{3} and number of entities is {4}'.
+                       format(batch_idx, num_of_iters - 1, SPLIT_ENT * batch_idx,
+                              min(SPLIT_ENT * (batch_idx + 1), len(total_entities)),
+                              len(entities)))
 
-			# Predict each entity
-			for entity in entities:
-				try:
-					# Increment index
-					ind += 1
+            # Predict each entity
+            for entity in entities:
+                try:
+                    continue
+                    # Increment index
+                    ind += 1
 
-					logger.log('Predicting image id {0} in iteration {1} \n'.format(entity.image.id, ind))
-					# Get the url image
-					url_data = entity.image.url
+                    logger.log('Predicting image id {0} in iteration {1} \n'.format(entity.image.id, ind))
+                    # Get the url image
+                    url_data = entity.image.url
 
-					# Create Objects Mapping type
-					objects = from_object_to_objects_mapping(entity.objects, hierarchy_mapping_objects, url_data)
+                    # Create Objects Mapping type
+                    objects = from_object_to_objects_mapping(entity.objects, hierarchy_mapping_objects, url_data)
 
-					if len(objects) == 0:
-						logger.log("No Objects have been found")
-						continue
+                    if len(objects) == 0:
+                        logger.log("No Objects have been found")
+                        continue
 
-					# Predict objects per entity
-					predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_objects)
+                    # Predict objects per entity
+                    predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_objects)
 
-					# Predict predicates per entity
-					predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_predicates)
+                    # Predict predicates per entity
+                    predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_predicates)
 
-					predicated_entities.append(entity)
-				except Exception as e:
-					logger.log('Exception in image_id: {0} with error: {1}'.format(entity.image.id, e))
-					save_files(path, predicated_entities, name="predicated_entities_iter{0}".format(ind))
-					logger.log(str(e))
-					traceback.print_exc()
+                    predicated_entities.append(entity)
+                except Exception as e:
+                    logger.log('Exception in image_id: {0} with error: {1}'.format(entity.image.id, e))
+                    save_files(path, predicated_entities, name="predicated_entities_iter{0}".format(ind))
+                    logger.log(str(e))
+                    traceback.print_exc()
 
-			logger.log('Finished Batch Prediction {0} / {1}'.format(batch_idx, num_of_iters - 1))
+            logger.log('Finished Batch Prediction {0} / {1}'.format(batch_idx, num_of_iters - 1))
 
-			# Save entities
-			logger.log("Saving Predicated entities")
-			save_files(path, predicated_entities, name='predicated_entities_{0}_to_{1}'.format(SPLIT_ENT * batch_idx,
-																							   min(SPLIT_ENT * (
-																								   batch_idx + 1),
-																								   len(total_entities))))
-			logger.log("Finished successfully saving predicated_detections Batch Prediction {0} / {1}"
-					   .format(batch_idx, num_of_iters - 1))
+            # Save entities
+            logger.log("Saving Predicated entities")
+            save_files(path, predicated_entities, name='predicated_entities_{0}_to_{1}'.format(SPLIT_ENT * batch_idx,
+                                                                                               min(SPLIT_ENT * (
+                                                                                                   batch_idx + 1),
+                                                                                                   len(
+                                                                                                       total_entities))))
+            logger.log("Finished successfully saving predicated_detections Batch Prediction {0} / {1}"
+                       .format(batch_idx, num_of_iters - 1))
 
-			# Clear Memory
-			del predicated_entities
-			# K.clear_session()
-		
-		except Exception as e:
-				logger.log('Exception in batch_id: {0} with error: {1}'.format(batch_idx, e))
-				logger.log(str(e))
-				traceback.print_exc()
+            # Clear Memory
+            del predicated_entities
+        # K.clear_session()
+
+        except Exception as e:
+            logger.log('Exception in batch_id: {0} with error: {1}'.format(batch_idx, e))
+            logger.log(str(e))
+            traceback.print_exc()
     logger.log('Finished Predicting entities')
