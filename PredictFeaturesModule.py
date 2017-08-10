@@ -524,8 +524,8 @@ if __name__ == '__main__':
         try:
 
             # Current batch
-            if batch_idx > 0:
-                break
+            if batch_idx < 4:
+                continue
 
             predicated_entities = []
             entities = total_entities[SPLIT_ENT * batch_idx: SPLIT_ENT * (batch_idx + 1)]
@@ -538,7 +538,6 @@ if __name__ == '__main__':
             # Predict each entity
             for entity in entities:
                 try:
-                    continue
                     # Increment index
                     ind += 1
 
