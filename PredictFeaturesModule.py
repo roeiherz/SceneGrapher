@@ -509,8 +509,8 @@ if __name__ == '__main__':
     logger.log('Starting Prediction')
     ind = 0
 
-    total_entities = entities[:18013]
-    # total_entities = entities[18013:36026]
+    # total_entities = entities[:18013]
+    total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
     SPLIT_ENT = 1000
     num_of_iters = int(math.ceil(float(len(total_entities)) / SPLIT_ENT))
@@ -524,7 +524,7 @@ if __name__ == '__main__':
         try:
 
             # Current batch
-            if batch_idx < 3:
+            if batch_idx < 4:
                 continue
 
             predicated_entities = []
