@@ -79,7 +79,7 @@ def create_data_object_and_predicates_by_img_id():
 
     for img_id in img_ids_lst:
         try:
-            entity = GetSceneGraph(img_id, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/",
+            entity = GetScget_img_idseneGraph(img_id, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/",
                                    synsetFile=DATA_PATH + "synsets.json")
             entities_lst.append(entity)
             objects = entity.objects

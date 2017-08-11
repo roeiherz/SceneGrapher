@@ -9,10 +9,11 @@ from Module import Module
 from Utils.Logger import Logger
 import tensorflow as tf
 import numpy as np
-
+from FeaturesExtraction.Utils.data import get_filtered_data
 from Train import NOF_OBJECTS, NOF_PREDICATES, VISUAL_FEATURES_OBJECT_SIZE, VISUAL_FEATURES_PREDICATE_SIZE, TEST_PERCENT
 from Utils.ModuleDetection import ModuleDetection
-
+import Scripts
+import cPickle
 
 def eval_image(img, reverse_object_ids, reverse_predicate_ids, labels_predicate, labels_object, out_belief_predicate_val, out_belief_object_val, k=100):
     """
@@ -158,7 +159,7 @@ def predicate_class_recall(labels_predicate, out_belief_predicate_val, k=5):
     return correct, total
 
 
-def eval(nof_iterations=100, load_module_name="test9_2", gpu=2):
+def eval(nof_iterations=100, load_module_name="test14", sg_class=False, gpu=2):
     """
     Evaluate module:
     - Scene Graph Classification - R@k metric (measures the fraction of ground truth relationships
@@ -205,12 +206,10 @@ def eval(nof_iterations=100, load_module_name="test9_2", gpu=2):
     summaries = tf.summary.merge_all()
 
     # read data
-    entities = filesmanager.load_file("data.visual_genome.detections_v2")
-    max_train_entity = len(entities) * (100 - TEST_PERCENT) / 100
-    train_entities = entities[:max_train_entity]
-    test_entities = entities[max_train_entity + 1:]
-    object_ids = {str(i):i for i in range(NOF_OBJECTS)}
-    predicate_ids = {str(i):i for i in range(NOF_PREDICATES)}
+    entities_path = filesmanager.get_file_path("data.visual_genome.detections_v4")
+    files_list = ["Tue_Aug__8_23:28:18_2017/predicated_entities_2000_to_3000.p"] #,"Wed_Aug__9_10:04:43_2017/predicated_entities_0_to_1000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_1000_to_2000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_2000_to_3000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_3000_to_4000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_0_to_1000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_1000_to_2000.p"]
+    img_ids = Scripts.get_img_ids()
+    _, object_ids, predicate_ids = get_filtered_data(filtered_data_file_name="mini_filtered_data", category='entities_visual_module')
     reverse_object_ids = {object_ids[id]: id for id in object_ids}
     reverse_predicate_ids = {predicate_ids[id]: id for id in predicate_ids}
 
@@ -242,33 +241,43 @@ def eval(nof_iterations=100, load_module_name="test9_2", gpu=2):
         total_predicate = np.zeros(NOF_PREDICATES)
         correct = 0
         total = 0
-        for entity in test_entities:
-            # get shape of extended object to be used by the module
-            extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
-            extended_belief_object_shape[2] = NOF_OBJECTS
+        for file_name in files_list:
+            file_path = os.path.join(entities_path, file_name)
+            file_handle = open(file_path, "rb`")
+            test_entities = cPickle.load(file_handle)
+            file_handle.close()
+            for entity in test_entities:
+                # filter urls that are not part of the mini data 
+                #if not entity.image.id in img_ids:
+                #    continue
+                
+                # get shape of extended object to be used by the module
+                extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
+                extended_belief_object_shape[2] = NOF_OBJECTS
 
-            # create the feed dictionary
-            feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
-                         extended_belief_object_shape_ph: extended_belief_object_shape,
-                         visual_features_predicate_ph: entity.predicates_features,
-                         visual_features_object_ph: entity.objects_features}
+                # create the feed dictionary
+                feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
+                             extended_belief_object_shape_ph: extended_belief_object_shape,
+                             visual_features_predicate_ph: entity.predicates_features,
+                             visual_features_object_ph: entity.objects_features}
 
-            #out_belief_predicate_val, out_belief_object_val = \
-            #    sess.run([out_belief_predicate, out_belief_object],
-            #             feed_dict=feed_dict)
+                #out_belief_predicate_val, out_belief_object_val = \
+                #    sess.run([out_belief_predicate, out_belief_object],
+                #             feed_dict=feed_dict)
 
-            # eval image
-            k_metric_res, correct_image, total_image = eval_image(entity, reverse_object_ids, reverse_predicate_ids, entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
-            correct += correct_image
-            total += total_image
-            total_score = float(correct) / total
-            logger.log("result - %f (%d / %d) - total %f" % (k_metric_res, correct_image, total_image, total_score))
+                # eval image
+                if sg_class:
+                    k_metric_res, correct_image, total_image = eval_image(entity, reverse_object_ids, reverse_predicate_ids, entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
+                    correct += correct_image
+                    total += total_image
+                    total_score = float(correct) / total
+                    logger.log("result - %f (%d / %d) - total %f" % (k_metric_res, correct_image, total_image, total_score))
 
-            # eval per predicate
-            correct_predicate_image, total_predicate_image = predicate_class_recall(entity.predicates_labels,
-                                                                                    entity.predicates_probes)
-            correct_predicate += correct_predicate_image
-            total_predicate += total_predicate_image
+                # eval per predicate
+                correct_predicate_image, total_predicate_image = predicate_class_recall(entity.predicates_labels,
+                                                                                        entity.predicates_probes)
+                correct_predicate += correct_predicate_image
+                total_predicate += total_predicate_image
 
         for i in range(NOF_PREDICATES):
             if total_predicate[i] != 0:

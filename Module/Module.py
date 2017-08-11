@@ -60,7 +60,7 @@ class Module(object):
             self.labels_predicate_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, self.nof_predicates),
                                                       name="labels_predicate")
             self.labels_object_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects), name="labels_object")
-
+            self.labels_coeff_loss_ph = tf.placeholder(dtype=tf.float32, shape=(None), name="labels_coeff_loss")
         # single rnn stage module
         belief_predicate = self.belief_predicate_ph
         belief_object = self.belief_object_ph
@@ -252,16 +252,16 @@ class Module(object):
             # reshape to batch like shape
             shaped_belief_predicate = tf.reshape(self.last_layer_predicate, (-1, self.nof_predicates))
             shaped_labels_predicate = tf.reshape(self.labels_predicate_ph, (-1, self.nof_predicates))
-
             # set loss
-            loss_predicate = tf.nn.softmax_cross_entropy_with_logits(labels=shaped_labels_predicate,
+            self.loss_predicate = tf.nn.softmax_cross_entropy_with_logits(labels=shaped_labels_predicate,
                                                                      logits=shaped_belief_predicate,
                                                                      name="loss_predicate")
+            self.loss_predicate_weighted = tf.multiply(self.loss_predicate, self.labels_coeff_loss_ph)
             loss_object = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph, logits=self.last_layer_object,
                                                                   name="loss_object")
-            loss = tf.add(tf.reduce_mean(loss_predicate), 2 * tf.reduce_mean(loss_object), name="loss")
+            loss = tf.add(tf.reduce_mean(self.loss_predicate_weighted), 2 * tf.reduce_mean(loss_object), name="loss")
             #loss = tf.reduce_mean(loss_object)
-            loss = tf.reduce_mean(loss_predicate)
+            #loss = tf.reduce_mean(loss_predicate)
 
             # minimize
             train_step = tf.train.GradientDescentOptimizer(self.lr_ph).minimize(loss)
@@ -284,7 +284,7 @@ class Module(object):
         """
         get module labels ph (used for train)
         """
-        return self.labels_predicate_ph, self.labels_object_ph
+        return self.labels_predicate_ph, self.labels_object_ph, self.labels_coeff_loss_ph
 
     def get_module_loss(self):
         """

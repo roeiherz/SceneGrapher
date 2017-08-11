@@ -1,13 +1,13 @@
 nof_p: 1
 1:
-    name: test11 
+    name: test14 
     nof_iterations: 10000
-    learning_rate: 0.001
+    learning_rate: 0.0005
     learning_rate_steps: 1000
     learning_rate_decay: 0.5
-    load_model_name: "test9_1_module.ckpt"
-    use_saved_model: False
-    gpu: 3
+    load_model_name: "test14_module.ckpt"
+    use_saved_model: True
+    gpu: 2
 2:
     name: test2
     nof_iterations: 10000

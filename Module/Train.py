@@ -9,6 +9,8 @@ from Module import Module
 import tensorflow as tf
 import numpy as np
 import os
+import cPickle
+import Scripts
 
 from Utils.Logger import Logger
 
@@ -22,7 +24,7 @@ NOF_OBJECTS = 150
 # NOF_OBJECTS = 2
 
 # negative vs positive factor
-POS_NEG_FACTOR = 10
+POS_NEG_FACTOR = 5
 
 # save model every number of iterations
 SAVE_MODEL_ITERATIONS = 100
@@ -32,6 +34,9 @@ TEST_ITERATIONS = 10
 
 # percentage of test data
 TEST_PERCENT = 10
+
+NOF_ENTITIES_GROUPS = 10
+TEST_ENTITIES_GROUP = 11
 
 
 def test(labels_predicate, labels_object, out_belief_predicate_val, out_belief_object_val):
@@ -114,7 +119,7 @@ def train(name="test",
     # get input place holders
     belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph = module.get_in_ph()
     # get labels place holders
-    labels_predicate_ph, labels_object_ph = module.get_labels_ph()
+    labels_predicate_ph, labels_object_ph, labels_coeff_loss_ph = module.get_labels_ph()
     # get loss and train step
     loss, train_step = module.get_module_loss()
     # get module output
@@ -158,53 +163,64 @@ def train(name="test",
         # for i in range(N):
         #     labels_object[i][i] = 1
 
+        # train entities
+        entities_path = filesmanager.get_file_path("data.visual_genome.detections_v4")
+        files_list = ["Wed_Aug__9_10:04:43_2017/predicated_entities_0_to_1000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_1000_to_2000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_2000_to_3000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_3000_to_4000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_0_to_1000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_1000_to_2000.p"]
+        img_ids = Scripts.get_img_ids()
+        # read test entities
+        test_entities = filesmanager.load_file("data.visual_genome.detections_v4_test")
 
-        # read data
-        entities = filesmanager.load_file("data.visual_genome.detections_v3")
-        max_train_entity = len(entities) * (100 - TEST_PERCENT) / 100
-        train_entities = entities[:max_train_entity]
-        test_entities = entities[max_train_entity + 1:]
         # train module
         lr = learning_rate
         for epoch in range(1, nof_iterations):
             accum_results = None
             total_loss = 0
-            for entity in train_entities:
-                # get shape of extended object to be used by the module
-                extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
-                extended_belief_object_shape[2] = NOF_OBJECTS
+            # read data
+            for file_name in files_list:
+                file_path = os.path.join(entities_path, file_name)
+                file_handle = open(file_path, "rb`")
+                train_entities = cPickle.load(file_handle)
+                file_handle.close()
+                for entity in train_entities:
+                    # filter mini data urls to be used as test urls
+                    if entity.image.id in img_ids:
+                        continue
 
-                # give lower weight to negatives
-                predicates_labels = entity.predicates_labels.astype(float)
-                predicates_labels[:, :, :NOF_PREDICATES - 2] = 0
-                factor = float(np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2])) / np.sum(
-                    entity.predicates_labels) / POS_NEG_FACTOR - 1
-                predicates_labels *= factor
-                predicates_labels += entity.predicates_labels
+                    # get shape of extended object to be used by the module
+                    extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
+                    extended_belief_object_shape[2] = NOF_OBJECTS
+                    # filter non mixed cases
+                    predicates_neg_labels = entity.predicates_labels[:, :, NOF_PREDICATES-1:]
+                    if np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2]) == 0 or np.sum(predicates_neg_labels) == 0:
+                       continue
+                    # give lower weight to negatives
+                    coeff_factor = np.ones(predicates_neg_labels.shape)
+                    factor = float(np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2])) / np.sum(
+                        predicates_neg_labels) / POS_NEG_FACTOR 
+                    coeff_factor[predicates_neg_labels == 1] *= factor
+                    # create the feed dictionary
+                    feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
+                                 extended_belief_object_shape_ph: extended_belief_object_shape,
+                                 visual_features_predicate_ph: entity.predicates_features,
+                                 visual_features_object_ph: entity.objects_features,
+                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels, labels_coeff_loss_ph: coeff_factor.reshape((-1)),  module.lr_ph : lr}
 
-                # create the feed dictionary
-                feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
-                             extended_belief_object_shape_ph: extended_belief_object_shape,
-                             visual_features_predicate_ph: entity.predicates_features,
-                             visual_features_object_ph: entity.objects_features,
-                             labels_predicate_ph: predicates_labels, labels_object_ph: entity.objects_labels, module.lr_ph : lr}
+                    # run the network
+                    out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val = \
+                        sess.run([out_belief_predicate, out_belief_object, loss, train_step],
+                                 feed_dict=feed_dict)
 
-                # run the network
-                out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val = \
-                    sess.run([out_belief_predicate, out_belief_object, loss, train_step],
-                             feed_dict=feed_dict)
-
-                # statistic
-                total_loss += loss_val
-                results = test(entity.predicates_labels, entity.objects_labels, out_belief_predicate_val,
-                               out_belief_object_val)
-                #results = test(entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
-                # accumulate results
-                if accum_results is None:
-                    accum_results = results
-                else:
-                    for key in results:
-                        accum_results[key] += results[key]
+                    # statistic
+                    total_loss += loss_val
+                    results = test(entity.predicates_labels, entity.objects_labels, out_belief_predicate_val,
+                                   out_belief_object_val)
+                    #results = test(entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
+                    # accumulate results
+                    if accum_results is None:
+                        accum_results = results
+                    else:
+                        for key in results:
+                            accum_results[key] += results[key]
 
             # print stat
             obj_accuracy = float(accum_results['obj_correct']) / accum_results['obj_total']

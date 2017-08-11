@@ -147,6 +147,16 @@ data:
           type: "pickle"
           doc:  "1000 entities which included matrix style data of predicates and objects trained on both pos and neg predicates (ratio 3/10) without fine-tuned"
 
+        detections_v4:
+          name: "FeaturesExtraction/PredicatedFeatures/"
+          type: "dir"
+          doc:  "dir with entities files. each file inclues 1000 entities"
+
+        detections_v4_test:
+          name: "FeaturesExtraction/PredicatedFeatures/Tue_Aug__8_23:28:18_2017/predicated_entities_2000_to_3000.p"
+          type: "pickle"
+          doc:  "1000 entities which included matrix style data of predicates and objects trained on both pos and neg predicates (ratio 3/10) without fine-tuned"
+
 features_extraction:
     visual:
         mini_detections_with_probs_and_features:
