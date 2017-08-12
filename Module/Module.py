@@ -299,4 +299,4 @@ class Module(object):
         """
         get module loss and train step
         """
-        return self.loss, self.train_step
+        return self.loss, self.grad_and_vars, self.train_step
