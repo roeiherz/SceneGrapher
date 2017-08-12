@@ -523,7 +523,7 @@ if __name__ == '__main__':
         try:
 
             # Current batch
-            if batch_idx < 4:
+            if batch_idx < 5:
                 continue
 
             predicated_entities = []
