@@ -165,7 +165,8 @@ def train(name="test",
 
         # train entities
         entities_path = filesmanager.get_file_path("data.visual_genome.detections_v4")
-        files_list = ["Wed_Aug__9_10:04:43_2017/predicated_entities_0_to_1000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_1000_to_2000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_2000_to_3000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_3000_to_4000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_0_to_1000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_1000_to_2000.p"]
+        # files_list = ["Wed_Aug__9_10:04:43_2017/predicated_entities_0_to_1000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_1000_to_2000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_2000_to_3000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_3000_to_4000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_0_to_1000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_1000_to_2000.p"]
+        files_list = ["Wed_Aug__9_10:04:43_2017/test.p"]
         img_ids = Scripts.get_img_ids()
         # read test entities
         test_entities = filesmanager.load_file("data.visual_genome.detections_v4_test")
@@ -209,6 +210,12 @@ def train(name="test",
                     out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val = \
                         sess.run([out_belief_predicate, out_belief_object, loss, train_step],
                                  feed_dict=feed_dict)
+
+                    objects_gt = np.argmax(entity.objects_labels, axis=1)
+                    index_labels_per_sample = np.argmax(out_belief_object_val, axis=1)
+
+                    negatives = objects_gt[np.where(objects_gt != index_labels_per_sample)[0]]
+                    positives = np.where(objects_gt == index_labels_per_sample)
 
                     # statistic
                     total_loss += loss_val
@@ -314,7 +321,8 @@ if __name__ == "__main__":
         load_model_name = process_params["load_model_name"]
         use_saved_model = process_params["use_saved_model"]
         gpu = process_params["gpu"]
-        train(name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name, use_saved_model, gpu)
+        train(name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
+              use_saved_model, gpu)
         p = Process(target=train, args=(
             name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
             use_saved_model, gpu))

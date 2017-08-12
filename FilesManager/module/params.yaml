@@ -7,7 +7,7 @@ nof_p: 1
     learning_rate_decay: 0.5
     load_model_name: "test14_module.ckpt"
     use_saved_model: True
-    gpu: 2
+    gpu: 0
 2:
     name: test2
     nof_iterations: 10000
