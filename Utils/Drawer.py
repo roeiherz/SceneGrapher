@@ -28,18 +28,30 @@ def entity_drawer(entity, draw_objects=True, draw_relations=False):
 
     if draw_objects:
         for object in entity.objects:
-            # Get the mask: a dict with {x1,x2,y1,y2}
-            mask_object = get_mask_from_object(object)
-            # Saves as a box
-            object_box = np.array([mask_object['x1'], mask_object['y1'], mask_object['x2'], mask_object['y2']])
-            # Draw Object
-            VisualizerDrawer.draw_labeled_box(img, object_box,
-                                              label=object.names[0],
-                                              rect_color=CvColor.BLUE, scale=500, where="top_left")
+            draw_object(img, object)
 
     output_dir = os.path.join(PROJECT_ROOT, "Pics")
     output_file_name = "{0}.jpg".format(entity.image.id)
     cv2.imwrite(os.path.join(output_dir, output_file_name), img)
+
+
+def draw_object(img, object, label="", color=CvColor.BLUE, scale=500, where="top_left"):
+    """
+    This function draw an object
+    :param color: the color of the box
+    :param scale: scale
+    :param where: the location of the label in the drawn box
+    :param img: the image a numpy array
+    :param object: Object VisualGenome type
+    """
+    # Get the mask: a dict with {x1,x2,y1,y2}
+    mask_object = get_mask_from_object(object)
+    # Saves as a box
+    object_box = np.array([mask_object['x1'], mask_object['y1'], mask_object['x2'], mask_object['y2']])
+    # Draw Object
+    VisualizerDrawer.draw_labeled_box(img, object_box,
+                                      label=object.names[0] if label is None else label,
+                                      rect_color=color, scale=scale, where=where)
 
 
 if __name__ == '__main__':

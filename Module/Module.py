@@ -37,8 +37,10 @@ class Module(object):
         self.rnn_steps = rnn_steps
 
         ## create weights
-        self.nn_predicate_weights(self.nof_predicates * 3 + self.visual_features_predicate_size + 2 * self.nof_objects, self.nof_predicates)
-        self.nn_object_weights(self.nof_predicates * 2 + self.nof_objects + self.visual_features_object_size, self.nof_objects)
+        self.nn_predicate_weights(self.nof_predicates * 3 + self.visual_features_predicate_size + 2 * self.nof_objects,
+                                  self.nof_predicates)
+        self.nn_object_weights(self.nof_predicates * 2 + self.nof_objects + self.visual_features_object_size,
+                               self.nof_objects)
 
         ## module input
         # Visual features
@@ -53,26 +55,29 @@ class Module(object):
                                                   name="belief_predicate")
         self.belief_object_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects), name="belief_object")
 
-        self.extended_belief_object_shape_ph = tf.placeholder(dtype=tf.int32, shape=(3), name="extended_belief_object_shape")
+        self.extended_belief_object_shape_ph = tf.placeholder(dtype=tf.int32, shape=(3),
+                                                              name="extended_belief_object_shape")
 
         # labels
         if self.is_train:
             self.labels_predicate_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, self.nof_predicates),
                                                       name="labels_predicate")
-            self.labels_object_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects), name="labels_object")
+            self.labels_object_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects),
+                                                   name="labels_object")
             self.labels_coeff_loss_ph = tf.placeholder(dtype=tf.float32, shape=(None), name="labels_coeff_loss")
+
         # single rnn stage module
         belief_predicate = self.belief_predicate_ph
         belief_object = self.belief_object_ph
 
         for step in range(self.rnn_steps):
             belief_predicate, belief_object, last_layer_predicate, last_layer_object = \
-            self.rnn_stage(in_visual_features_predicate=self.visual_features_predicate_ph,
-                           in_visual_features_object=self.visual_features_object_ph,
-                           in_belief_predicate=belief_predicate,
-                           in_belief_object=belief_object,
-                           in_extended_belief_object_shape=self.extended_belief_object_shape_ph,
-                           scope_name="rnn" + str(step))
+                self.rnn_stage(in_visual_features_predicate=self.visual_features_predicate_ph,
+                               in_visual_features_object=self.visual_features_object_ph,
+                               in_belief_predicate=belief_predicate,
+                               in_belief_object=belief_object,
+                               in_extended_belief_object_shape=self.extended_belief_object_shape_ph,
+                               scope_name="rnn" + str(step))
 
         self.out_belief_predicate = belief_predicate
         self.out_belief_object = belief_object
@@ -83,10 +88,8 @@ class Module(object):
         if self.is_train:
             # Learning rate
             self.lr_ph = tf.placeholder(dtype=tf.float32, shape=[], name="lr_ph")
-        
-            self.loss, self.train_step = self.module_loss()
-            
-            
+
+            self.loss, self.grad_and_vars, self.train_step = self.module_loss()
 
     def nn_predicate_weights(self, in_size, out_size):
         # h1_size = 2 * in_size
@@ -126,7 +129,7 @@ class Module(object):
         with tf.variable_scope(scope_name):
             # Create neural network
             input_features = tf.reshape(features, (-1, in_size))
-            
+
             h1 = tf.nn.tanh(tf.matmul(input_features, self.nn_predicate_w_1) + self.nn_predicate_b_1, name="h1")
             h2 = tf.nn.tanh(tf.matmul(h1, self.nn_predicate_w_2) + self.nn_predicate_b_2, name="h2")
             delta = tf.nn.tanh(tf.add(tf.matmul(h2, self.nn_predicate_w_3), self.nn_predicate_b_3, name="delta"))
@@ -139,7 +142,8 @@ class Module(object):
             y = tf.reshape(y, out_shape)
             out = tf.reshape(out, out_shape)
 
-        return out , y
+        return out, y
+
     def nn_object_weights(self, in_size, out_size):
         # h1_size = 2 * in_size
         h1_size = 200
@@ -175,7 +179,6 @@ class Module(object):
         """
 
         with tf.variable_scope(scope_name):
-
             # Create neural network
             h1 = tf.nn.tanh(tf.matmul(features, self.nn_object_w_1) + self.nn_object_b_1, name="h1")
             h2 = tf.nn.tanh(tf.matmul(h1, self.nn_object_w_2) + self.nn_object_b_2, name="h2")
@@ -221,7 +224,8 @@ class Module(object):
                 expand_belief_subject = tf.transpose(expand_belief_object, perm=[1, 0, 2], name="expand_belief_subject")
 
                 predicate_all_features = tf.concat(
-                    (in_visual_features_predicate, in_belief_predicate, expand_global_sub_belief, expand_global_obj_belief,
+                    (in_visual_features_predicate, in_belief_predicate, expand_global_sub_belief,
+                     expand_global_obj_belief,
                      expand_belief_subject, expand_belief_object),
                     axis=2, name="predicate_all_features")
 
@@ -232,10 +236,11 @@ class Module(object):
 
             # fully cnn to calc belief predicate for every subject and object
             out_belief_predicate, last_layer_predicate = self.nn_predicate(predicate_all_features, in_belief_predicate,
-                                      out_shape=tf.shape(in_belief_predicate))
+                                                                           out_shape=tf.shape(in_belief_predicate))
 
             # fully cnn to calc belief object for every object
-            out_belief_object, last_layer_object = self.nn_object(object_all_features, in_belief_object, out_size=self.nof_objects)
+            out_belief_object, last_layer_object = self.nn_object(object_all_features, in_belief_object,
+                                                                  out_size=self.nof_objects)
 
             return out_belief_predicate, out_belief_object, last_layer_predicate, last_layer_object
 
@@ -254,19 +259,23 @@ class Module(object):
             shaped_labels_predicate = tf.reshape(self.labels_predicate_ph, (-1, self.nof_predicates))
             # set loss
             self.loss_predicate = tf.nn.softmax_cross_entropy_with_logits(labels=shaped_labels_predicate,
-                                                                     logits=shaped_belief_predicate,
-                                                                     name="loss_predicate")
+                                                                          logits=shaped_belief_predicate,
+                                                                          name="loss_predicate")
             self.loss_predicate_weighted = tf.multiply(self.loss_predicate, self.labels_coeff_loss_ph)
-            loss_object = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph, logits=self.last_layer_object,
+            loss_object = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph,
+                                                                  logits=self.last_layer_object,
                                                                   name="loss_object")
             loss = tf.add(tf.reduce_mean(self.loss_predicate_weighted), 2 * tf.reduce_mean(loss_object), name="loss")
-            #loss = tf.reduce_mean(loss_object)
-            #loss = tf.reduce_mean(loss_predicate)
+            # loss = tf.reduce_mean(loss_object)
+            # loss = tf.reduce_mean(loss_predicate)
 
             # minimize
-            train_step = tf.train.GradientDescentOptimizer(self.lr_ph).minimize(loss)
+            optimizer = tf.train.GradientDescentOptimizer(self.lr_ph)
+            # train_step = optimizer.minimize(loss)
+            grad_and_vars = optimizer.compute_gradients(loss)
+            train_step = optimizer.apply_gradients(grad_and_vars)
 
-        return loss, train_step
+        return loss, grad_and_vars, train_step
 
     def get_in_ph(self):
         """

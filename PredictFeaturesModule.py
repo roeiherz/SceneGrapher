@@ -508,10 +508,10 @@ if __name__ == '__main__':
     logger.log('Starting Prediction')
     ind = 0
 
-    total_entities = entities[:18013]
-    # total_entities = entities[18013:36026]
+    # total_entities = entities[:18013]
+    total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
-    SPLIT_ENT = 1000
+    SPLIT_ENT = 500
     num_of_iters = int(math.ceil(float(len(total_entities)) / SPLIT_ENT))
 
     logger.log(
@@ -523,8 +523,8 @@ if __name__ == '__main__':
         try:
 
             # Current batch
-            if batch_idx < 5:
-                continue
+            # if batch_idx < 5:
+            #     continue
 
             predicated_entities = []
             entities = total_entities[SPLIT_ENT * batch_idx: SPLIT_ENT * (batch_idx + 1)]
@@ -537,6 +537,10 @@ if __name__ == '__main__':
             # Predict each entity
             for entity in entities:
                 try:
+
+                    if entity.image.id != 2347509:
+                        continue
+
                     # Increment index
                     ind += 1
 
