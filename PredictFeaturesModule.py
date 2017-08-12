@@ -227,7 +227,7 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
 
         # Get the object features [len(objects), 150]
         objects_noactivation_outputs = \
-        noactivation_outputs_object_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+            noactivation_outputs_object_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
         objects_outputs_without_softmax.append(objects_noactivation_outputs)
 
     # Save objects features - [len(objects), 2048]
@@ -388,7 +388,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
                                                                                      num_of_batches_per_epoch))
         # Get the object features [len(objects), 2048]
         predicate_features = \
-        features_output_predicate_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+            features_output_predicate_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
         features_lst.append(predicate_features)
 
         logger.log(
@@ -461,7 +461,6 @@ if __name__ == '__main__':
                                                                                           'full_filtered_data',
                                                                                           # "mini_filtered_data",
                                                                                           category='entities_visual_module')
-    # category='entities')
 
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
@@ -509,8 +508,8 @@ if __name__ == '__main__':
     logger.log('Starting Prediction')
     ind = 0
 
-    # total_entities = entities[:18013]
-    total_entities = entities[18013:36026]
+    total_entities = entities[:18013]
+    # total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
     SPLIT_ENT = 1000
     num_of_iters = int(math.ceil(float(len(total_entities)) / SPLIT_ENT))
@@ -585,4 +584,5 @@ if __name__ == '__main__':
             logger.log('Exception in batch_id: {0} with error: {1}'.format(batch_idx, e))
             logger.log(str(e))
             traceback.print_exc()
+            exit()
     logger.log('Finished Predicting entities')
