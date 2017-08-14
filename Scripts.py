@@ -1,5 +1,5 @@
 import traceback
-
+import collections
 import matplotlib
 
 matplotlib.use('agg')
@@ -79,7 +79,7 @@ def create_data_object_and_predicates_by_img_id():
 
     for img_id in img_ids_lst:
         try:
-            entity = GetScget_img_idseneGraph(img_id, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/",
+            entity = GetSceneGraph(img_id, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/",
                                    synsetFile=DATA_PATH + "synsets.json")
             entities_lst.append(entity)
             objects = entity.objects
@@ -612,6 +612,34 @@ def test_predicted_features(gpu_num=0, objects_training_dir_name="", predicates_
     Logger().log("Finished testing")
 
 
+def get_object_and_predicates_from_mini():
+    """
+    This function save objects and predicates from entity file
+    :return: 
+    """
+
+    # Load detections dtype numpy array and hierarchy mappings
+    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
+                                                                                          "mini_filtered_data",
+                                                                                          category='entities')
+
+    objects = set([])
+    predicates = set([])
+    for entity in entities:
+        for object in entity.objects:
+            objects.add((object.id, object.names[0]))
+        for relation in entity.relationships:
+            predicates.add((relation.id, relation.predicate))
+
+    objects_fl = open("objects_mini.p", "wb")
+    predicates_fl = open("predicates_mini.p", "wb")
+    cPickle.dump(objects, objects_fl)
+    cPickle.dump(predicates, predicates_fl)
+    objects_fl.close()
+    predicates_fl.close()
+
+
+
 if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
@@ -619,6 +647,53 @@ if __name__ == '__main__':
     file_manager = FilesManager()
     logger = Logger()
 
+    # Load detections dtype numpy array and hierarchy mappings
+    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
+                                                                                          "mini_filtered_data",
+                                                                                          category='entities')
+
+    # The reverse mapping of hierarchy_mapping_objects
+    inv_map_objects = {v: k for k, v in hierarchy_mapping_objects.iteritems()}
+    objects_label_by_ind = [inv_map_objects[val] for val in hierarchy_mapping_objects.values()]
+
+    # The reverse mapping of hierarchy_mapping_predicates
+    inv_map_predicates = {v: k for k, v in hierarchy_mapping_predicates.iteritems()}
+    predicates_label_by_ind = [inv_map_predicates[val] for val in hierarchy_mapping_predicates.values()]
+
+    # get_object_and_predicates_from_mini()
+    objects = cPickle.load(open("objects_mini.p"))
+    predicates = cPickle.load(open("predicates_mini.p"))
+
+    objects_label = set([tup[1] for tup in objects])
+    objects_cnt_lst = np.zeros(len(objects_label), dtype="int")
+    predicates_label = [tup[1] for tup in predicates]
+    predicates_cnt_lst = np.zeros(len(predicates_label), dtype="int")
+
+    for entity in entities:
+
+        for object in entity.objects:
+            objects_cnt_lst[hierarchy_mapping_objects[object.names[0]]] += 1
+
+        for relation in entity.relationships:
+            predicates_cnt_lst[hierarchy_mapping_predicates[relation.predicate]] += 1
+
+        # Save objects histogram
+        plt.figure()
+        plt.hist((objects_cnt_lst, objects_label_by_ind), bins=100, range=[0, 150], normed=1, histtype='bar')
+        plt.title('Objects occurrence')
+        plt.savefig("Objects_occurrence.jpg")
+
+        cc = collections.Counter(entity.objects)
+
+        centers = range(len(cc))
+        plt.bar(centers, cc.values(), align='center', tick_label=cc.keys())
+        plt.xlim([0, 11])
+
+
+
+
+
+    exit()
     test_predicted_features(gpu_num=2, objects_training_dir_name="Mon_Jul_24_19:58:35_2017",
                             predicates_training_dir_name="Wed_Aug__2_21:55:12_2017",
                             # predicted_features_dir_name="Tue_Aug__8_23:28:18_2017",
