@@ -159,7 +159,7 @@ def predicate_class_recall(labels_predicate, out_belief_predicate_val, k=5):
     return correct, total
 
 
-def eval(nof_iterations=100, load_module_name="test14", sg_class=False, gpu=2):
+def eval(load_module_name="test22", sg_class=False, gpu=2):
     """
     Evaluate module:
     - Scene Graph Classification - R@k metric (measures the fraction of ground truth relationships
@@ -207,7 +207,7 @@ def eval(nof_iterations=100, load_module_name="test14", sg_class=False, gpu=2):
 
     # read data
     entities_path = filesmanager.get_file_path("data.visual_genome.detections_v4")
-    files_list = ["Tue_Aug__8_23:28:18_2017/predicated_entities_2000_to_3000.p"] #,"Wed_Aug__9_10:04:43_2017/predicated_entities_0_to_1000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_1000_to_2000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_2000_to_3000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_3000_to_4000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_0_to_1000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_1000_to_2000.p"]
+    files_list = ["Fri_Aug_11_23:01:43_2017/predicated_entities_0_to_1000.p"] #,"Wed_Aug__9_10:04:43_2017/predicated_entities_0_to_1000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_1000_to_2000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_2000_to_3000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_3000_to_4000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_0_to_1000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_1000_to_2000.p"]
     img_ids = Scripts.get_img_ids()
     _, object_ids, predicate_ids = get_filtered_data(filtered_data_file_name="mini_filtered_data", category='entities_visual_module')
     reverse_object_ids = {object_ids[id]: id for id in object_ids}
@@ -261,9 +261,9 @@ def eval(nof_iterations=100, load_module_name="test14", sg_class=False, gpu=2):
                              visual_features_predicate_ph: entity.predicates_features,
                              visual_features_object_ph: entity.objects_features}
 
-                #out_belief_predicate_val, out_belief_object_val = \
-                #    sess.run([out_belief_predicate, out_belief_object],
-                #             feed_dict=feed_dict)
+                out_belief_predicate_val, out_belief_object_val = \
+                    sess.run([out_belief_predicate, out_belief_object],
+                             feed_dict=feed_dict)
 
                 # eval image
                 if sg_class:
@@ -275,7 +275,7 @@ def eval(nof_iterations=100, load_module_name="test14", sg_class=False, gpu=2):
 
                 # eval per predicate
                 correct_predicate_image, total_predicate_image = predicate_class_recall(entity.predicates_labels,
-                                                                                        entity.predicates_probes)
+                                                                                        out_belief_predicate_val)
                 correct_predicate += correct_predicate_image
                 total_predicate += total_predicate_image
 

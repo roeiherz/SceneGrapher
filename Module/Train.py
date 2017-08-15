@@ -11,6 +11,7 @@ import numpy as np
 import os
 import cPickle
 import Scripts
+from FeaturesExtraction.Utils.data import get_filtered_data
 
 from Utils.Logger import Logger
 
@@ -24,19 +25,16 @@ NOF_OBJECTS = 150
 # NOF_OBJECTS = 2
 
 # negative vs positive factor
-POS_NEG_FACTOR = 5
+POS_NEG_FACTOR = 10
 
 # save model every number of iterations
-SAVE_MODEL_ITERATIONS = 100
+SAVE_MODEL_ITERATIONS = 20
 
 # test every number of iterations
 TEST_ITERATIONS = 10
 
 # percentage of test data
 TEST_PERCENT = 10
-
-NOF_ENTITIES_GROUPS = 10
-TEST_ENTITIES_GROUP = 11
 
 
 def test(labels_predicate, labels_object, out_belief_predicate_val, out_belief_object_val):
@@ -121,7 +119,7 @@ def train(name="test",
     # get labels place holders
     labels_predicate_ph, labels_object_ph, labels_coeff_loss_ph = module.get_labels_ph()
     # get loss and train step
-    loss, train_step = module.get_module_loss()
+    loss, gradients, grad_placeholder, train_step = module.get_module_loss()
     # get module output
     out_belief_predicate, out_belief_object = module.get_output()
 
@@ -162,10 +160,11 @@ def train(name="test",
         # labels_object = np.zeros((N, NOF_OBJECTS))
         # for i in range(N):
         #     labels_object[i][i] = 1
-
+        _, object_ids, predicate_ids = get_filtered_data(filtered_data_file_name="mini_filtered_data", category='entities_visual_module')
         # train entities
         entities_path = filesmanager.get_file_path("data.visual_genome.detections_v4")
-        files_list = ["Wed_Aug__9_10:04:43_2017/predicated_entities_0_to_1000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_1000_to_2000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_2000_to_3000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_3000_to_4000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_0_to_1000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_1000_to_2000.p"]
+        # FIXME: modified to have a single iteration
+        files_list = ["1"] #["Wed_Aug__9_10:04:43_2017/predicated_entities_0_to_1000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_1000_to_2000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_2000_to_3000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_3000_to_4000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_4000_to_5000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_0_to_1000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_1000_to_2000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_2000_to_3000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_3000_to_4000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_4000_to_5000.p"]
         img_ids = Scripts.get_img_ids()
         # read test entities
         test_entities = filesmanager.load_file("data.visual_genome.detections_v4_test")
@@ -175,16 +174,19 @@ def train(name="test",
         for epoch in range(1, nof_iterations):
             accum_results = None
             total_loss = 0
+            steps = []
             # read data
             for file_name in files_list:
-                file_path = os.path.join(entities_path, file_name)
-                file_handle = open(file_path, "rb`")
-                train_entities = cPickle.load(file_handle)
-                file_handle.close()
-                for entity in train_entities:
+                # FIXME: use test entities (mini-data) at first
+                #file_path = os.path.join(entities_path, file_name)
+                #file_handle = open(file_path, "rb")
+                #train_entities = cPickle.load(file_handle)
+                #file_handle.close()
+                for entity in test_entities:
                     # filter mini data urls to be used as test urls
-                    if entity.image.id in img_ids:
-                        continue
+                    # FIXME: allow to train on mini-data
+                    #if entity.image.id in img_ids:
+                    #    continue
 
                     # get shape of extended object to be used by the module
                     extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
@@ -198,18 +200,23 @@ def train(name="test",
                     factor = float(np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2])) / np.sum(
                         predicates_neg_labels) / POS_NEG_FACTOR 
                     coeff_factor[predicates_neg_labels == 1] *= factor
+                    # FIXME: train on true predicates only
+                    coeff_factor[predicates_neg_labels == 1] = 0
+
                     # create the feed dictionary
-                    feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
+                    # FIXME: provide the true object labels as the object belief
+                    feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_labels,
                                  extended_belief_object_shape_ph: extended_belief_object_shape,
                                  visual_features_predicate_ph: entity.predicates_features,
                                  visual_features_object_ph: entity.objects_features,
                                  labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels, labels_coeff_loss_ph: coeff_factor.reshape((-1)),  module.lr_ph : lr}
 
                     # run the network
-                    out_belief_predicate_val, out_belief_object_val, loss_val, train_step_val = \
-                        sess.run([out_belief_predicate, out_belief_object, loss, train_step],
+                    out_belief_predicate_val, out_belief_object_val, loss_val, gradients_val = \
+                        sess.run([out_belief_predicate, out_belief_object, loss, gradients],
                                  feed_dict=feed_dict)
 
+                    steps.append(gradients_val)
                     # statistic
                     total_loss += loss_val
                     results = test(entity.predicates_labels, entity.objects_labels, out_belief_predicate_val,
@@ -221,6 +228,16 @@ def train(name="test",
                     else:
                         for key in results:
                             accum_results[key] += results[key]
+
+                    #if len(steps) == BATCH_SIZE:
+                # apply steps
+                #logger.log("apply")
+                for step in steps:
+                    feed_grad_apply_dict = {grad_placeholder[j][0]: step[j][0] for j in xrange(len(grad_placeholder))}
+                    feed_grad_apply_dict[module.lr_ph] = lr
+                    sess.run([train_step], feed_dict=feed_grad_apply_dict)
+                steps = []
+                #logger.log("applied")
 
             # print stat
             obj_accuracy = float(accum_results['obj_correct']) / accum_results['obj_total']
@@ -235,6 +252,8 @@ def train(name="test",
             logger.log("iter %d - loss %f - obj %f - pred %f - rela %f - all_pred %f - all rela %f - lr %f" %
                        (epoch, total_loss, obj_accuracy, predicate_pos_accuracy, relationships_pos_accuracy,
                         predicate_all_accuracy, relationships_all_accuracy, lr))
+
+
 
             if epoch % TEST_ITERATIONS == 0:
                 accum_test_results = None
