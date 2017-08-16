@@ -1,13 +1,8 @@
 import inspect
 import sys
-import cv2
 
 sys.path.append("..")
 from multiprocessing import Process
-from FeaturesExtraction.Utils.Utils import get_img, DATA, VISUAL_GENOME, OBJECTS_LIST, PROJECT_ROOT
-from FeaturesExtraction.Utils.Visualizer import CvColor
-from FeaturesExtraction.Utils.data import make_list, get_name_from_file, get_filtered_data
-from Utils.Drawer import draw_object
 
 from FilesManager.FilesManager import FilesManager
 from Module import Module
@@ -16,6 +11,7 @@ import numpy as np
 import os
 import cPickle
 import Scripts
+from FeaturesExtraction.Utils.data import get_filtered_data
 
 from Utils.Logger import Logger
 
@@ -29,66 +25,16 @@ NOF_OBJECTS = 150
 # NOF_OBJECTS = 2
 
 # negative vs positive factor
-POS_NEG_FACTOR = 5
+POS_NEG_FACTOR = 10
 
 # save model every number of iterations
-SAVE_MODEL_ITERATIONS = 100
+SAVE_MODEL_ITERATIONS = 20
 
 # test every number of iterations
 TEST_ITERATIONS = 10
 
 # percentage of test data
 TEST_PERCENT = 10
-
-NOF_ENTITIES_GROUPS = 10
-TEST_ENTITIES_GROUP = 11
-
-
-def analyze_img(entity, objects_gt, index_labels_per_sample, inv_mapping_objects):
-    """
-    
-    :param entity: 
-    :param objects_gt: 
-    :param index_labels_per_sample: 
-    :param inv_mapping_objects: 
-    :return: 
-    """
-    # Get the image
-    img = get_img(entity.image.url, download=True)
-    Logger().log("Entity image id: {0} url: {1}".format(entity.image.id, entity.image.url))
-
-    if img is None:
-        Logger().log("Print Image Is None with url: {}".format(entity.image.url))
-        return
-
-    objects_arr = np.array(entity.objects)
-    negatives = objects_arr[np.where(objects_gt != index_labels_per_sample)[0]]
-    negatives_ind = np.where(objects_gt != index_labels_per_sample)[0]
-
-    for object_neg_idx in negatives_ind:
-        object_neg = objects_arr[object_neg_idx]
-        object_label_gt = object_neg.names[0]
-        object_label = inv_mapping_objects[index_labels_per_sample[object_neg_idx]]
-        label = "{0}/{1}".format(object_label, object_label_gt)
-        Logger().log("Negative label: {0}".format(label))
-        draw_object(img, object_neg, label=label, color=CvColor.RED, scale=2000, where="top_left")
-
-    positives = objects_arr[np.where(objects_gt == index_labels_per_sample)[0]]
-    positives_ind = np.where(objects_gt == index_labels_per_sample)[0]
-    Logger().log("The accuracy of the objects is {0}/{1} - {2}".format(len(positives_ind), len(objects_arr),
-                                                                       float(len(positives_ind))/ len(objects_arr)
-                                                                       ))
-
-    for object_pos_idx in positives_ind:
-        object_pos = objects_arr[object_pos_idx]
-        object_label = inv_mapping_objects[index_labels_per_sample[object_pos_idx]]
-        label = "{0}".format(object_label)
-        Logger().log("Positive label: {0}".format(label))
-        draw_object(img, object_pos, label=label, color=CvColor.BLUE, scale=2000, where="top_left")
-
-    output_dir = os.path.join(PROJECT_ROOT, "Pics")
-    output_file_name = "{0}.jpg".format(entity.image.id)
-    cv2.imwrite(os.path.join(output_dir, output_file_name), img)
 
 
 def test(labels_predicate, labels_object, out_belief_predicate_val, out_belief_object_val):
@@ -173,7 +119,7 @@ def train(name="test",
     # get labels place holders
     labels_predicate_ph, labels_object_ph, labels_coeff_loss_ph = module.get_labels_ph()
     # get loss and train step
-    loss, grad_and_vars, train_step = module.get_module_loss()
+    loss, gradients, grad_placeholder, train_step = module.get_module_loss()
     # get module output
     out_belief_predicate, out_belief_object = module.get_output()
 
@@ -214,80 +160,84 @@ def train(name="test",
         # labels_object = np.zeros((N, NOF_OBJECTS))
         # for i in range(N):
         #     labels_object[i][i] = 1
-
+        _, object_ids, predicate_ids = get_filtered_data(filtered_data_file_name="mini_filtered_data", category='entities_visual_module')
         # train entities
         entities_path = filesmanager.get_file_path("data.visual_genome.detections_v4")
-        # files_list = ["Wed_Aug__9_10:04:43_2017/predicated_entities_0_to_1000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_1000_to_2000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_2000_to_3000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_3000_to_4000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_0_to_1000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_1000_to_2000.p"]
-        files_list = ["Wed_Aug__9_10:04:43_2017/test.p"]
+        # FIXME: modified to have a single iteration
+        files_list = ["1"] #["Wed_Aug__9_10:04:43_2017/predicated_entities_0_to_1000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_1000_to_2000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_2000_to_3000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_3000_to_4000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_4000_to_5000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_0_to_1000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_1000_to_2000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_2000_to_3000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_3000_to_4000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_4000_to_5000.p"]
         img_ids = Scripts.get_img_ids()
         # read test entities
         test_entities = filesmanager.load_file("data.visual_genome.detections_v4_test")
-        # Load objects hierarchy mapping
-        _, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                       "mini_filtered_data",
-                                                                                       category='entities_visual_module')
-        inv_mapping_objects = {v: k for k, v in hierarchy_mapping_objects.iteritems()}
 
         # train module
         lr = learning_rate
         for epoch in range(1, nof_iterations):
             accum_results = None
             total_loss = 0
+            steps = []
             # read data
             for file_name in files_list:
-                file_path = os.path.join(entities_path, file_name)
-                file_handle = open(file_path, "rb`")
-                train_entities = cPickle.load(file_handle)
-                file_handle.close()
-                for entity in train_entities:
+                # FIXME: use test entities (mini-data) at first
+                #file_path = os.path.join(entities_path, file_name)
+                #file_handle = open(file_path, "rb")
+                #train_entities = cPickle.load(file_handle)
+                #file_handle.close()
+                for entity in test_entities:
                     # filter mini data urls to be used as test urls
-                    if entity.image.id in img_ids:
-                        continue
+                    # FIXME: allow to train on mini-data
+                    #if entity.image.id in img_ids:
+                    #    continue
 
                     # get shape of extended object to be used by the module
                     extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
                     extended_belief_object_shape[2] = NOF_OBJECTS
                     # filter non mixed cases
-                    predicates_neg_labels = entity.predicates_labels[:, :, NOF_PREDICATES - 1:]
-                    if np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2]) == 0 or np.sum(
-                            predicates_neg_labels) == 0:
-                        continue
+                    predicates_neg_labels = entity.predicates_labels[:, :, NOF_PREDICATES-1:]
+                    if np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2]) == 0 or np.sum(predicates_neg_labels) == 0:
+                       continue
                     # give lower weight to negatives
                     coeff_factor = np.ones(predicates_neg_labels.shape)
                     factor = float(np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2])) / np.sum(
-                        predicates_neg_labels) / POS_NEG_FACTOR
+                        predicates_neg_labels) / POS_NEG_FACTOR 
                     coeff_factor[predicates_neg_labels == 1] *= factor
+                    # FIXME: train on true predicates only
+                    coeff_factor[predicates_neg_labels == 1] = 0
+
                     # create the feed dictionary
-                    feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
+                    # FIXME: provide the true object labels as the object belief
+                    feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_labels,
                                  extended_belief_object_shape_ph: extended_belief_object_shape,
                                  visual_features_predicate_ph: entity.predicates_features,
                                  visual_features_object_ph: entity.objects_features,
-                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels,
-                                 labels_coeff_loss_ph: coeff_factor.reshape((-1)), module.lr_ph: lr}
+                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels, labels_coeff_loss_ph: coeff_factor.reshape((-1)),  module.lr_ph : lr}
 
                     # run the network
-                    out_belief_predicate_val, out_belief_object_val, loss_val, grad_and_vars_val, train_step_val = \
-                        sess.run([out_belief_predicate, out_belief_object, loss, grad_and_vars, train_step],
+                    out_belief_predicate_val, out_belief_object_val, loss_val, gradients_val = \
+                        sess.run([out_belief_predicate, out_belief_object, loss, gradients],
                                  feed_dict=feed_dict)
 
-                    objects_gt = np.argmax(entity.objects_labels, axis=1)
-                    index_labels_per_sample = np.argmax(out_belief_object_val, axis=1)
-
-                    # Analyze objects
-                    analyze_img(entity, objects_gt, index_labels_per_sample, inv_mapping_objects)
-                    labels_per_sample = np.array([inv_mapping_objects[index] for index in index_labels_per_sample])
-
+                    steps.append(gradients_val)
                     # statistic
                     total_loss += loss_val
                     results = test(entity.predicates_labels, entity.objects_labels, out_belief_predicate_val,
                                    out_belief_object_val)
-                    # results = test(entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
+                    #results = test(entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
                     # accumulate results
                     if accum_results is None:
                         accum_results = results
                     else:
                         for key in results:
                             accum_results[key] += results[key]
+
+                    #if len(steps) == BATCH_SIZE:
+                # apply steps
+                #logger.log("apply")
+                for step in steps:
+                    feed_grad_apply_dict = {grad_placeholder[j][0]: step[j][0] for j in xrange(len(grad_placeholder))}
+                    feed_grad_apply_dict[module.lr_ph] = lr
+                    sess.run([train_step], feed_dict=feed_grad_apply_dict)
+                steps = []
+                #logger.log("applied")
 
             # print stat
             obj_accuracy = float(accum_results['obj_correct']) / accum_results['obj_total']
@@ -302,6 +252,8 @@ def train(name="test",
             logger.log("iter %d - loss %f - obj %f - pred %f - rela %f - all_pred %f - all rela %f - lr %f" %
                        (epoch, total_loss, obj_accuracy, predicate_pos_accuracy, relationships_pos_accuracy,
                         predicate_all_accuracy, relationships_all_accuracy, lr))
+
+
 
             if epoch % TEST_ITERATIONS == 0:
                 accum_test_results = None
@@ -336,11 +288,9 @@ def train(name="test",
                 obj_accuracy = float(accum_test_results['obj_correct']) / accum_test_results['obj_total']
                 predicate_pos_accuracy = float(accum_test_results['predicates_pos_correct']) / accum_test_results[
                     'predicates_pos_total']
-                predicate_all_accuracy = float(accum_test_results['predicates_correct']) / accum_test_results[
-                    'predicates_total']
-                relationships_pos_accuracy = float(accum_test_results['relationships_pos_correct']) / \
-                                             accum_test_results[
-                                                 'predicates_pos_total']
+                predicate_all_accuracy = float(accum_test_results['predicates_correct']) / accum_test_results['predicates_total']
+                relationships_pos_accuracy = float(accum_test_results['relationships_pos_correct']) / accum_test_results[
+                    'predicates_pos_total']
                 relationships_all_accuracy = float(accum_test_results['relationships_correct']) / accum_test_results[
                     'predicates_total']
 
@@ -383,8 +333,7 @@ if __name__ == "__main__":
         load_model_name = process_params["load_model_name"]
         use_saved_model = process_params["use_saved_model"]
         gpu = process_params["gpu"]
-        train(name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
-              use_saved_model, gpu)
+        train(name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name, use_saved_model, gpu)
         p = Process(target=train, args=(
             name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
             use_saved_model, gpu))
