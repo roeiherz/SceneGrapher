@@ -183,6 +183,7 @@ def train(name="test",
                 #train_entities = cPickle.load(file_handle)
                 #file_handle.close()
                 for entity in test_entities:
+
                     # filter mini data urls to be used as test urls
                     # FIXME: allow to train on mini-data
                     #if entity.image.id in img_ids:
@@ -193,28 +194,39 @@ def train(name="test",
                     extended_belief_object_shape[2] = NOF_OBJECTS
                     # filter non mixed cases
                     predicates_neg_labels = entity.predicates_labels[:, :, NOF_PREDICATES-1:]
+
                     if np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2]) == 0 or np.sum(predicates_neg_labels) == 0:
-                       continue
+                       Logger().log("No Positive Predicate in entity_id {}".format(entity.image.id))
+
                     # give lower weight to negatives
                     coeff_factor = np.ones(predicates_neg_labels.shape)
                     factor = float(np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2])) / np.sum(
                         predicates_neg_labels) / POS_NEG_FACTOR 
                     coeff_factor[predicates_neg_labels == 1] *= factor
-                    # FIXME: train on true predicates only
+                    # FIXME: train on true predicates only ss
                     coeff_factor[predicates_neg_labels == 1] = 0
 
                     # create the feed dictionary
                     # FIXME: provide the true object labels as the object belief
-                    feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_labels,
+                    feed_dict = {belief_predicate_ph: entity.predicates_labels, belief_object_ph: entity.objects_labels,
                                  extended_belief_object_shape_ph: extended_belief_object_shape,
                                  visual_features_predicate_ph: entity.predicates_features,
                                  visual_features_object_ph: entity.objects_features,
-                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels, labels_coeff_loss_ph: coeff_factor.reshape((-1)),  module.lr_ph : lr}
+                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels,
+                                 labels_coeff_loss_ph: coeff_factor.reshape((-1)),  module.lr_ph: lr}
 
                     # run the network
                     out_belief_predicate_val, out_belief_object_val, loss_val, gradients_val = \
                         sess.run([out_belief_predicate, out_belief_object, loss, gradients],
                                  feed_dict=feed_dict)
+
+                    pred = np.argmax(out_belief_predicate_val, axis=2)
+                    gt = np.argmax(entity.predicates_labels, axis=2)
+                    positives_preds = pred[np.where(gt != 50)]
+                    positives_gt = gt[np.where(gt != 50)]
+                    score = np.sum(positives_preds == positives_gt) / float(len(positives_preds))
+                    print("In entity {0} the Score is {1} while number of positives is {2}".format(entity.image.id, score, len(positives_preds)))
+
 
                     steps.append(gradients_val)
                     # statistic
@@ -235,7 +247,7 @@ def train(name="test",
                 for step in steps:
                     feed_grad_apply_dict = {grad_placeholder[j][0]: step[j][0] for j in xrange(len(grad_placeholder))}
                     feed_grad_apply_dict[module.lr_ph] = lr
-                    sess.run([train_step], feed_dict=feed_grad_apply_dict)
+                    # sess.run([train_step], feed_dict=feed_grad_apply_dict)
                 steps = []
                 #logger.log("applied")
 
