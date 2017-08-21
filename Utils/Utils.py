@@ -3,6 +3,8 @@ import sys
 import numpy as np
 from numpy.core.umath_tests import inner1d
 from FilesManager import FilesManager
+import scipy.sparse as sp
+from scipy.sparse.linalg.eigen.arpack import eigsh
 
 FILE_EXISTS_ERROR = (17, 'File exists')
 
@@ -119,3 +121,33 @@ def get_detections():
     filesmanager = FilesManager.FilesManager()
     detections = filesmanager.load_file("scene_graph_base_module.visual_module.detections")
     return detections
+
+
+def preprocess_features(features):
+    """Row-normalize feature matrix"""
+    rowsum = np.array(features.sum(axis=1))
+    r_inv = np.power(rowsum, -1).flatten()
+    r_inv[np.isinf(r_inv)] = 0.
+    r_mat_inv = sp.diags(r_inv)
+    features = r_mat_inv.dot(features)
+    return features
+
+
+def normalize_adj(adj):
+    """Symmetrically normalize adjacency matrix."""
+    adj = sp.coo_matrix(adj)
+    rowsum = np.array(adj.sum(1))
+    d_inv_sqrt = np.power(rowsum, -0.5).flatten()
+    d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.
+    # d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
+    d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
+    sp_sparse = adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).tocoo()
+    adj_mat = np.zeros(sp_sparse.shape)
+    adj_mat[(sp_sparse.row, sp_sparse.col)] = sp_sparse.data
+    return adj_mat
+
+
+def preprocess_adj(adj):
+    """Preprocessing of adjacency matrix for simple GCN model and conversion to tuple representation."""
+    adj_normalized = normalize_adj(adj + sp.eye(adj.shape[0]))
+    return adj_normalized

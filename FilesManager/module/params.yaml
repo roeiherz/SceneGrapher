@@ -1,5 +1,15 @@
 nof_p: 1
 1:
+    name: test30
+    nof_iterations: 3
+    learning_rate: 0.01
+    learning_rate_steps: 50
+    learning_rate_decay: 0.5
+    load_model_name: ""
+    use_saved_model: True
+    gpu: 0
+
+2:
     name: test29 
     nof_iterations: 3
     learning_rate: 0.01
@@ -8,7 +18,7 @@ nof_p: 1
     load_model_name: "test27_module.ckpt"
     use_saved_model: True
     gpu: 0
-2:
+3:
     name: test2
     nof_iterations: 10000
     learning_rate: 0.0001
