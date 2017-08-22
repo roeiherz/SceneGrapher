@@ -254,7 +254,13 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     # Create a dict with key as pairs - (subject, object) and their values are predicates use for labels
     relations_dict = {}
     for relation in entity.relationships:
-        relations_dict[(relation.subject.names[0], relation.object.names[0])] = relation.predicate
+        # relations_dict[(relation.subject.names[0], relation.object.names[0])] = relation.predicate
+        relations_dict[(relation.subject.id, relation.object.id)] = relation.predicate
+
+    if len(relations_dict) != len(entity.relationships):
+        Logger().log("Error in entity image {0} with number of {1} relationship and {2} of relations_dict"
+                     .format(entity.image.id, len(entity.relationships), len(relations_dict)))
+        exit()
 
     # Create a data generator for VisualGenome for PREDICATES
     data_gen_val_predicates_vg = visual_genome_data_predicate_pairs_generator_with_batch(data=objects_pairs,
@@ -278,8 +284,8 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     ## Get labels
     # Get the GT labels - [ len(objects_pairs), ]
     index_labels_per_gt_sample = np.array(
-        [hierarchy_mapping_predicates[relations_dict[(pair[0].names[0], pair[1].names[0])]]
-         if (pair[0].names[0], pair[1].names[0]) in relations_dict else hierarchy_mapping_predicates['neg']
+        [hierarchy_mapping_predicates[relations_dict[(pair[0].id, pair[1].id)]]
+         if (pair[0].id, pair[1].id) in relations_dict else hierarchy_mapping_predicates['neg']
          for pair in objects_pairs])
     # Get the max argument - [len(objects_pairs), ]
     index_labels_per_sample = np.argmax(predicates_probes, axis=1)
@@ -511,7 +517,7 @@ if __name__ == '__main__':
     total_entities = entities[:18013]
     # total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
-    SPLIT_ENT = 1000
+    SPLIT_ENT = 500
     num_of_iters = int(math.ceil(float(len(total_entities)) / SPLIT_ENT))
 
     logger.log(
@@ -523,8 +529,8 @@ if __name__ == '__main__':
         try:
 
             # Current batch
-            if batch_idx < 5:
-                continue
+            # if batch_idx < 10:
+            #     continue
 
             predicated_entities = []
             entities = total_entities[SPLIT_ENT * batch_idx: SPLIT_ENT * (batch_idx + 1)]
@@ -537,6 +543,10 @@ if __name__ == '__main__':
             # Predict each entity
             for entity in entities:
                 try:
+
+                    # if entity.image.id != 2347509:
+                    #     continue
+
                     # Increment index
                     ind += 1
 
