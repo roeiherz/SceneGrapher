@@ -251,11 +251,15 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     # Create object pairs
     # Maybe list(itertools.permutations(objects, repeat=2))
     objects_pairs = list(itertools.product(objects, repeat=2))
+
     # Create a dict with key as pairs - (subject, object) and their values are predicates use for labels
     relations_dict = {}
+
+    # Create a dict with key as pairs - (subject, object) and their values are relation index_id
+    relations_filtered_id_dict = {}
     for relation in entity.relationships:
-        # relations_dict[(relation.subject.names[0], relation.object.names[0])] = relation.predicate
         relations_dict[(relation.subject.id, relation.object.id)] = relation.predicate
+        relations_filtered_id_dict[(relation.subject.id, relation.object.id)] = relation.filtered_id
 
     if len(relations_dict) != len(entity.relationships):
         Logger().log("Error in entity image {0} with number of {1} relationship and {2} of relations_dict"
@@ -282,11 +286,28 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     # del predicates_probes
 
     ## Get labels
-    # Get the GT labels - [ len(objects_pairs), ]
+    # Get the GT mapping labels - [ len(objects_pairs), ]
     index_labels_per_gt_sample = np.array(
         [hierarchy_mapping_predicates[relations_dict[(pair[0].id, pair[1].id)]]
          if (pair[0].id, pair[1].id) in relations_dict else hierarchy_mapping_predicates['neg']
          for pair in objects_pairs])
+
+    # Get the predicate GT label - [ len(objects_pairs), ]
+    predicate_gt_sample = np.array(
+        [relations_dict[(pair[0].id, pair[1].id)] if (pair[0].id, pair[1].id) in relations_dict else -1
+         for pair in objects_pairs])
+
+    reshape_predicate_gt_sample = predicate_gt_sample.reshape(len(objects), len(objects))
+    entity.predicates_gt_names = np.copy(reshape_predicate_gt_sample)
+
+    # Get the predicate GT label - [ len(objects_pairs), ]
+    relation_filtered_id_gt_sample = np.array([relations_filtered_id_dict[(pair[0].id, pair[1].id)]
+                                               if (pair[0].id, pair[1].id) in relations_filtered_id_dict else -1
+                                               for pair in objects_pairs])
+
+    reshape_relation_filtered_id_gt_sample = relation_filtered_id_gt_sample.reshape(len(objects), len(objects))
+    entity.predicates_relation_filtered_id = np.copy(reshape_relation_filtered_id_gt_sample)
+
     # Get the max argument - [len(objects_pairs), ]
     index_labels_per_sample = np.argmax(predicates_probes, axis=1)
 
@@ -467,6 +488,7 @@ if __name__ == '__main__':
                                                                                           'full_filtered_data',
                                                                                           # "mini_filtered_data",
                                                                                           category='entities_visual_module')
+                                                                                          # category='entities')
 
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
@@ -517,7 +539,7 @@ if __name__ == '__main__':
     total_entities = entities[:18013]
     # total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
-    SPLIT_ENT = 500
+    SPLIT_ENT = 1000
     num_of_iters = int(math.ceil(float(len(total_entities)) / SPLIT_ENT))
 
     logger.log(
@@ -544,7 +566,7 @@ if __name__ == '__main__':
             for entity in entities:
                 try:
 
-                    # if entity.image.id != 2347509:
+                    # if entity.image.id != 2339161:
                     #     continue
 
                     # Increment index
