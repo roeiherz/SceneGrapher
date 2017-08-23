@@ -259,13 +259,13 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     relations_filtered_id_dict = {}
     for relation in entity.relationships:
         if (relation.subject.id, relation.object.id) in relations_dict:
-            Logger().log("Error in entity image {0} in relations_dict the tuple ({1}, {2}) is alreadu in!"
+            Logger().log("**Error in entity image {0} in relations_dict the tuple ({1}, {2}) is already in!**"
                          .format(entity.image.id, relation.subject.id, relation.object.id))
         relations_dict[(relation.subject.id, relation.object.id)] = relation.predicate
         relations_filtered_id_dict[(relation.subject.id, relation.object.id)] = relation.filtered_id
 
     if len(relations_dict) != len(entity.relationships):
-        Logger().log("Error in entity image {0} with number of {1} relationship and {2} of relations_dict"
+        Logger().log("**Error in entity image {0} with number of {1} relationship and {2} of relations_dict**"
                      .format(entity.image.id, len(entity.relationships), len(relations_dict)))
         # exit()
 
