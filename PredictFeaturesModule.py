@@ -258,13 +258,16 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     # Create a dict with key as pairs - (subject, object) and their values are relation index_id
     relations_filtered_id_dict = {}
     for relation in entity.relationships:
+        if (relation.subject.id, relation.object.id) in relations_dict:
+            Logger().log("Error in entity image {0} in relations_dict the tuple ({1}, {2}) is alreadu in!"
+                         .format(entity.image.id, relation.subject.id, relation.object.id))
         relations_dict[(relation.subject.id, relation.object.id)] = relation.predicate
         relations_filtered_id_dict[(relation.subject.id, relation.object.id)] = relation.filtered_id
 
     if len(relations_dict) != len(entity.relationships):
         Logger().log("Error in entity image {0} with number of {1} relationship and {2} of relations_dict"
                      .format(entity.image.id, len(entity.relationships), len(relations_dict)))
-        exit()
+        # exit()
 
     # Create a data generator for VisualGenome for PREDICATES
     data_gen_val_predicates_vg = visual_genome_data_predicate_pairs_generator_with_batch(data=objects_pairs,
@@ -488,7 +491,7 @@ if __name__ == '__main__':
                                                                                           'full_filtered_data',
                                                                                           # "mini_filtered_data",
                                                                                           category='entities_visual_module')
-                                                                                          # category='entities')
+    # category='entities')
 
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
@@ -566,8 +569,8 @@ if __name__ == '__main__':
             for entity in entities:
                 try:
 
-                    # if entity.image.id != 2339161:
-                    #     continue
+                    if entity.image.id != 2366365:
+                        continue
 
                     # Increment index
                     ind += 1
