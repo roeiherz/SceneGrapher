@@ -38,8 +38,8 @@ class Module(object):
 
         ## create weights
         # FIXME: input features size change to include just predicate + subject + object belief
-        # self.nn_predicate_weights(self.nof_predicates * 3 + self.visual_features_predicate_size + 2 * self.nof_objects, self.nof_predicates)
-        self.nn_predicate_weights(self.nof_predicates + 2 * self.nof_objects, self.nof_predicates)
+        self.nn_predicate_weights(self.nof_predicates * 3 + self.visual_features_predicate_size + 2 * self.nof_objects, self.nof_predicates)
+        # self.nn_predicate_weights(self.nof_predicates + 2 * self.nof_objects, self.nof_predicates)
         # FIXME: don't create weights for object nn 
         #self.nn_object_weights(self.nof_predicates * 2 + self.nof_objects + self.visual_features_object_size, self.nof_objects)
 
@@ -93,11 +93,10 @@ class Module(object):
             
 
     def nn_predicate_weights(self, in_size, out_size):
-        # FIXME: larger hidden layers for testing
-        h1_size = 1000
-        h2_size = 1000
-        h3_size = 1000
-        h4_size = 1000
+        h1_size = 200
+        h2_size = 200
+        h3_size = 200
+        h4_size = 200
         with tf.variable_scope("nn_predicate_weights"):
             # create predicate nn weights just once for all rnn stages
             # Define the initialization of the first layer
@@ -142,11 +141,11 @@ class Module(object):
             # Create neural network
             input_features = tf.reshape(features, (-1, in_size))
             
-            h1 = tf.nn.tanh(tf.matmul(input_features, self.nn_predicate_w_1) + self.nn_predicate_b_1, name="h1")
-            h2 = tf.nn.tanh(tf.matmul(h1, self.nn_predicate_w_2) + self.nn_predicate_b_2, name="h2")
-            h3 = tf.nn.tanh(tf.matmul(h2, self.nn_predicate_w_3) + self.nn_predicate_b_3, name="h3")
-            h4 = tf.nn.tanh(tf.matmul(h3, self.nn_predicate_w_4) + self.nn_predicate_b_4, name="h4")
-            delta = tf.nn.tanh(tf.add(tf.matmul(h4, self.nn_predicate_w_5), self.nn_predicate_b_5, name="delta"))
+            h1 = tf.nn.sigmoid(tf.matmul(input_features, self.nn_predicate_w_1) + self.nn_predicate_b_1, name="h1")
+            h2 = tf.nn.sigmoid(tf.matmul(h1, self.nn_predicate_w_2) + self.nn_predicate_b_2, name="h2")
+            h3 = tf.nn.sigmoid(tf.matmul(h2, self.nn_predicate_w_3) + self.nn_predicate_b_3, name="h3")
+            h4 = tf.nn.sigmoid(tf.matmul(h3, self.nn_predicate_w_4) + self.nn_predicate_b_4, name="h4")
+            delta = tf.nn.sigmoid(tf.add(tf.matmul(h4, self.nn_predicate_w_5), self.nn_predicate_b_5, name="delta"))
             in_belief_shaped = tf.reshape(in_belief_predicate, tf.shape(delta))
             y = tf.add(delta, in_belief_shaped, name="y")
             #y = delta
@@ -205,11 +204,11 @@ class Module(object):
         with tf.variable_scope(scope_name):
 
             # Create neural network
-            h1 = tf.nn.tanh(tf.matmul(features, self.nn_object_w_1) + self.nn_object_b_1, name="h1")
-            h2 = tf.nn.tanh(tf.matmul(h1, self.nn_object_w_2) + self.nn_object_b_2, name="h2")
-            h3 = tf.nn.tanh(tf.matmul(h2, self.nn_object_w_3) + self.nn_object_b_3, name="h3")
-            h4 = tf.nn.tanh(tf.matmul(h3, self.nn_object_w_4) + self.nn_object_b_4, name="h4")
-            delta = tf.nn.tanh(tf.add(tf.matmul(h4, self.nn_object_w_5), self.nn_object_b_5, name="delta"))
+            h1 = tf.nn.sigmoid(tf.matmul(features, self.nn_object_w_1) + self.nn_object_b_1, name="h1")
+            h2 = tf.nn.sigmoid(tf.matmul(h1, self.nn_object_w_2) + self.nn_object_b_2, name="h2")
+            h3 = tf.nn.sigmoid(tf.matmul(h2, self.nn_object_w_3) + self.nn_object_b_3, name="h3")
+            h4 = tf.nn.sigmoid(tf.matmul(h3, self.nn_object_w_4) + self.nn_object_b_4, name="h4")
+            delta = tf.nn.sigmoid(tf.add(tf.matmul(h4, self.nn_object_w_5), self.nn_object_b_5, name="delta"))
             y = tf.add(delta, in_belief_object, name="y")
 
             out = tf.nn.softmax(y, name="out")
@@ -233,6 +232,7 @@ class Module(object):
             with tf.variable_scope("feature_collector"):
                 # get global subject belief
                 global_sub_belief = tf.reduce_max(in_belief_predicate, axis=1, name="global_sub_belief")
+                #global_sub_belief = tf.reduce_max(self.labels_predicate_ph, axis=1, name="global_sub_belief")
                 self.global_sub_belief = global_sub_belief
                 # expand global sub belief
                 expand_global_sub_belief = tf.add(tf.zeros_like(in_belief_predicate), global_sub_belief,
@@ -240,6 +240,7 @@ class Module(object):
                 self.expand_global_sub_belief = expand_global_sub_belief
                 # get global object belief
                 global_obj_belief = tf.reduce_max(in_belief_predicate, axis=0, name="global_obj_belief")
+                #global_obj_belief = tf.reduce_max(self.labels_predicate_ph, axis=0, name="global_obj_belief")
                 self.global_obj_belief = global_obj_belief
                 # expand global sub belief
                 expand_global_obj_belief = tf.add(tf.zeros_like(in_belief_predicate), global_obj_belief,
@@ -248,16 +249,15 @@ class Module(object):
                 # expand visual object features
                 expand_belief_object = tf.add(tf.zeros(in_extended_belief_object_shape), in_belief_object,
                                               name="expand_belief_object")
+                #expand_belief_object = tf.add(tf.zeros(in_extended_belief_object_shape), self.labels_object_ph,
+                #                              name="expand_belief_object")
                 self.expand_belief_object = expand_belief_object
                 # expand visual subject features
                 expand_belief_subject = tf.transpose(expand_belief_object, perm=[1, 0, 2], name="expand_belief_subject")
                 self.expand_belief_subject = expand_belief_subject
                 
-                # FIXME: concat just the beliefs for a simpler network
                 predicate_all_features = tf.concat(
-                    (in_belief_predicate, expand_belief_subject, expand_belief_object),
-                    axis=2, name="predicate_all_features")
-                #    (in_visual_features_predicate, in_belief_predicate, expand_global_sub_belief, expand_global_obj_belief,
+                    (in_belief_predicate, expand_belief_subject, expand_belief_object, expand_global_sub_belief, expand_global_obj_belief, in_visual_features_predicate), axis=2, name="predicate_all_features")
 
                 # object all features
                 object_all_features = tf.concat(
@@ -270,7 +270,7 @@ class Module(object):
 
             # fully cnn to calc belief object for every object
             # FIXME: don't run object nn for now
-            #out_belief_object, last_layer_object = self.nn_object(object_all_features, in_belief_object, out_size=self.nof_objects)
+            # out_belief_object, last_layer_object = self.nn_object(object_all_features, in_belief_object, out_size=self.nof_objects)
             out_belief_object = in_belief_object
             last_layer_object = in_belief_object
             return out_belief_predicate, out_belief_object, last_layer_predicate, last_layer_object
