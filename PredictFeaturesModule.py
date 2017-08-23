@@ -539,8 +539,8 @@ if __name__ == '__main__':
     logger.log('Starting Prediction')
     ind = 0
 
-    total_entities = entities[:18013]
-    # total_entities = entities[18013:36026]
+    # total_entities = entities[:18013]
+    total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
     SPLIT_ENT = 1000
     num_of_iters = int(math.ceil(float(len(total_entities)) / SPLIT_ENT))
@@ -569,8 +569,8 @@ if __name__ == '__main__':
             for entity in entities:
                 try:
 
-                    if entity.image.id != 2366365:
-                        continue
+                    # if entity.image.id != 2366365:
+                    #     continue
 
                     # Increment index
                     ind += 1
