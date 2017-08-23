@@ -297,7 +297,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
         id += 1
         sub = pair[0]
         obj = pair[1]
-        if (sub.names[0], obj.names[0]) in relations_dict and relations_dict[(sub.names[0], obj.names[0])] != "neg":
+        if (sub.id, obj.id) in relations_dict and relations_dict[(sub.id, obj.id)] != "neg":
             pos_indices.append(id)
 
     logger.log("The Total number of Relations is {0} while {1} of them positives and {2} of them negatives ".
