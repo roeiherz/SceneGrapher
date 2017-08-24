@@ -14,6 +14,7 @@ from Train import NOF_OBJECTS, NOF_PREDICATES, VISUAL_FEATURES_OBJECT_SIZE, VISU
 from Utils.ModuleDetection import ModuleDetection
 import Scripts
 import cPickle
+from Train import predicate_class_recall
 
 def eval_image(img, reverse_object_ids, reverse_predicate_ids, labels_predicate, labels_object, out_belief_predicate_val, out_belief_object_val, k=100):
     """
@@ -95,6 +96,9 @@ def eval_image(img, reverse_object_ids, reverse_predicate_ids, labels_predicate,
     nof_pos_relationship = 0
     for subject_index in range(N):
         for object_index in range(N):
+            # filter if subject equals to object
+            if (subject_index == object_index):
+                continue
             # filter negative relationship
             if predicats_gt[subject_index, object_index] == NOF_PREDICATES - 1:
                 continue
@@ -124,42 +128,7 @@ def eval_image(img, reverse_object_ids, reverse_predicate_ids, labels_predicate,
     return img_score_precent, img_score, nof_pos_relationship
 
 
-def predicate_class_recall(labels_predicate, out_belief_predicate_val, k=5):
-    """
-    Predicate Classification - Examine the model performance on predicates classification in isolation from other factors
-    :param labels_predicate: labels of image predicates (each one is one hot vector) - shape (N, N, NOF_PREDICATES)
-    :param out_belief_predicate_val: belief of image predicates - shape (N, N, NOF_PREDICATES)
-    :param k: k most confident predictions to consider
-    :return: correct vector (number of times predicate gt appears in top k most confident predicates),
-             total vector ( number of gts per predicate)
-    """
-    correct = np.zeros(NOF_PREDICATES)
-    total = np.zeros(NOF_PREDICATES)
-
-    # one hot vector to actual gt labels
-    predicates_gt = np.argmax(labels_predicate, axis=2)
-
-    # number of objects in the image
-    N = out_belief_predicate_val.shape[0]
-
-    # run over each prediction
-    for subject_index in range(N):
-        for object_index in range(N):
-            # get predicate class
-            predicate_class = predicates_gt[subject_index][object_index]
-            # get predicate probabilities
-            predicate_prob = out_belief_predicate_val[subject_index][object_index]
-
-            max_k_predictions = np.argsort(predicate_prob)[-k:]
-            found = np.where(predicate_class == max_k_predictions)[0]
-            if len(found) != 0:
-                correct[predicate_class] += 1
-            total[predicate_class] += 1
-
-    return correct, total
-
-
-def eval(load_module_name="test22", sg_class=False, gpu=2):
+def eval(load_module_name="test_filtered", sg_class=True, gpu=1):
     """
     Evaluate module:
     - Scene Graph Classification - R@k metric (measures the fraction of ground truth relationships
@@ -241,16 +210,29 @@ def eval(load_module_name="test22", sg_class=False, gpu=2):
         total_predicate = np.zeros(NOF_PREDICATES)
         correct = 0
         total = 0
+        # create one hot vector for predicate_neg
+        predicate_neg = np.zeros(NOF_PREDICATES)
+        predicate_neg[NOF_PREDICATES - 1] = 1
+
         for file_name in files_list:
             file_path = os.path.join(entities_path, file_name)
             file_handle = open(file_path, "rb`")
             test_entities = cPickle.load(file_handle)
             file_handle.close()
             for entity in test_entities:
+                # FIXME: filter data with errors
+                #object_gt = np.argmax(entity.objects_labels, axis=1)
+                #count_ids = np.bincount(object_gt)
+                #if np.max(count_ids) > 1:
+                #    continue
+
                 # filter urls that are not part of the mini data 
                 #if not entity.image.id in img_ids:
                 #    continue
-                
+                # set diagonal to be neg
+                indices = np.arange(entity.predicates_probes.shape[0])
+                entity.predicates_probes[indices, indices, :] = predicate_neg
+
                 # get shape of extended object to be used by the module
                 extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
                 extended_belief_object_shape[2] = NOF_OBJECTS
@@ -267,7 +249,7 @@ def eval(load_module_name="test22", sg_class=False, gpu=2):
 
                 # eval image
                 if sg_class:
-                    k_metric_res, correct_image, total_image = eval_image(entity, reverse_object_ids, reverse_predicate_ids, entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
+                    k_metric_res, correct_image, total_image = eval_image(entity, reverse_object_ids, reverse_predicate_ids, entity.predicates_labels, entity.objects_labels, out_belief_predicate_val, entity.objects_probs)
                     correct += correct_image
                     total += total_image
                     total_score = float(correct) / total
