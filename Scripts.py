@@ -23,6 +23,7 @@ from FeaturesExtraction.Lib.Config import Config
 from DesignPatterns.Detections import Detections
 from Utils.Logger import Logger
 from keras import backend as K
+import pandas as pd
 
 
 def check_loading_pickle_time():
@@ -79,7 +80,7 @@ def create_data_object_and_predicates_by_img_id():
 
     for img_id in img_ids_lst:
         try:
-            entity = GetScget_img_idseneGraph(img_id, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/",
+            entity = GetSceneGraph(img_id, images=DATA_PATH, imageDataDir=DATA_PATH + "by-id/",
                                    synsetFile=DATA_PATH + "synsets.json")
             entities_lst.append(entity)
             objects = entity.objects
@@ -598,7 +599,7 @@ def test_predicted_features(gpu_num=0, objects_training_dir_name="", predicates_
             # Assert predicates probabilites
             # [len(objects) * len(objects), 2048]
             reshaped_predicate_features = entity.predicates_features.reshape(len(entity.objects) * len(entity.objects),
-                                                                            2048)
+                                                                             2048)
             predicates_probes = features_output_predicate_func([reshaped_predicate_features])[0]
 
             # [len(objects), len(objects), 51]
@@ -612,12 +613,115 @@ def test_predicted_features(gpu_num=0, objects_training_dir_name="", predicates_
     Logger().log("Finished testing")
 
 
+def get_bad_img_ids_from_logger():
+    """
+    This function returns bad image ids that have ** Error in the logger from the run
+    :return:
+    """
+    files = ["PredictFeaturesModule_0_to_18013.log", "PredictFeaturesModule_18013_to_36026.log"]
+    bad_img_ids = set([])
+    for fl in files:
+        with open(fl) as f:
+            for line in f:
+                if "**" in line:
+                    bad_img_id = int(line.split(" ")[4])
+                    bad_img_ids.add(bad_img_id)
+
+    return bad_img_ids
+
+
+def parser_from_logger(dir_path="Temp"):
+    """
+    This function returns good image ids from logger from the original run
+    :return:
+    """
+
+    # Define the rows for the DataFrame
+    dataframe_labels = ["Image_Id", "Total_Objects", "Number_Of_Positive_Objects", "Number_Of_Negative_Objects",
+                        "Objects_Accuracy", "Total_Relations", "Number_Of_Positive_Relations",
+                        "Number_Of_Negative_Relations", "Relations_Accuracy", "Positive_Relations_Accuracy",
+                        "Negative_Relations_Accuracy", "Error"]
+
+    # Define from each files we are gonna to parse
+    files = ["PredictFeaturesModule_0_to_18013.log", "PredictFeaturesModule_18013_to_36026.log"]
+
+    # Define DataFrame
+    df = pd.DataFrame(columns=dataframe_labels)
+
+    for fl in files:
+        with open(fl) as f:
+            for line in f:
+                # Check if we a new section (each "Predicting image id" is a new section to read)
+                if "Predicting image id" in line:
+                    row_data = {}
+                    image_id = int(line.split(" ")[3])
+                    row_data["Image_Id"] = image_id
+                    row_data["Error"] = False
+
+                if "The Total number of Objects" in line:
+                    total_objects = int(line.split(" ")[6])
+                    positive_objects = int(line.split(" ")[8])
+                    row_data["Total_Objects"] = total_objects
+                    row_data["Number_Of_Positive_Objects"] = positive_objects
+                    row_data["Number_Of_Negative_Objects"] = total_objects - positive_objects
+
+                if "The Objects accuracy" in line:
+                    object_accuracy = float(line.split(" ")[-1])
+                    row_data["Objects_Accuracy"] = object_accuracy
+
+                # Found an error
+                if "**" in line:
+                    row_data["Error"] = True
+
+                if "The Total number of Relations" in line:
+                    total_relations = int(line.split(" ")[6])
+                    positive_relations = int(line.split(" ")[8])
+                    negative_relations = int(line.split(" ")[-5])
+                    row_data["Total_Relations"] = total_relations
+                    row_data["Number_Of_Positive_Relations"] = positive_relations
+                    row_data["Number_Of_Negative_Relations"] = negative_relations
+
+                if "The Total Relations accuracy" in line:
+                    relation_accuracy = float(line.split(" ")[-1])
+                    row_data["Relations_Accuracy"] = relation_accuracy
+
+                if "The Positive Relations accuracy" in line:
+                    positive_relation_accuracy = float(line.split(" ")[5])
+                    row_data["Positive_Relations_Accuracy"] = positive_relation_accuracy
+
+                if "The Negative Relations accuracy" in line:
+                    negative_relation_accuracy = float(line.split(" ")[-1])
+                    row_data["Negative_Relations_Accuracy"] = negative_relation_accuracy
+
+                    # Section ends in this line
+                    # Adding a row
+                    df.loc[-1] = row_data
+                    # Shifting index
+                    df.index = df.index + 1
+                    # Sorting by index
+                    df = df.sort()
+
+    # Save DataFrame
+    df.to_csv(os.path.join(dir_path, "logger_data.csv"))
+    fl = open(os.path.join(dir_path, "logger_data_df.p"), "wb")
+    cPickle.dump(df, fl)
+    fl.close()
+
+
 if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
 
     file_manager = FilesManager()
     logger = Logger()
+
+    parser_from_logger(dir_path="Temp")
+
+    exit()
+
+    bad_img_ids = get_bad_img_ids_from_logger()
+
+    exit()
 
     test_predicted_features(gpu_num=2, objects_training_dir_name="Mon_Jul_24_19:58:35_2017",
                             predicates_training_dir_name="Wed_Aug__2_21:55:12_2017",

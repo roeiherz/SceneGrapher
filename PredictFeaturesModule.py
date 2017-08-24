@@ -488,9 +488,10 @@ if __name__ == '__main__':
 
     # Load detections dtype numpy array and hierarchy mappings
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                          'full_filtered_data',
-                                                                                          # "mini_filtered_data",
-                                                                                          category='entities_visual_module')
+                                                                                          # 'full_filtered_data',
+                                                                                          "mini_filtered_data",
+                                                                                          # category='entities_visual_module')
+                                                                                          category='entities')
     # category='entities')
 
     # Check the training folders from which we take the weights aren't empty
@@ -539,8 +540,8 @@ if __name__ == '__main__':
     logger.log('Starting Prediction')
     ind = 0
 
-    # total_entities = entities[:18013]
-    total_entities = entities[18013:36026]
+    total_entities = entities[:18013]
+    # total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
     SPLIT_ENT = 1000
     num_of_iters = int(math.ceil(float(len(total_entities)) / SPLIT_ENT))
