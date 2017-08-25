@@ -492,7 +492,6 @@ if __name__ == '__main__':
                                                                                           "mini_filtered_data",
                                                                                           # category='entities_visual_module')
                                                                                           category='entities')
-    # category='entities')
 
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:

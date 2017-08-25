@@ -636,14 +636,32 @@ def parser_from_logger(dir_path="Temp"):
     :return:
     """
 
+    # Define from each files we are gonna to parse
+    files = ["PredictFeaturesModule_0_to_18013.log", "PredictFeaturesModule_18013_to_36026.log"]
+    # files = ["PredictFeaturesModule_mini_entities.log"]
+
+    # Get the data frame from logger
+    df = create_dataframe_from_logger(files)
+
+    # Save DataFrame
+    df.to_csv(os.path.join(dir_path, "logger_data.csv"))
+    fl = open(os.path.join(dir_path, "logger_data_df.p"), "wb")
+    cPickle.dump(df, fl)
+    fl.close()
+
+
+def create_dataframe_from_logger(files):
+    """
+    This function will create data frame from files which are loggers
+    :param files: a list of files which are the logger
+    :return:
+    """
+
     # Define the rows for the DataFrame
     dataframe_labels = ["Image_Id", "Total_Objects", "Number_Of_Positive_Objects", "Number_Of_Negative_Objects",
                         "Objects_Accuracy", "Total_Relations", "Number_Of_Positive_Relations",
                         "Number_Of_Negative_Relations", "Relations_Accuracy", "Positive_Relations_Accuracy",
                         "Negative_Relations_Accuracy", "Error"]
-
-    # Define from each files we are gonna to parse
-    files = ["PredictFeaturesModule_0_to_18013.log", "PredictFeaturesModule_18013_to_36026.log"]
 
     # Define DataFrame
     df = pd.DataFrame(columns=dataframe_labels)
@@ -701,11 +719,7 @@ def parser_from_logger(dir_path="Temp"):
                     # Sorting by index
                     df = df.sort()
 
-    # Save DataFrame
-    df.to_csv(os.path.join(dir_path, "logger_data.csv"))
-    fl = open(os.path.join(dir_path, "logger_data_df.p"), "wb")
-    cPickle.dump(df, fl)
-    fl.close()
+    return df
 
 
 if __name__ == '__main__':
@@ -714,6 +728,8 @@ if __name__ == '__main__':
 
     file_manager = FilesManager()
     logger = Logger()
+
+    # df = cPickle.load(open("Temp/logger_data_df_entities.p"))
 
     parser_from_logger(dir_path="Temp")
 
