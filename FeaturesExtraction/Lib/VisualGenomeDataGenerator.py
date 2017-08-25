@@ -47,7 +47,7 @@ def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, co
                 # if not flag:
                 #     yield [np.copy(imgs)], [np.copy(labels)]
 
-                print("Prediction Batch Number is {0}/{1}".format(batch_num + 1, num_of_batches_per_epoch))
+                Logger().log("Prediction Batch Number is {0}/{1}".format(batch_num + 1, num_of_batches_per_epoch))
 
                 # Define number of samples per batch
                 if batch_size * (batch_num + 1) >= size:
@@ -67,7 +67,7 @@ def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, co
                     img = get_img(detection[Detections.Url])
 
                     if img is None:
-                        print("Coulden't get the image")
+                        Logger().log("Coulden't get the image")
                         continue
 
                     # In-case we want to normalize
@@ -122,7 +122,7 @@ def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, co
                             # Augment only in training
                             # todo: create a regular jitter for each patch increase the number of patches by some constant
                             # resized_img = augment_visual_genome(resized_img, detection, config, mask)
-                            print("No data augmentation")
+                            Logger().log("No data augmentation")
 
                         # Expand dimensions - add batch dimension for the numpy
                         resized_img = np.expand_dims(resized_img, axis=0)
@@ -139,11 +139,11 @@ def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, co
                 yield np.concatenate(imgs, axis=0), np.concatenate(labels, axis=0)
 
             except Exception as e:
-                print("Exception for detection_id: {0}, image: {1}, current batch: {2}".format(detection[Detections.Id],
+                Logger().log("Exception for detection_id: {0}, image: {1}, current batch: {2}".format(detection[Detections.Id],
                                                                                                detection[
                                                                                                    Detections.Url],
                                                                                                batch_num))
-                print(str(e))
+                Logger().log(str(e))
 
                 # Check if it is the last batch
                 # if batch_num + 1 == num_of_batches_per_epoch:
@@ -167,12 +167,12 @@ def visual_genome_data_parallel_generator(data, hierarchy_mapping, config, mode)
     while True:
         for detection in data:
             try:
-                print("Prediction Sample is {0}/{1}".format(ind, size))
+                Logger().log("Prediction Sample is {0}/{1}".format(ind, size))
 
                 img = get_img(detection[Detections.Url])
 
                 if img is None:
-                    print("Coulden't get the image")
+                    Logger().log("Coulden't get the image")
                     continue
 
                 # In-case we want to normalize
@@ -227,7 +227,7 @@ def visual_genome_data_parallel_generator(data, hierarchy_mapping, config, mode)
                         # Augment only in training
                         # todo: create a regular jitter for each patch increase the number of patches by some constant
                         # resized_img = augment_visual_genome(resized_img, detection, config, mask)
-                        print("No data augmentation")
+                        Logger().log("No data augmentation")
 
                     # Expand dimensions - add batch dimension for the numpy
                     resized_img = np.expand_dims(resized_img, axis=0)
@@ -237,8 +237,8 @@ def visual_genome_data_parallel_generator(data, hierarchy_mapping, config, mode)
 
                 ind += 1
             except Exception as e:
-                print("Exception for image {0}".format(detection.url))
-                print(str(e))
+                Logger().log("Exception for image {0}".format(detection.url))
+                Logger().log(str(e))
 
 
 def visual_genome_data_predicate_pairs_generator_with_batch(data, relations_dict, hierarchy_mapping, config, mode,
@@ -274,7 +274,7 @@ def visual_genome_data_predicate_pairs_generator_with_batch(data, relations_dict
                 labels = []
 
                 if evaluate:
-                    print("Prediction Batch Number is {0}/{1}".format(batch_num + 1, num_of_batches_per_epoch))
+                    Logger().log("Prediction Batch Number is {0}/{1}".format(batch_num + 1, num_of_batches_per_epoch))
 
                 # Define number of samples per batch
                 if batch_size * (batch_num + 1) >= size:
@@ -294,7 +294,7 @@ def visual_genome_data_predicate_pairs_generator_with_batch(data, relations_dict
                     img = get_img(subject.url, download=True)
 
                     if img is None:
-                        print("Coulden't get the image")
+                        Logger().log("Coulden't get the image")
                         continue
 
                     # In-case we want to normalize
@@ -311,8 +311,8 @@ def visual_genome_data_predicate_pairs_generator_with_batch(data, relations_dict
                         # norm_img[:, :, 2] -= 123.68
 
                     # Get the label of object
-                    if (detection[0].names[0], detection[1].names[0]) in relations_dict:
-                        label = relations_dict[(detection[0].names[0], detection[1].names[0])]
+                    if (subject.id, object.id) in relations_dict:
+                        label = relations_dict[(subject.id, object.id)]
 
                     else:
                         # Negative label
@@ -321,10 +321,6 @@ def visual_genome_data_predicate_pairs_generator_with_batch(data, relations_dict
                     # Check if it is a correct label
                     if label not in correct_labels:
                         continue
-
-                    # print("{0}, {1}: {2}".format(detection[0].names[0], detection[1].names[0], label))
-
-
 
                     # Get the label uuid
                     label_id = hierarchy_mapping[label]
@@ -357,7 +353,7 @@ def visual_genome_data_predicate_pairs_generator_with_batch(data, relations_dict
                         # Augment only in training
                         # todo: create a regular jitter for each patch increase the number of patches by some constant
                         # resized_img = augment_visual_genome(resized_img, detection, config, mask)
-                        print("No data augmentation")
+                        Logger().log("No data augmentation")
 
                     # Expand dimensions - add batch dimension for the numpy
                     resized_img = np.expand_dims(resized_img, axis=0)
@@ -374,9 +370,9 @@ def visual_genome_data_predicate_pairs_generator_with_batch(data, relations_dict
                 yield np.concatenate(imgs, axis=0), np.concatenate(labels, axis=0)
 
             except Exception as e:
-                print("Exception for image {0} in current batch: {1} and number of samples in batch: {2}".format(
+                Logger().log("Exception for image {0} in current batch: {1} and number of samples in batch: {2}".format(
                     detection, batch_num, current_index))
-                print(str(e))
+                Logger().log(str(e))
 
 
 def visual_genome_data_predicate_generator_with_batch(data, hierarchy_mapping, config, mode, classification, type_box,
@@ -413,7 +409,7 @@ def visual_genome_data_predicate_generator_with_batch(data, hierarchy_mapping, c
                 labels = []
 
                 if evaluate:
-                    print("Prediction Batch Number is {0}/{1}".format(batch_num + 1, num_of_batches_per_epoch))
+                    Logger().log("Prediction Batch Number is {0}/{1}".format(batch_num + 1, num_of_batches_per_epoch))
 
                 # Define number of samples per batch
                 if batch_size * (batch_num + 1) >= size:
@@ -475,7 +471,7 @@ def visual_genome_data_predicate_generator_with_batch(data, hierarchy_mapping, c
                         # Augment only in training
                         # todo: create a regular jitter for each patch increase the number of patches by some constant
                         # resized_img = augment_visual_genome(resized_img, detection, config, mask)
-                        print("No data augmentation")
+                        Logger().log("No data augmentation")
 
                     # Expand dimensions - add batch dimension for the numpy
                     resized_img = np.expand_dims(resized_img, axis=0)
@@ -492,9 +488,9 @@ def visual_genome_data_predicate_generator_with_batch(data, hierarchy_mapping, c
                 yield np.concatenate(imgs, axis=0), np.concatenate(labels, axis=0)
 
             except Exception as e:
-                print("Exception for image {0} in current batch: {1} and number of samples in batch: {2}".format(
+                Logger().log("Exception for image {0} in current batch: {1} and number of samples in batch: {2}".format(
                     detection[Detections.Url], batch_num, current_index))
-                print(str(e))
+                Logger().log(str(e))
 
 
 def visual_genome_data_generator(data, hierarchy_mapping, config, mode, classification, type_box):
@@ -519,7 +515,7 @@ def visual_genome_data_generator(data, hierarchy_mapping, config, mode, classifi
                 img = get_img(detection[Detections.Url])
 
                 if img is None:
-                    print("Coulden't get the image")
+                    Logger().log("Coulden't get the image")
                     continue
 
                 # In-case we want to normalize
@@ -562,7 +558,7 @@ def visual_genome_data_generator(data, hierarchy_mapping, config, mode, classifi
                     # Augment only in training
                     # todo: create a regular jitter for each patch increase the number of patches by some constant
                     # resized_img = augment_visual_genome(resized_img, detection, config, mask)
-                    print("No data augmentation")
+                    Logger().log("No data augmentation")
 
                 # Expand dimensions - add batch dimension for the numpy
                 resized_img = np.expand_dims(resized_img, axis=0)
@@ -570,8 +566,8 @@ def visual_genome_data_generator(data, hierarchy_mapping, config, mode, classifi
 
                 yield [np.copy(resized_img)], [np.copy(y_labels)]
             except Exception as e:
-                print("Exception for image {0}".format(detection[Detections.Url]))
-                print(str(e))
+                Logger().log("Exception for image {0}".format(detection[Detections.Url]))
+                Logger().log(str(e))
 
 
 def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config, mode, batch_size=128, evaluate=False):
@@ -603,7 +599,7 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
                 labels = []
 
                 if evaluate:
-                    print("Prediction Batch Number is {0}/{1}".format(batch_num + 1, num_of_batches_per_epoch))
+                    Logger().log("Prediction Batch Number is {0}/{1}".format(batch_num + 1, num_of_batches_per_epoch))
 
                 # Define number of samples per batch
                 if batch_size * (batch_num + 1) >= size:
@@ -618,7 +614,7 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
                     img = get_img(object.url, download=True)
 
                     if img is None:
-                        print("Coulden't get the image")
+                        Logger().log("Coulden't get the image")
                         continue
 
                     # In-case we want to normalize
@@ -671,9 +667,9 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
                 yield np.concatenate(imgs, axis=0), np.concatenate(labels, axis=0)
 
             except Exception as e:
-                print("Exception for image {0} in current batch: {1} and number of samples in batch: {2}".format(
+                Logger().log("Exception for image {0} in current batch: {1} and number of samples in batch: {2}".format(
                     object.url, batch_num, current_index))
-                print(str(e))
+                Logger().log(str(e))
 
 
 def visual_genome_data_cnn_generator(data, hierarchy_mapping, config, mode):
@@ -694,7 +690,7 @@ def visual_genome_data_cnn_generator(data, hierarchy_mapping, config, mode):
                 img = get_img(object.url)
 
                 if img is None:
-                    print("Coulden't get the image")
+                    Logger().log("Coulden't get the image")
                     continue
 
                 # In-case we want to normalize
@@ -749,6 +745,6 @@ def visual_genome_data_cnn_generator(data, hierarchy_mapping, config, mode):
 
                 yield [np.copy(resized_img)], [np.copy(y_labels)]
             except Exception as e:
-                print("Exception for image {0}".format(object.url))
-                print(str(e))
+                Logger().log("Exception for image {0}".format(object.url))
+                Logger().log(str(e))
 

@@ -251,10 +251,23 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     # Create object pairs
     # Maybe list(itertools.permutations(objects, repeat=2))
     objects_pairs = list(itertools.product(objects, repeat=2))
+
     # Create a dict with key as pairs - (subject, object) and their values are predicates use for labels
     relations_dict = {}
+
+    # Create a dict with key as pairs - (subject, object) and their values are relation index_id
+    relations_filtered_id_dict = {}
     for relation in entity.relationships:
-        relations_dict[(relation.subject.names[0], relation.object.names[0])] = relation.predicate
+        if (relation.subject.id, relation.object.id) in relations_dict:
+            Logger().log("**Error in entity image {0} in relations_dict the tuple ({1}, {2}) is already in!**"
+                         .format(entity.image.id, relation.subject.id, relation.object.id))
+        relations_dict[(relation.subject.id, relation.object.id)] = relation.predicate
+        relations_filtered_id_dict[(relation.subject.id, relation.object.id)] = relation.filtered_id
+
+    if len(relations_dict) != len(entity.relationships):
+        Logger().log("**Error in entity image {0} with number of {1} relationship and {2} of relations_dict**"
+                     .format(entity.image.id, len(entity.relationships), len(relations_dict)))
+        # exit()
 
     # Create a data generator for VisualGenome for PREDICATES
     data_gen_val_predicates_vg = visual_genome_data_predicate_pairs_generator_with_batch(data=objects_pairs,
@@ -276,11 +289,28 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     # del predicates_probes
 
     ## Get labels
-    # Get the GT labels - [ len(objects_pairs), ]
+    # Get the GT mapping labels - [ len(objects_pairs), ]
     index_labels_per_gt_sample = np.array(
-        [hierarchy_mapping_predicates[relations_dict[(pair[0].names[0], pair[1].names[0])]]
-         if (pair[0].names[0], pair[1].names[0]) in relations_dict else hierarchy_mapping_predicates['neg']
+        [hierarchy_mapping_predicates[relations_dict[(pair[0].id, pair[1].id)]]
+         if (pair[0].id, pair[1].id) in relations_dict else hierarchy_mapping_predicates['neg']
          for pair in objects_pairs])
+
+    # Get the predicate GT label - [ len(objects_pairs), ]
+    predicate_gt_sample = np.array(
+        [relations_dict[(pair[0].id, pair[1].id)] if (pair[0].id, pair[1].id) in relations_dict else -1
+         for pair in objects_pairs])
+
+    reshape_predicate_gt_sample = predicate_gt_sample.reshape(len(objects), len(objects))
+    entity.predicates_gt_names = np.copy(reshape_predicate_gt_sample)
+
+    # Get the predicate GT label - [ len(objects_pairs), ]
+    relation_filtered_id_gt_sample = np.array([relations_filtered_id_dict[(pair[0].id, pair[1].id)]
+                                               if (pair[0].id, pair[1].id) in relations_filtered_id_dict else -1
+                                               for pair in objects_pairs])
+
+    reshape_relation_filtered_id_gt_sample = relation_filtered_id_gt_sample.reshape(len(objects), len(objects))
+    entity.predicates_relation_filtered_id = np.copy(reshape_relation_filtered_id_gt_sample)
+
     # Get the max argument - [len(objects_pairs), ]
     index_labels_per_sample = np.argmax(predicates_probes, axis=1)
 
@@ -291,7 +321,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
         id += 1
         sub = pair[0]
         obj = pair[1]
-        if (sub.names[0], obj.names[0]) in relations_dict and relations_dict[(sub.names[0], obj.names[0])] != "neg":
+        if (sub.id, obj.id) in relations_dict and relations_dict[(sub.id, obj.id)] != "neg":
             pos_indices.append(id)
 
     logger.log("The Total number of Relations is {0} while {1} of them positives and {2} of them negatives ".
@@ -458,9 +488,10 @@ if __name__ == '__main__':
 
     # Load detections dtype numpy array and hierarchy mappings
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                          'full_filtered_data',
-                                                                                          # "mini_filtered_data",
-                                                                                          category='entities_visual_module')
+                                                                                          # 'full_filtered_data',
+                                                                                          "mini_filtered_data",
+                                                                                          # category='entities_visual_module')
+                                                                                          category='entities')
 
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
@@ -511,7 +542,7 @@ if __name__ == '__main__':
     total_entities = entities[:18013]
     # total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
-    SPLIT_ENT = 500
+    SPLIT_ENT = 1000
     num_of_iters = int(math.ceil(float(len(total_entities)) / SPLIT_ENT))
 
     logger.log(
@@ -523,8 +554,8 @@ if __name__ == '__main__':
         try:
 
             # Current batch
-            if batch_idx < 10:
-                continue
+            # if batch_idx < 10:
+            #     continue
 
             predicated_entities = []
             entities = total_entities[SPLIT_ENT * batch_idx: SPLIT_ENT * (batch_idx + 1)]
@@ -538,7 +569,7 @@ if __name__ == '__main__':
             for entity in entities:
                 try:
 
-                    # if entity.image.id != 2347509:
+                    # if entity.image.id != 2366365:
                     #     continue
 
                     # Increment index

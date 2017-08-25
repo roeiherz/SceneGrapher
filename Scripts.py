@@ -1,5 +1,5 @@
 import traceback
-import collections
+
 import matplotlib
 
 matplotlib.use('agg')
@@ -23,6 +23,7 @@ from FeaturesExtraction.Lib.Config import Config
 from DesignPatterns.Detections import Detections
 from Utils.Logger import Logger
 from keras import backend as K
+import pandas as pd
 
 
 def check_loading_pickle_time():
@@ -598,7 +599,7 @@ def test_predicted_features(gpu_num=0, objects_training_dir_name="", predicates_
             # Assert predicates probabilites
             # [len(objects) * len(objects), 2048]
             reshaped_predicate_features = entity.predicates_features.reshape(len(entity.objects) * len(entity.objects),
-                                                                            2048)
+                                                                             2048)
             predicates_probes = features_output_predicate_func([reshaped_predicate_features])[0]
 
             # [len(objects), len(objects), 51]
@@ -612,32 +613,113 @@ def test_predicted_features(gpu_num=0, objects_training_dir_name="", predicates_
     Logger().log("Finished testing")
 
 
-def get_object_and_predicates_from_mini():
+def get_bad_img_ids_from_logger():
     """
-    This function save objects and predicates from entity file
-    :return: 
+    This function returns bad image ids that have ** Error in the logger from the run
+    :return:
+    """
+    files = ["PredictFeaturesModule_0_to_18013.log", "PredictFeaturesModule_18013_to_36026.log"]
+    bad_img_ids = set([])
+    for fl in files:
+        with open(fl) as f:
+            for line in f:
+                if "**" in line:
+                    bad_img_id = int(line.split(" ")[4])
+                    bad_img_ids.add(bad_img_id)
+
+    return bad_img_ids
+
+
+def parser_from_logger(dir_path="Temp"):
+    """
+    This function returns good image ids from logger from the original run
+    :return:
     """
 
-    # Load detections dtype numpy array and hierarchy mappings
-    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                          "mini_filtered_data",
-                                                                                          category='entities')
+    # Define from each files we are gonna to parse
+    files = ["PredictFeaturesModule_0_to_18013.log", "PredictFeaturesModule_18013_to_36026.log"]
+    # files = ["PredictFeaturesModule_mini_entities.log"]
 
-    objects = set([])
-    predicates = set([])
-    for entity in entities:
-        for object in entity.objects:
-            objects.add((object.id, object.names[0]))
-        for relation in entity.relationships:
-            predicates.add((relation.id, relation.predicate))
+    # Get the data frame from logger
+    df = create_dataframe_from_logger(files)
 
-    objects_fl = open("objects_mini.p", "wb")
-    predicates_fl = open("predicates_mini.p", "wb")
-    cPickle.dump(objects, objects_fl)
-    cPickle.dump(predicates, predicates_fl)
-    objects_fl.close()
-    predicates_fl.close()
+    # Save DataFrame
+    df.to_csv(os.path.join(dir_path, "logger_data.csv"))
+    fl = open(os.path.join(dir_path, "logger_data_df.p"), "wb")
+    cPickle.dump(df, fl)
+    fl.close()
 
+
+def create_dataframe_from_logger(files):
+    """
+    This function will create data frame from files which are loggers
+    :param files: a list of files which are the logger
+    :return:
+    """
+
+    # Define the rows for the DataFrame
+    dataframe_labels = ["Image_Id", "Total_Objects", "Number_Of_Positive_Objects", "Number_Of_Negative_Objects",
+                        "Objects_Accuracy", "Total_Relations", "Number_Of_Positive_Relations",
+                        "Number_Of_Negative_Relations", "Relations_Accuracy", "Positive_Relations_Accuracy",
+                        "Negative_Relations_Accuracy", "Error"]
+
+    # Define DataFrame
+    df = pd.DataFrame(columns=dataframe_labels)
+
+    for fl in files:
+        with open(fl) as f:
+            for line in f:
+                # Check if we a new section (each "Predicting image id" is a new section to read)
+                if "Predicting image id" in line:
+                    row_data = {}
+                    image_id = int(line.split(" ")[3])
+                    row_data["Image_Id"] = image_id
+                    row_data["Error"] = False
+
+                if "The Total number of Objects" in line:
+                    total_objects = int(line.split(" ")[6])
+                    positive_objects = int(line.split(" ")[8])
+                    row_data["Total_Objects"] = total_objects
+                    row_data["Number_Of_Positive_Objects"] = positive_objects
+                    row_data["Number_Of_Negative_Objects"] = total_objects - positive_objects
+
+                if "The Objects accuracy" in line:
+                    object_accuracy = float(line.split(" ")[-1])
+                    row_data["Objects_Accuracy"] = object_accuracy
+
+                # Found an error
+                if "**" in line:
+                    row_data["Error"] = True
+
+                if "The Total number of Relations" in line:
+                    total_relations = int(line.split(" ")[6])
+                    positive_relations = int(line.split(" ")[8])
+                    negative_relations = int(line.split(" ")[-5])
+                    row_data["Total_Relations"] = total_relations
+                    row_data["Number_Of_Positive_Relations"] = positive_relations
+                    row_data["Number_Of_Negative_Relations"] = negative_relations
+
+                if "The Total Relations accuracy" in line:
+                    relation_accuracy = float(line.split(" ")[-1])
+                    row_data["Relations_Accuracy"] = relation_accuracy
+
+                if "The Positive Relations accuracy" in line:
+                    positive_relation_accuracy = float(line.split(" ")[5])
+                    row_data["Positive_Relations_Accuracy"] = positive_relation_accuracy
+
+                if "The Negative Relations accuracy" in line:
+                    negative_relation_accuracy = float(line.split(" ")[-1])
+                    row_data["Negative_Relations_Accuracy"] = negative_relation_accuracy
+
+                    # Section ends in this line
+                    # Adding a row
+                    df.loc[-1] = row_data
+                    # Shifting index
+                    df.index = df.index + 1
+                    # Sorting by index
+                    df = df.sort()
+
+    return df
 
 
 if __name__ == '__main__':
@@ -647,53 +729,16 @@ if __name__ == '__main__':
     file_manager = FilesManager()
     logger = Logger()
 
-    # Load detections dtype numpy array and hierarchy mappings
-    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                          "mini_filtered_data",
-                                                                                          category='entities')
+    # df = cPickle.load(open("Temp/logger_data_df_entities.p"))
 
-    # The reverse mapping of hierarchy_mapping_objects
-    inv_map_objects = {v: k for k, v in hierarchy_mapping_objects.iteritems()}
-    objects_label_by_ind = [inv_map_objects[val] for val in hierarchy_mapping_objects.values()]
-
-    # The reverse mapping of hierarchy_mapping_predicates
-    inv_map_predicates = {v: k for k, v in hierarchy_mapping_predicates.iteritems()}
-    predicates_label_by_ind = [inv_map_predicates[val] for val in hierarchy_mapping_predicates.values()]
-
-    # get_object_and_predicates_from_mini()
-    objects = cPickle.load(open("objects_mini.p"))
-    predicates = cPickle.load(open("predicates_mini.p"))
-
-    objects_label = set([tup[1] for tup in objects])
-    objects_cnt_lst = np.zeros(len(objects_label), dtype="int")
-    predicates_label = [tup[1] for tup in predicates]
-    predicates_cnt_lst = np.zeros(len(predicates_label), dtype="int")
-
-    for entity in entities:
-
-        for object in entity.objects:
-            objects_cnt_lst[hierarchy_mapping_objects[object.names[0]]] += 1
-
-        for relation in entity.relationships:
-            predicates_cnt_lst[hierarchy_mapping_predicates[relation.predicate]] += 1
-
-        # Save objects histogram
-        plt.figure()
-        plt.hist((objects_cnt_lst, objects_label_by_ind), bins=100, range=[0, 150], normed=1, histtype='bar')
-        plt.title('Objects occurrence')
-        plt.savefig("Objects_occurrence.jpg")
-
-        cc = collections.Counter(entity.objects)
-
-        centers = range(len(cc))
-        plt.bar(centers, cc.values(), align='center', tick_label=cc.keys())
-        plt.xlim([0, 11])
-
-
-
-
+    parser_from_logger(dir_path="Temp")
 
     exit()
+
+    bad_img_ids = get_bad_img_ids_from_logger()
+
+    exit()
+
     test_predicted_features(gpu_num=2, objects_training_dir_name="Mon_Jul_24_19:58:35_2017",
                             predicates_training_dir_name="Wed_Aug__2_21:55:12_2017",
                             # predicted_features_dir_name="Tue_Aug__8_23:28:18_2017",

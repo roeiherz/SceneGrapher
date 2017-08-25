@@ -93,12 +93,11 @@ class Module(object):
             # Loss
             self.loss, self.gradients, self.grad_placeholder, self.train_step = self.module_loss()
 
-    def nn_predicate_weights(self, in_size, out_size, center=True, scale=True):
-        # FIXME: larger hidden layers for testing
-        h1_size = 1000
-        h2_size = 1000
-        h3_size = 1000
-        h4_size = 1000
+    def nn_predicate_weights(self, in_size, out_size):
+        h1_size = 200
+        h2_size = 200
+        h3_size = 200
+        h4_size = 200
         with tf.variable_scope("nn_predicate_weights"):
             # create predicate nn weights just once for all rnn stages
             # Define the initialization of the first layer
@@ -240,6 +239,7 @@ class Module(object):
             with tf.variable_scope("feature_collector"):
                 # get global subject belief
                 global_sub_belief = tf.reduce_max(in_belief_predicate, axis=1, name="global_sub_belief")
+                #global_sub_belief = tf.reduce_max(self.labels_predicate_ph, axis=1, name="global_sub_belief")
                 self.global_sub_belief = global_sub_belief
                 # expand global sub belief
                 expand_global_sub_belief = tf.add(tf.zeros_like(in_belief_predicate), global_sub_belief,
@@ -247,6 +247,7 @@ class Module(object):
                 self.expand_global_sub_belief = expand_global_sub_belief
                 # get global object belief
                 global_obj_belief = tf.reduce_max(in_belief_predicate, axis=0, name="global_obj_belief")
+                #global_obj_belief = tf.reduce_max(self.labels_predicate_ph, axis=0, name="global_obj_belief")
                 self.global_obj_belief = global_obj_belief
                 # expand global sub belief
                 expand_global_obj_belief = tf.add(tf.zeros_like(in_belief_predicate), global_obj_belief,
@@ -255,6 +256,8 @@ class Module(object):
                 # expand visual object features
                 expand_belief_object = tf.add(tf.zeros(in_extended_belief_object_shape), in_belief_object,
                                               name="expand_belief_object")
+                #expand_belief_object = tf.add(tf.zeros(in_extended_belief_object_shape), self.labels_object_ph,
+                #                              name="expand_belief_object")
                 self.expand_belief_object = expand_belief_object
                 # expand visual subject features
                 expand_belief_subject = tf.transpose(expand_belief_object, perm=[1, 0, 2], name="expand_belief_subject")
