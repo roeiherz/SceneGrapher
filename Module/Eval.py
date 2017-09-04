@@ -128,7 +128,7 @@ def eval_image(img, reverse_object_ids, reverse_predicate_ids, labels_predicate,
     return img_score_precent, img_score, nof_pos_relationship
 
 
-def eval(load_module_name="lh_relu_2", sg_class=True, gpu=0):
+def eval(load_module_name="lh_relu_2", sg_class=True, rnn_steps=1, gpu=0):
     """
     Evaluate module:
     - Scene Graph Classification - R@k metric (measures the fraction of ground truth relationships
@@ -157,12 +157,13 @@ def eval(load_module_name="lh_relu_2", sg_class=True, gpu=0):
     # create module
     module = Module(nof_predicates=NOF_PREDICATES, nof_objects=NOF_OBJECTS,
                     visual_features_predicate_size=VISUAL_FEATURES_PREDICATE_SIZE,
-                    visual_features_object_size=VISUAL_FEATURES_OBJECT_SIZE, is_train=False)
+                    visual_features_object_size=VISUAL_FEATURES_OBJECT_SIZE, is_train=False,
+                    rnn_steps=rnn_steps)
 
     # get input place holders
-    belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph, predicate_likelihood_ph = module.get_in_ph()
+    belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph = module.get_in_ph()
     # get module output
-    out_belief_predicate, out_belief_object = module.get_output()
+    out_predicate_probes, out_object_probes = module.get_output()
 
     # Initialize the Computational Graph
     init = tf.global_variables_initializer()
@@ -192,19 +193,6 @@ def eval(load_module_name="lh_relu_2", sg_class=True, gpu=0):
         else:
             raise Exception("Module not found")
 
-        # fake data to test
-        #N = 3
-        #belief_predicate = np.arange(N * N * NOF_PREDICATES).reshape(N, N, NOF_PREDICATES)
-        #belief_object = np.arange(1000, 1000 + N * NOF_OBJECTS).reshape(N, NOF_OBJECTS)
-        #extended_belief_object_shape = np.asarray(belief_predicate.shape)
-        #extended_belief_object_shape[2] = NOF_OBJECTS
-        #visual_features_predicate = np.arange(2000, 2000 + N * N * VISUAL_FEATURES_PREDICATE_SIZE).reshape(N, N,
-        #                                                                                                   VISUAL_FEATURES_PREDICATE_SIZE)
-        #visual_features_object = np.arange(3000, 3000 + N * VISUAL_FEATURES_OBJECT_SIZE).reshape(N,
-        #                                                                                         VISUAL_FEATURES_OBJECT_SIZE)
-        #labels_predicate = np.ones((N, N, NOF_PREDICATES))
-        #labels_object = np.ones((N, NOF_OBJECTS))
-        
         # eval module
         correct_predicate = np.zeros(NOF_PREDICATES)
         total_predicate = np.zeros(NOF_PREDICATES)
@@ -220,15 +208,7 @@ def eval(load_module_name="lh_relu_2", sg_class=True, gpu=0):
             test_entities = cPickle.load(file_handle)
             file_handle.close()
             for entity in test_entities:
-                # FIXME: filter data with errors
-                #object_gt = np.argmax(entity.objects_labels, axis=1)
-                #count_ids = np.bincount(object_gt)
-                #if np.max(count_ids) > 1:
-                #    continue
 
-                # filter urls that are not part of the mini data 
-                #if not entity.image.id in img_ids:
-                #    continue
                 # set diagonal to be neg
                 indices = np.arange(entity.predicates_probes.shape[0])
                 entity.predicates_outputs_with_no_activation[indices, indices, :] = predicate_neg
@@ -242,17 +222,17 @@ def eval(load_module_name="lh_relu_2", sg_class=True, gpu=0):
                 feed_dict = {belief_predicate_ph: entity.predicates_outputs_with_no_activation, belief_object_ph: entity.objects_outputs_with_no_activations,
                              extended_belief_object_shape_ph: extended_belief_object_shape,
                              visual_features_predicate_ph: entity.predicates_features,
-                             visual_features_object_ph: entity.objects_features, predicate_likelihood_ph : entity.predicates_outputs_with_no_activation}
+                             visual_features_object_ph: entity.objects_features}
 
-                out_belief_predicate_val, out_belief_object_val = \
-                    sess.run([out_belief_predicate, out_belief_object],
+                out_predicate_probes_val, out_object_probes_val = \
+                    sess.run([out_predicate_probes, out_object_probes],
                              feed_dict=feed_dict)
 
-                out_belief_predicate_val[indices, indices, :] = predicate_neg
+                out_predicate_probes_val[indices, indices, :] = predicate_neg
 
                 # eval image
                 if sg_class:
-                    k_metric_res, correct_image, total_image = eval_image(entity, reverse_object_ids, reverse_predicate_ids, entity.predicates_labels, entity.objects_labels, out_belief_predicate_val, entity.objects_probs)
+                    k_metric_res, correct_image, total_image = eval_image(entity, reverse_object_ids, reverse_predicate_ids, entity.predicates_labels, entity.objects_labels, out_predicate_probes_val, out_object_probes_val)
                     correct += correct_image
                     total += total_image
                     total_score = float(correct) / total
@@ -260,7 +240,7 @@ def eval(load_module_name="lh_relu_2", sg_class=True, gpu=0):
 
                 # eval per predicate
                 correct_predicate_image, total_predicate_image = predicate_class_recall(entity.predicates_labels,
-                                                                                        out_belief_predicate_val)
+                                                                                        out_predicate_probes_val)
                 correct_predicate += correct_predicate_image
                 total_predicate += total_predicate_image
                 index += 1

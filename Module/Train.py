@@ -15,14 +15,11 @@ from FeaturesExtraction.Utils.data import get_filtered_data
 
 from Utils.Logger import Logger
 
+# feature sizes
 VISUAL_FEATURES_PREDICATE_SIZE = 2048
-# VISUAL_FEATURES_PREDICATE_SIZE = 2
 VISUAL_FEATURES_OBJECT_SIZE = 2048
-# VISUAL_FEATURES_OBJECT_SIZE = 2
 NOF_PREDICATES = 51
-# NOF_PREDICATES = 2
 NOF_OBJECTS = 150
-# NOF_OBJECTS = 2
 
 # negative vs positive factor
 POS_NEG_FACTOR = 3.3
@@ -36,18 +33,13 @@ TEST_ITERATIONS = 1
 # percentage of test data
 TEST_PERCENT = 10
 
+# apply gradients every batch size
+BATCH_SIZE = 100
 
 
 def test(labels_predicate, labels_object, out_belief_predicate_val, out_belief_object_val):
     """
-    returns a dict
-
-
-
-
-
-
-    ionary with statistics about object, predicate and relationship accuracy in this image
+    returns a dictionary with statistics about object, predicate and relationship accuracy in this image
     :param labels_predicate: labels of image predicates (each one is one hot vector) - shape (N, N, NOF_PREDICATES)
     :param labels_object: labels of image objects (each one is one hot vector) - shape (N, NOF_OBJECTS)
     :param out_belief_predicate_val: belief of image predicates - shape (N, N, NOF_PREDICATES)
@@ -97,11 +89,17 @@ def train(name="test",
           learning_rate_decay=0.5,
           load_module_name="module.ckpt",
           use_saved_module=False,
+          rnn_steps=1,
+          loss_func="all",
+          lr_object_coeff=1,
           gpu=0):
+
+    # get filesmanager
     filesmanager = FilesManager()
+
+    # create logger
     logger_path = filesmanager.get_file_path("logs")
     logger_path = os.path.join(logger_path, name)
-    # create logger
     logger = Logger(name, logger_path)
 
     # print train params
@@ -120,16 +118,19 @@ def train(name="test",
                     visual_features_predicate_size=VISUAL_FEATURES_PREDICATE_SIZE,
                     visual_features_object_size=VISUAL_FEATURES_OBJECT_SIZE, is_train=True,
                     learning_rate=learning_rate, learning_rate_steps=learning_rate_steps,
-                    learning_rate_decay=learning_rate_decay)
+                    learning_rate_decay=learning_rate_decay,
+                    rnn_steps=rnn_steps,
+                    loss_func=loss_func,
+                    lr_object_coeff=lr_object_coeff)
 
     # get input place holders
-    belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph, likelihood_predicate_ph = module.get_in_ph()
+    belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph = module.get_in_ph()
     # get labels place holders
     labels_predicate_ph, labels_object_ph, labels_coeff_loss_ph = module.get_labels_ph()
     # get loss and train step
     loss, gradients, grad_placeholder, train_step = module.get_module_loss()
     # get module output
-    out_belief_predicate, out_belief_object = module.get_output()
+    out_predicate_probes, out_object_probes = module.get_output()
 
     # Initialize the Computational Graph
     init = tf.global_variables_initializer()
@@ -151,35 +152,24 @@ def train(name="test",
         else:
             sess.run(init)
 
-        # fake data to test
-        # N = 3
-        # belief_predicate = np.zeros((N, N, NOF_PREDICATES))
-        # belief_object = np.zeros((N, NOF_OBJECTS))
-        # extended_belief_object_shape = np.asarray(belief_predicate.shape)
-        # extended_belief_object_shape[2] = NOF_OBJECTS
-        # visual_features_predicate = np.arange(2000, 2000 + N * N * VISUAL_FEATURES_PREDICATE_SIZE).reshape(N, N,
-        #                                                                                                    VISUAL_FEATURES_PREDICATE_SIZE)
-        # visual_features_object = np.arange(3000, 3000 + N * VISUAL_FEATURES_OBJECT_SIZE).reshape(N,
-        #                                                                                          VISUAL_FEATURES_OBJECT_SIZE)
-        # labels_predicate = np.zeros((N, N, NOF_PREDICATES))
-        # for i in range(N):
-        #     for j in range(N):
-        #         labels_predicate[i][j][i * j] = 1
-        # labels_object = np.zeros((N, NOF_OBJECTS))
-        # for i in range(N):
-        #     labels_object[i][i] = 1
+         # get object labels to ids and predicate labels to ids
         _, object_ids, predicate_ids = get_filtered_data(filtered_data_file_name="mini_filtered_data", category='entities_visual_module')
+
         # train entities
         entities_path = filesmanager.get_file_path("data.visual_genome.detections_v4")
         files_list = ["Wed_Aug_23_14:01:18_2017/predicated_entities_0_to_1000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_1000_to_2000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_2000_to_3000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_3000_to_4000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_4000_to_5000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_0_to_1000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_1000_to_2000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_2000_to_3000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_3000_to_4000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_4000_to_5000.p"]
         img_ids = Scripts.get_img_ids()
+
         # read test entities
         test_entities = filesmanager.load_file("data.visual_genome.detections_v4_test")
+
         # create one hot vector for predicate_neg
         predicate_neg = np.zeros(NOF_PREDICATES)
         predicate_neg[NOF_PREDICATES - 1] = 1
+
         # train module
         lr = learning_rate
+        best_test_loss = -1
         for epoch in range(1, nof_iterations):
             accum_results = None
             total_loss = 0
@@ -195,20 +185,12 @@ def train(name="test",
                     if entity.image.id in img_ids:
                         continue
 
-                    # FIXME: filter data with errors
-                    #object_gt = np.argmax(entity.objects_labels, axis=1)
-                    #count_ids = np.bincount(object_gt)
-                    #if np.max(count_ids) > 1:
-                    #    continue
- 
                     # set diagonal to be neg
                     indices = np.arange(entity.predicates_probes.shape[0])
                     entity.predicates_outputs_with_no_activation[indices, indices, :] = predicate_neg
                     entity.predicates_labels[indices, indices, :] = predicate_neg
                     entity.predicates_probes[indices, indices, :] = predicate_neg
                     gt = np.argmax(entity.predicates_labels, axis=2)
-                    if np.sum(gt[indices, indices] != 50) != 0:
-                        print "yes"
 
                     # get shape of extended object to be used by the module
                     extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
@@ -226,39 +208,37 @@ def train(name="test",
                     coeff_factor[predicates_neg_labels == 1] *= factor
                     coeff_factor[indices, indices] = 0
 
-                    # FIXME: train on true predicates only
-                    #coeff_factor[predicates_neg_labels == 1] = 0
-
-                    # dropout
-                    do = np.ones(module.nof_features)
-                    do[NOF_PREDICATES:] *= 0.9
-
                     # create the feed dictionary
                     feed_dict = {belief_predicate_ph: entity.predicates_outputs_with_no_activation, belief_object_ph: entity.objects_outputs_with_no_activations,
-                                 extended_belief_object_shape_ph: extended_belief_object_shape, likelihood_predicate_ph: entity.predicates_outputs_with_no_activation,
+                                 extended_belief_object_shape_ph: extended_belief_object_shape,
                                  visual_features_predicate_ph: entity.predicates_features,
                                  visual_features_object_ph: entity.objects_features,
-                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels, labels_coeff_loss_ph: coeff_factor.reshape((-1)),  module.lr_ph : lr, module.keep_prob_ph : do}
+                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels, labels_coeff_loss_ph: coeff_factor.reshape((-1)),  module.lr_ph : lr}
 
                     # run the network
-                    out_belief_predicate_val, out_belief_object_val, loss_val, gradients_val = \
-                        sess.run([out_belief_predicate, out_belief_object, loss, gradients],
+                    out_predicate_probes_val, out_object_probes_val, loss_val, gradients_val = \
+                        sess.run([out_predicate_probes, out_object_probes, loss, gradients],
                                  feed_dict=feed_dict)
-                    
-                    out_belief_predicate_val[indices, indices, :] = predicate_neg
+
+                    # set diagonal to be neg (in order not to take into account in statistics)
+                    out_predicate_probes_val[indices, indices, :] = predicate_neg
+
+                    # append gradient to list (will be applied as a batch of entities)
                     steps.append(gradients_val)
+
                     # statistic
                     total_loss += loss_val
-                    results = test(entity.predicates_labels, entity.objects_labels, out_belief_predicate_val,
-                                   out_belief_object_val)
-                    # results = test(entity.predicates_labels, entity.objects_labels, entity.predicates_probes, entity.objects_probs)
+                    results = test(entity.predicates_labels, entity.objects_labels, out_predicate_probes_val,
+                                   out_object_probes_val)
+
                     # accumulate results
                     if accum_results is None:
                         accum_results = results
                     else:
                         for key in results:
                             accum_results[key] += results[key]
-                    if len(steps) == 100:
+
+                    if len(steps) == BATCH_SIZE:
                         # apply steps
                         for step in steps:
                             feed_grad_apply_dict = {grad_placeholder[j][0]: step[j][0] for j in xrange(len(grad_placeholder))}
@@ -283,17 +263,12 @@ def train(name="test",
 
 
             if epoch % TEST_ITERATIONS == 0:
-                total_loss = 0
+                total_test_loss = 0
                 accum_test_results = None
                 correct_predicate = 0
                 total_predicate = 0
 
                 for entity in test_entities:
-                    # FIXME: filter data with errors
-                    #object_gt = np.argmax(entity.objects_labels, axis=1)
-                    #count_ids = np.bincount(object_gt)
-                    #if np.max(count_ids) > 1:
-                    #    continue
 
                     # set diagonal to be neg
                     indices = np.arange(entity.predicates_probes.shape[0])
@@ -305,26 +280,28 @@ def train(name="test",
                     extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
                     extended_belief_object_shape[2] = NOF_OBJECTS
                     
-                    # dropout
-                    do = np.ones(module.nof_features)
                     # create the feed dictionary
                     feed_dict = {belief_predicate_ph: entity.predicates_outputs_with_no_activation, belief_object_ph: entity.objects_outputs_with_no_activations,
-                                 extended_belief_object_shape_ph: extended_belief_object_shape, likelihood_predicate_ph: entity.predicates_outputs_with_no_activation,
+                                 extended_belief_object_shape_ph: extended_belief_object_shape,
                                  visual_features_predicate_ph: entity.predicates_features,
                                  visual_features_object_ph: entity.objects_features,
-                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels,
-                                 module.keep_prob_ph : do}
+                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels}
 
                     # run the network
-                    out_belief_predicate_val, out_belief_object_val = sess.run(
-                        [out_belief_predicate, out_belief_object],
+                    out_predicate_probes_val, out_object_probes_val, loss_val = sess.run(
+                        [out_predicate_probes, out_object_probes, loss],
                         feed_dict=feed_dict)
 
-                    out_belief_predicate_val[indices, indices, :] = predicate_neg
+                    # set diagonal to be neg (in order not to take into account in statistics)
+                    out_predicate_probes_val[indices, indices, :] = predicate_neg
 
                     # statistic
+                    total_test_loss += loss_val
+
+                    # statistics
                     results = test(entity.predicates_labels, entity.objects_labels,
-                                   out_belief_predicate_val, out_belief_object_val)
+                                   out_predicate_probes_val, out_object_probes_val)
+
                     # accumulate results
                     if accum_test_results is None:
                         accum_test_results = results
@@ -334,7 +311,7 @@ def train(name="test",
                     
                     # eval per predicate
                     correct_predicate_image, total_predicate_image = predicate_class_recall(entity.predicates_labels,
-                                                                                            out_belief_predicate_val)
+                                                                                            out_predicate_probes_val)
                     correct_predicate += np.sum(correct_predicate_image[:NOF_PREDICATES-2])
                     total_predicate += np.sum(total_predicate_image[:NOF_PREDICATES-2])
 
@@ -348,14 +325,23 @@ def train(name="test",
                 relationships_all_accuracy = float(accum_test_results['relationships_correct']) / accum_test_results[
                     'predicates_total']
 
-                logger.log("TEST - obj %f - pred %f - rela %f - all_pred %f - all rela %f - top5 %f" %
-                           (obj_accuracy, predicate_pos_accuracy, relationships_pos_accuracy,
+                logger.log("TEST - loss %f - obj %f - pred %f - rela %f - all_pred %f - all rela %f - top5 %f" %
+                           (total_test_loss, obj_accuracy, predicate_pos_accuracy, relationships_pos_accuracy,
                             predicate_all_accuracy, relationships_all_accuracy, float(correct_predicate)/total_predicate))
 
+                # save best module so far
+                if best_test_loss == -1 or total_test_loss < best_test_loss:
+                    module_path_save = os.path.join(module_path, name + "best_module.ckpt")
+                    save_path = saver.save(sess, module_path_save)
+                    logger.log("Model saved in file: %s" % save_path)
+
+            # save module
             if epoch % SAVE_MODEL_ITERATIONS == 0:
                 module_path_save = os.path.join(module_path, name + "_module.ckpt")
                 save_path = saver.save(sess, module_path_save)
                 logger.log("Model saved in file: %s" % save_path)
+
+            # learning rate decay
             if epoch % learning_rate_steps == 0:
                 lr *= learning_rate_decay
 
@@ -420,11 +406,15 @@ if __name__ == "__main__":
         nof_iterations = process_params["nof_iterations"]
         load_model_name = process_params["load_model_name"]
         use_saved_model = process_params["use_saved_model"]
+        rnn_steps = process_params["rnn_steps"]
+        loss_func = process_params["loss_func"]
+        lr_object_coeff = process_params["lr_object_coeff"]
         gpu = process_params["gpu"]
-        train(name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name, use_saved_model, gpu)
+
+        train(name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name, use_saved_model, rnn_steps, loss_func, lr_object_coeff, gpu)
         p = Process(target=train, args=(
             name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
-            use_saved_model, gpu))
+            use_saved_model, rnn_steps, loss_func, lr_object_coeff, gpu))
         p.start()
         processes.append(p)
 

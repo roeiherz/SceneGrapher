@@ -6,10 +6,10 @@ class Module(object):
     RNN Module which gets as an input the belief of predicates and objects
     and outputs an improved belief for predicates and objects
     """
-    # FIXME: use single rnn step at first
     def __init__(self, nof_predicates, nof_objects, visual_features_predicate_size, visual_features_object_size,
-                 rnn_steps=2, is_train=True,
-                 learning_rate=0.1, learning_rate_steps=1000, learning_rate_decay=0.5):
+                 rnn_steps=2, is_train=True, loss_func="all",
+                 learning_rate=0.1, learning_rate_steps=1000, learning_rate_decay=0.5,
+                 including_object=False, lr_object_coeff=1):
         """
         Construct module:
         - create input placeholders
@@ -36,13 +36,14 @@ class Module(object):
         self.is_train = is_train
         self.rnn_steps = rnn_steps
         self.nof_features = self.nof_predicates * 3 + 3 * self.nof_objects
+        self.loss_func = loss_func
+        self.including_object = including_object
+        self.lr_object_coeff = lr_object_coeff
 
         ## create weights
-        # FIXME: input features size change to include just predicate + subject + object belief
         self.nn_predicate_weights(self.nof_features, self.nof_predicates)
-        # self.nn_predicate_weights(self.nof_predicates + 2 * self.nof_objects, self.nof_predicates)
-        # FIXME: don't create weights for object nn 
-        #self.nn_object_weights(self.nof_predicates * 2 + self.nof_objects + self.visual_features_object_size, self.nof_objects)
+        if including_object:
+            self.nn_object_weights(self.nof_predicates * 2 + self.nof_objects + self.visual_features_object_size, self.nof_objects)
 
         ## module input
         # Visual features
@@ -57,14 +58,8 @@ class Module(object):
                                                   name="belief_predicate")
         self.belief_object_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects), name="belief_object")
 
-        # likelihood
-        self.likelihood_predicate_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, self.nof_predicates),
-                                                  name="likelihood_predicate")
-        
-        # dropout
-        self.keep_prob_ph = tf.placeholder(tf.float32, name="keep_prob")
 
-
+        # shape to be used by feature collector
         self.extended_belief_object_shape_ph = tf.placeholder(dtype=tf.int32, shape=(3), name="extended_belief_object_shape")
 
         # labels
@@ -73,26 +68,28 @@ class Module(object):
                                                       name="labels_predicate")
             self.labels_object_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects), name="labels_object")
             self.labels_coeff_loss_ph = tf.placeholder(dtype=tf.float32, shape=(None), name="labels_coeff_loss")
+
         # single rnn stage module
         belief_predicate = self.belief_predicate_ph
         belief_object = self.belief_object_ph
-        last_layer_predicate = self.likelihood_predicate_ph
 
         for step in range(self.rnn_steps):
-            # FIXME: don't modify object belief
-            belief_predicate, _, last_layer_predicate, last_layer_object = \
-            self.rnn_stage(in_visual_features_predicate=self.visual_features_predicate_ph,
-                           in_visual_features_object=self.visual_features_object_ph,
-                           in_belief_predicate=belief_predicate,
+
+            belief_predicate, belief_object_temp = \
+            self.rnn_stage(in_belief_predicate=belief_predicate,
                            in_belief_object=belief_object,
-                           in_likelihood_predicate=last_layer_predicate,
                            in_extended_belief_object_shape=self.extended_belief_object_shape_ph,
                            scope_name="rnn" + str(step))
 
+            if self.including_object:
+                belief_object = belief_object_temp
+
         self.out_belief_predicate = belief_predicate
         self.out_belief_object = belief_object
-        self.last_layer_predicate = last_layer_predicate
-        self.last_layer_object = last_layer_object
+        reshaped_predicate_belief = tf.reshape(belief_predicate, (-1, self.nof_predicates))
+        reshaped_predicete_probes = tf.nn.softmax(reshaped_predicate_belief)
+        self.out_predicate_probes = tf.reshape(reshaped_predicete_probes, tf.shape(belief_predicate), name="out_predicate_probes")
+        self.out_object_probes = tf.nn.softmax(belief_object, name="out_object_probes")
 
         # loss
         if self.is_train:
@@ -139,13 +136,13 @@ class Module(object):
                                                     initializer=tf.truncated_normal_initializer(stddev=0.03))
 
 
-    def nn_predicate(self, features, in_belief_predicate, in_likelihood_predicate, out_shape, scope_name="nn_predicate"):
+    def nn_predicate(self, features, in_belief_predicate, out_shape, scope_name="nn_predicate"):
         """
         simple nn to convert features to belief
         :param features: features tensor
         :param out_shape: output shape (used to reshape to required output shape)
         :param scope_name: tensorflow scope name
-        :return:
+        :return: predicate probes and predicate belief
         """
         in_size = features.shape[-1]._value
         with tf.variable_scope(scope_name):
@@ -160,16 +157,14 @@ class Module(object):
             h4 = tf.nn.relu(tf.matmul(h3, self.nn_predicate_w_4) + self.nn_predicate_b_4, name="h4")
             h5 = tf.add(tf.matmul(h4, self.nn_predicate_w_5), self.nn_predicate_b_5, name="y")
             self.predicate_delta = h5
-            in_belief_shaped = tf.reshape(in_likelihood_predicate, tf.shape(h5))
+            in_belief_shaped = tf.reshape(in_belief_predicate, tf.shape(h5))
             y = tf.add(h5, in_belief_shaped, name="y")
-            
-            out = tf.nn.softmax(y, name="out")
 
             # reshape to fit the required output dims
             y = tf.reshape(y, out_shape)
-            out = tf.reshape(out, out_shape)
 
-        return out , y
+        return y
+
     def nn_object_weights(self, in_size, out_size):
         h1_size = 500
         h2_size = 500
@@ -179,127 +174,117 @@ class Module(object):
         with tf.variable_scope("nn_object_weights"):
             # Define the initialization of the first layer
             self.nn_object_w_1 = tf.get_variable(name="w1", shape=(in_size, h1_size),
-                                                 initializer=tf.truncated_normal_initializer())
+                                                 initializer=tf.truncated_normal_initializer(stddev=0.03))
             self.nn_object_b_1 = tf.get_variable(name="b1", shape=(h1_size),
-                                                 initializer=tf.truncated_normal_initializer())
+                                                 initializer=tf.truncated_normal_initializer(stddev=0.03))
 
             # Define the initialization of the second layer
             self.nn_object_w_2 = tf.get_variable(name="w2", shape=(h1_size, h2_size),
-                                                 initializer=tf.truncated_normal_initializer())
+                                                 initializer=tf.truncated_normal_initializer(stddev=0.03))
             self.nn_object_b_2 = tf.get_variable(name="b2", shape=(h2_size),
-                                                 initializer=tf.truncated_normal_initializer())
+                                                 initializer=tf.truncated_normal_initializer(stddev=0.03))
 
             # Define the initialization of the layer 3
             self.nn_object_w_3 = tf.get_variable(name="w3", shape=(h2_size, h3_size),
-                                                 initializer=tf.truncated_normal_initializer())
+                                                 initializer=tf.truncated_normal_initializer(stddev=0.03))
             self.nn_object_b_3 = tf.get_variable(name="b3", shape=(h3_size),
-                                                 initializer=tf.truncated_normal_initializer())
+                                                 initializer=tf.truncated_normal_initializer(stddev=0.03))
             # Define the initialization of the layer 4
             self.nn_object_w_4 = tf.get_variable(name="w4", shape=(h3_size, h4_size),
-                                                 initializer=tf.truncated_normal_initializer())
+                                                 initializer=tf.truncated_normal_initializer(stddev=0.03))
             self.nn_object_b_4 = tf.get_variable(name="b4", shape=(h4_size),
-                                                 initializer=tf.truncated_normal_initializer())
+                                                 initializer=tf.truncated_normal_initializer(stddev=0.03))
             # Define the initialization of the layer 5
             self.nn_object_w_5 = tf.get_variable(name="w5", shape=(h4_size, out_size),
-                                                 initializer=tf.truncated_normal_initializer())
+                                                 initializer=tf.truncated_normal_initializer(stddev=0.03))
             self.nn_object_b_5 = tf.get_variable(name="b5", shape=(out_size),
-                                                 initializer=tf.truncated_normal_initializer())
+                                                 initializer=tf.truncated_normal_initializer(stddev=0.03))
 
-    def nn_object(self, features, in_belief_object, out_size, scope_name="nn_object"):
+    def nn_object(self, features, in_belief_object, scope_name="nn_object"):
         """
         simple nn to convert features to belief
         :param features: features tensor
-        :param out_size: nof labels of a belief
         :param scope_name: tensorflow scope name
-        :return:
+        :return: object probabilities and object belief
         """
 
         with tf.variable_scope(scope_name):
 
             # Create neural network
-            h1 = tf.nn.sigmoid(tf.matmul(features, self.nn_object_w_1) + self.nn_object_b_1, name="h1")
-            h2 = tf.nn.sigmoid(tf.matmul(h1, self.nn_object_w_2) + self.nn_object_b_2, name="h2")
-            h3 = tf.nn.sigmoid(tf.matmul(h2, self.nn_object_w_3) + self.nn_object_b_3, name="h3")
-            h4 = tf.nn.sigmoid(tf.matmul(h3, self.nn_object_w_4) + self.nn_object_b_4, name="h4")
-            delta = tf.nn.sigmoid(tf.add(tf.matmul(h4, self.nn_object_w_5), self.nn_object_b_5, name="delta"))
-            y = tf.add(delta, in_belief_object, name="y")
+            h1 = tf.nn.relu(tf.matmul(features, self.nn_object_w_1) + self.nn_object_b_1, name="h1")
+            h2 = tf.nn.relu(tf.matmul(h1, self.nn_object_w_2) + self.nn_object_b_2, name="h2")
+            h3 = tf.nn.relu(tf.matmul(h2, self.nn_object_w_3) + self.nn_object_b_3, name="h3")
+            h4 = tf.nn.relu(tf.matmul(h3, self.nn_object_w_4) + self.nn_object_b_4, name="h4")
+            self.object_delta = tf.add(tf.matmul(h4, self.nn_object_w_5), self.nn_object_b_5, name="delta")
+            y = tf.add(self.object_delta, in_belief_object, name="y")
 
-            out = tf.nn.softmax(y, name="out")
 
-        return out, y
+        return y
 
-    def rnn_stage(self, in_visual_features_predicate, in_visual_features_object, in_belief_predicate, in_belief_object, in_likelihood_predicate,
+    def rnn_stage(self, in_belief_predicate, in_belief_object,
                   in_extended_belief_object_shape, scope_name="rnn_cell"):
         """
         RNN stage - which get as an input a belief of the predicates and objects and return an improved belief of the predicates and the objects
         :return:
-        :param in_visual_features_predicate: visual features of predicate
-        :param in_visual_features_object: visual features of the object
         :param in_belief_predicate: predicate belief of the last stage in the RNN
         :param in_belief_object: object belief of the last stage in the RNNS
         :param in_extended_belief_object_shape: the shape of the extended version of object belief (N, N, NOF_OBJECTS)
         :param scope_name: rnn stage scope
-        :return:
+        :return: improved predicates probabilties, improved predicate belief,  improved object probabilites and improved object belief
         """
         with tf.variable_scope(scope_name):
             with tf.variable_scope("feature_collector"):
+                # mean center
                 in_belief_predicate = in_belief_predicate - tf.reduce_mean(in_belief_predicate, axis=2, keep_dims=True)
                 in_belief_object = in_belief_object - tf.reduce_mean(in_belief_object, axis=1, keep_dims=True)
 
-                # get global subject belief
-                global_sub_belief = tf.reduce_max(in_belief_predicate, axis=1, name="global_sub_belief")
-                #global_sub_belief = tf.reduce_max(self.labels_predicate_ph, axis=1, name="global_sub_belief")
-                self.global_sub_belief = global_sub_belief
-                # expand global sub belief
-                expand_global_sub_belief = tf.add(tf.zeros_like(in_belief_predicate), global_sub_belief,
-                                                  name="expand_global_sub_belief")
-                expand_global_sub_belief = tf.transpose(expand_global_sub_belief, perm=[1, 0, 2])
+                # get likelihood to be included in sg for specific subject
+                all_subjects_predicates = tf.reduce_max(in_belief_predicate, axis=1, name="all_subjects_predicates")
+                # expand to NxN
+                expand_all_subject_predicates = tf.add(tf.zeros_like(in_belief_predicate), all_subjects_predicates)
+                expand_all_subject_predicates = tf.transpose(expand_all_subject_predicates, perm=[1, 0, 2], name="expand_all_subject_predicates")
 
-                # get global object belief
-                global_obj_belief = tf.reduce_max(in_belief_predicate, axis=0, name="global_obj_belief")
-                #global_obj_belief = tf.reduce_max(self.labels_predicate_ph, axis=0, name="global_obj_belief")
-                self.global_obj_belief = global_obj_belief
-                # expand global sub belief
-                expand_global_obj_belief = tf.add(tf.zeros_like(in_belief_predicate), global_obj_belief,
+                # get likelihood to be included in sg for specific subject
+                all_object_predicates = tf.reduce_max(in_belief_predicate, axis=0, name="all_object_predicates")
+                # expand to NxN
+                expand_global_obj_belief = tf.add(tf.zeros_like(in_belief_predicate), all_object_predicates,
                                                   name="expand_global_obj_belief")
-                self.expand_global_obj_belief = expand_global_obj_belief
 
-                # expand visual object features
+                # expand object belief
                 expand_belief_object = tf.add(tf.zeros(in_extended_belief_object_shape), in_belief_object,
                                               name="expand_belief_object")
-                #expand_belief_object = tf.add(tf.zeros(in_extended_belief_object_shape), self.labels_object_ph,
-                #                              name="expand_belief_object")
-                self.expand_belief_object = expand_belief_object
 
-                # expand visual subject features
+                # expand subject belief
                 expand_belief_subject = tf.transpose(expand_belief_object, perm=[1, 0, 2], name="expand_belief_subject")
                 self.expand_belief_subject = expand_belief_subject
-                
+
                 # expand object belief
-                self.global_object_belief = tf.reduce_max(in_belief_object, axis=0, name="global_object_belief")
-                #global_object_belief = tf.reduce_max(self.labels_object_ph, axis=0, name="global_object_belief")
-                self.expand_object_belief_2d = tf.add(tf.zeros_like(in_belief_object), self.global_object_belief, name="expand_object_belief_2d")
-                self.expand_object_belief_3d = tf.add(tf.zeros(in_extended_belief_object_shape), self.global_object_belief, name="expand_object_belief_3d")
+                all_object_belief = tf.reduce_max(in_belief_object, axis=0, name="all_object_belief")
+                expand_all_object_belief_2d = tf.add(tf.zeros_like(in_belief_object), all_object_belief, name="expand_all_object_belief_2d")
+                expand_all_object_belief_3d = tf.add(tf.zeros(in_extended_belief_object_shape), all_object_belief, name="expand_all_object_belief_3d")
 
 
-                self.predicate_all_features = tf.concat(
-                    (in_belief_predicate, expand_belief_subject, expand_belief_object, expand_global_sub_belief, expand_global_obj_belief, self.expand_object_belief_3d), axis=2, name="predicate_all_features")
+                predicate_all_features = tf.concat(
+                    (in_belief_predicate, expand_belief_subject, expand_belief_object, expand_all_subject_predicates, expand_global_obj_belief, expand_all_object_belief_3d), axis=2, name="predicate_all_features")
 
                 # object all features
                 object_all_features = tf.concat(
-                    (in_visual_features_object, global_sub_belief, global_obj_belief, in_belief_object),
+                    (in_belief_object, all_subjects_predicates, all_object_predicates, expand_all_object_belief_2d),
                     axis=1, name="object_all_features")
 
             # fully cnn to calc belief predicate for every subject and object
-            out_belief_predicate, last_layer_predicate = self.nn_predicate(self.predicate_all_features, in_belief_predicate, in_likelihood_predicate,
-                                      out_shape=tf.shape(in_belief_predicate))
+            out_belief_predicate = self.nn_predicate(predicate_all_features, in_belief_predicate,
+                                                                       out_shape=tf.shape(in_belief_predicate))
 
             # fully cnn to calc belief object for every object
-            # FIXME: don't run object nn for now
-            # out_belief_object, last_layer_object = self.nn_object(object_all_features, in_belief_object, out_size=self.nof_objects)
-            out_belief_object = in_belief_object
-            last_layer_object = in_belief_object
-            return out_belief_predicate, out_belief_object, last_layer_predicate, last_layer_object
+            if self.including_object:
+                out_belief_object = self.nn_object(object_all_features, in_belief_object, out_size=self.nof_objects)
+            else:
+                out_belief_object = in_belief_object
+
+
+
+            return out_belief_predicate, out_belief_object
 
     def module_loss(self, scope_name="loss"):
         """
@@ -312,34 +297,61 @@ class Module(object):
         """
         with tf.variable_scope(scope_name):
             # reshape to batch like shape
-            shaped_in_belief_predicate = tf.reshape(self.likelihood_predicate_ph, (-1, self.nof_predicates))
-            shaped_belief_predicate = tf.reshape(self.last_layer_predicate, (-1, self.nof_predicates))
+            shaped_in_belief_predicate = tf.reshape(self.belief_predicate_ph, (-1, self.nof_predicates))
+            shaped_belief_predicate = tf.reshape(self.out_belief_predicate, (-1, self.nof_predicates))
             shaped_labels_predicate = tf.reshape(self.labels_predicate_ph, (-1, self.nof_predicates))
-            # set loss
-            self.result = tf.nn.softmax_cross_entropy_with_logits(labels=shaped_labels_predicate,
-                                                                     logits=shaped_belief_predicate,
-                                                                     name="loss_predicate")
-            self.original = tf.nn.softmax_cross_entropy_with_logits(labels=shaped_labels_predicate,
-                                                                     logits=shaped_in_belief_predicate,
-                                                                     name="in_loss_predicate")
-            self.delta_loss = tf.maximum(self.result - self.original, 0.0)
-            self.delta_sum = tf.reduce_sum(tf.square(self.predicate_delta), axis=1)
-            self.loss_predicate = self.delta_loss  + self.result + 0.01 * self.delta_sum
 
+            # set predicate loss
+            self.predicate_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=shaped_labels_predicate,
+                                                                             logits=shaped_belief_predicate,
+                                                                             name="predicate_ce_loss")
+            self.predicate_original_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=shaped_labels_predicate,
+                                                                                      logits=shaped_in_belief_predicate,
+                                                                                      name="predicate_original_ce_loss")
+
+            self.predicate_delta_loss = tf.maximum(self.predicate_ce_loss - self.predicate_original_ce_loss, 0.0)
+            self.predicate_delta_sum = tf.reduce_sum(tf.square(self.predicate_delta), axis=1)
+
+            # set loss per requested loss_func
+            if self.loss_func == "all":
+                self.loss_predicate = self.predicate_delta_loss + self.predicate_ce_loss + 0.01 * self.predicate_delta_sum
+            elif self.loss_func == "exclude_sum":
+                self.loss_predicate = self.predicate_delta_loss + self.predicate_ce_loss
+            elif self.loss_func == "ce":
+                self.loss_predicate = self.predicate_ce_loss
             
             self.loss_predicate_weighted = tf.multiply(self.loss_predicate, self.labels_coeff_loss_ph)
-            # FIXME: don't calc object loss
-            #loss_object = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph, logits=self.last_layer_object,
-            #                                                      name="loss_object")
-            #loss = tf.add(tf.reduce_mean(self.loss_predicate_weighted), 2 * tf.reduce_mean(loss_object), name="loss")
-            #loss = tf.reduce_mean(loss_object)
-            # FIXME: take into account just predicate loss
+
             loss = tf.reduce_mean(self.loss_predicate_weighted)
+
+            # set object loss
+            if self.including_object:
+                self.object_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph,
+                                                                                 logits=self.out_belief_obect,
+                                                                                 name="object_ce_loss")
+
+                self.object_original_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph,
+                                                                                          logits=self.belief_object_ph,
+                                                                                          name="in_loss_predicate")
+
+                self.object_delta_loss = tf.maximum(self.object_ce_loss - self.object_original_ce_loss, 0.0)
+                self.object_delta_sum = tf.reduce_sum(tf.square(self.object_delta), axis=1)
+
+                # set loss per requested loss_func
+                if self.loss_func == "all":
+                    self.loss_object = self.object_delta_loss + self.object_ce_loss + 0.01 * self.object_delta_sum
+                elif self.loss_func == "exclude_sum":
+                    self.loss_object = self.object_delta_loss + self.object_ce_loss
+                elif self.loss_func == "ce":
+                    self.loss_object = self.object_ce_loss
+
+                loss += self.lr_object_coeff * tf.reduce_mean(self.loss_object)
 
             # minimize
             gradients = tf.train.GradientDescentOptimizer(self.lr_ph).compute_gradients(loss)
             # create placeholder to minimize in a batch
             grad_placeholder = [(tf.placeholder("float", shape=grad[0].get_shape()), grad[1]) for grad in gradients]
+
             train_step = tf.train.GradientDescentOptimizer(self.lr_ph).apply_gradients(grad_placeholder)
         return loss, gradients, grad_placeholder, train_step
 
@@ -347,13 +359,13 @@ class Module(object):
         """
         get input place holders
         """
-        return self.belief_predicate_ph, self.belief_object_ph, self.extended_belief_object_shape_ph, self.visual_features_predicate_ph, self.visual_features_object_ph, self.likelihood_predicate_ph
+        return self.belief_predicate_ph, self.belief_object_ph, self.extended_belief_object_shape_ph, self.visual_features_predicate_ph, self.visual_features_object_ph
 
     def get_output(self):
         """
         get module output
         """
-        return self.out_belief_predicate, self.out_belief_object
+        return self.out_predicate_probes, self.out_object_probes
 
     def get_labels_ph(self):
         """
