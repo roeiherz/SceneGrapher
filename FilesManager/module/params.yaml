@@ -1,12 +1,12 @@
 nof_p: 1
 1:
-    name: test_filtered
+    name: lh_relu_2
     nof_iterations: 10000
-    learning_rate: 0.1
-    learning_rate_steps: 500
+    learning_rate: 0.005
+    learning_rate_steps: 10
     learning_rate_decay: 0.5
-    load_model_name: "test_filtered_module.ckpt"
-    use_saved_model: False
+    load_model_name: "lh_relu_module.ckpt"
+    use_saved_model: True
     gpu: 0
 2:
     name: test2

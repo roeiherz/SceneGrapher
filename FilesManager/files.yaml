@@ -153,7 +153,7 @@ data:
           doc:  "dir with entities files. each file inclues 1000 entities"
 
         detections_v4_test:
-          name: "FeaturesExtraction/PredicatedFeatures/Fri_Aug_11_23:01:43_2017/predicated_entities_0_to_1000.p"
+          name: "FeaturesExtraction/PredicatedFeatures/Thu_Aug_24_13:07:21_2017/predicated_entities_0_to_1000.p"
           type: "pickle"
           doc:  "1000 entities which included matrix style data of predicates and objects trained on both pos and neg predicates (ratio 3/10) without fine-tuned"
 

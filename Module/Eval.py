@@ -128,7 +128,7 @@ def eval_image(img, reverse_object_ids, reverse_predicate_ids, labels_predicate,
     return img_score_precent, img_score, nof_pos_relationship
 
 
-def eval(load_module_name="test_filtered", sg_class=True, gpu=1):
+def eval(load_module_name="lh_relu_2", sg_class=True, gpu=0):
     """
     Evaluate module:
     - Scene Graph Classification - R@k metric (measures the fraction of ground truth relationships
@@ -160,7 +160,7 @@ def eval(load_module_name="test_filtered", sg_class=True, gpu=1):
                     visual_features_object_size=VISUAL_FEATURES_OBJECT_SIZE, is_train=False)
 
     # get input place holders
-    belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph = module.get_in_ph()
+    belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph, predicate_likelihood_ph = module.get_in_ph()
     # get module output
     out_belief_predicate, out_belief_object = module.get_output()
 
@@ -176,7 +176,7 @@ def eval(load_module_name="test_filtered", sg_class=True, gpu=1):
 
     # read data
     entities_path = filesmanager.get_file_path("data.visual_genome.detections_v4")
-    files_list = ["Fri_Aug_11_23:01:43_2017/predicated_entities_0_to_1000.p"] #,"Wed_Aug__9_10:04:43_2017/predicated_entities_0_to_1000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_1000_to_2000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_2000_to_3000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_3000_to_4000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_0_to_1000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_1000_to_2000.p"]
+    files_list = ["Thu_Aug_24_13:07:21_2017/predicated_entities_0_to_1000.p"] #,"Wed_Aug__9_10:04:43_2017/predicated_entities_0_to_1000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_1000_to_2000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_2000_to_3000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_3000_to_4000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_0_to_1000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_1000_to_2000.p"]
     img_ids = Scripts.get_img_ids()
     _, object_ids, predicate_ids = get_filtered_data(filtered_data_file_name="mini_filtered_data", category='entities_visual_module')
     reverse_object_ids = {object_ids[id]: id for id in object_ids}
@@ -213,7 +213,7 @@ def eval(load_module_name="test_filtered", sg_class=True, gpu=1):
         # create one hot vector for predicate_neg
         predicate_neg = np.zeros(NOF_PREDICATES)
         predicate_neg[NOF_PREDICATES - 1] = 1
-
+        index = 0
         for file_name in files_list:
             file_path = os.path.join(entities_path, file_name)
             file_handle = open(file_path, "rb`")
@@ -231,21 +231,24 @@ def eval(load_module_name="test_filtered", sg_class=True, gpu=1):
                 #    continue
                 # set diagonal to be neg
                 indices = np.arange(entity.predicates_probes.shape[0])
-                entity.predicates_probes[indices, indices, :] = predicate_neg
+                entity.predicates_outputs_with_no_activation[indices, indices, :] = predicate_neg
+                entity.predicates_labels[indices, indices, :] = predicate_neg
 
                 # get shape of extended object to be used by the module
                 extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
                 extended_belief_object_shape[2] = NOF_OBJECTS
 
                 # create the feed dictionary
-                feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
+                feed_dict = {belief_predicate_ph: entity.predicates_outputs_with_no_activation, belief_object_ph: entity.objects_outputs_with_no_activations,
                              extended_belief_object_shape_ph: extended_belief_object_shape,
                              visual_features_predicate_ph: entity.predicates_features,
-                             visual_features_object_ph: entity.objects_features}
+                             visual_features_object_ph: entity.objects_features, predicate_likelihood_ph : entity.predicates_outputs_with_no_activation}
 
                 out_belief_predicate_val, out_belief_object_val = \
                     sess.run([out_belief_predicate, out_belief_object],
                              feed_dict=feed_dict)
+
+                out_belief_predicate_val[indices, indices, :] = predicate_neg
 
                 # eval image
                 if sg_class:
@@ -253,13 +256,14 @@ def eval(load_module_name="test_filtered", sg_class=True, gpu=1):
                     correct += correct_image
                     total += total_image
                     total_score = float(correct) / total
-                    logger.log("result - %f (%d / %d) - total %f" % (k_metric_res, correct_image, total_image, total_score))
+                    logger.log("result %d - %f (%d / %d) - total %f" % (index, k_metric_res, correct_image, total_image, total_score))
 
                 # eval per predicate
                 correct_predicate_image, total_predicate_image = predicate_class_recall(entity.predicates_labels,
                                                                                         out_belief_predicate_val)
                 correct_predicate += correct_predicate_image
                 total_predicate += total_predicate_image
+                index += 1
 
         for i in range(NOF_PREDICATES):
             if total_predicate[i] != 0:

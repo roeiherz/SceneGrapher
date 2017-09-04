@@ -25,13 +25,13 @@ NOF_OBJECTS = 150
 # NOF_OBJECTS = 2
 
 # negative vs positive factor
-POS_NEG_FACTOR = 10
+POS_NEG_FACTOR = 3.3
 
 # save model every number of iterations
-SAVE_MODEL_ITERATIONS = 20
+SAVE_MODEL_ITERATIONS = 5
 
 # test every number of iterations
-TEST_ITERATIONS = 10
+TEST_ITERATIONS = 1
 
 # percentage of test data
 TEST_PERCENT = 10
@@ -123,7 +123,7 @@ def train(name="test",
                     learning_rate_decay=learning_rate_decay)
 
     # get input place holders
-    belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph = module.get_in_ph()
+    belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph, likelihood_predicate_ph = module.get_in_ph()
     # get labels place holders
     labels_predicate_ph, labels_object_ph, labels_coeff_loss_ph = module.get_labels_ph()
     # get loss and train step
@@ -171,7 +171,7 @@ def train(name="test",
         _, object_ids, predicate_ids = get_filtered_data(filtered_data_file_name="mini_filtered_data", category='entities_visual_module')
         # train entities
         entities_path = filesmanager.get_file_path("data.visual_genome.detections_v4")
-        files_list = ["Wed_Aug__9_10:04:43_2017/predicated_entities_0_to_1000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_1000_to_2000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_2000_to_3000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_3000_to_4000.p", "Wed_Aug__9_10:04:43_2017/predicated_entities_4000_to_5000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_0_to_1000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_1000_to_2000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_2000_to_3000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_3000_to_4000.p", "Tue_Aug__8_23:28:18_2017/predicated_entities_4000_to_5000.p"]
+        files_list = ["Wed_Aug_23_14:01:18_2017/predicated_entities_0_to_1000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_1000_to_2000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_2000_to_3000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_3000_to_4000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_4000_to_5000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_0_to_1000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_1000_to_2000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_2000_to_3000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_3000_to_4000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_4000_to_5000.p"]
         img_ids = Scripts.get_img_ids()
         # read test entities
         test_entities = filesmanager.load_file("data.visual_genome.detections_v4_test")
@@ -203,7 +203,12 @@ def train(name="test",
  
                     # set diagonal to be neg
                     indices = np.arange(entity.predicates_probes.shape[0])
+                    entity.predicates_outputs_with_no_activation[indices, indices, :] = predicate_neg
+                    entity.predicates_labels[indices, indices, :] = predicate_neg
                     entity.predicates_probes[indices, indices, :] = predicate_neg
+                    gt = np.argmax(entity.predicates_labels, axis=2)
+                    if np.sum(gt[indices, indices] != 50) != 0:
+                        print "yes"
 
                     # get shape of extended object to be used by the module
                     extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
@@ -219,22 +224,28 @@ def train(name="test",
                     factor = float(np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2])) / np.sum(
                         predicates_neg_labels) / POS_NEG_FACTOR 
                     coeff_factor[predicates_neg_labels == 1] *= factor
+                    coeff_factor[indices, indices] = 0
 
                     # FIXME: train on true predicates only
                     #coeff_factor[predicates_neg_labels == 1] = 0
 
+                    # dropout
+                    do = np.ones(module.nof_features)
+                    do[NOF_PREDICATES:] *= 0.9
+
                     # create the feed dictionary
-                    feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
-                                 extended_belief_object_shape_ph: extended_belief_object_shape,
+                    feed_dict = {belief_predicate_ph: entity.predicates_outputs_with_no_activation, belief_object_ph: entity.objects_outputs_with_no_activations,
+                                 extended_belief_object_shape_ph: extended_belief_object_shape, likelihood_predicate_ph: entity.predicates_outputs_with_no_activation,
                                  visual_features_predicate_ph: entity.predicates_features,
                                  visual_features_object_ph: entity.objects_features,
-                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels, labels_coeff_loss_ph: coeff_factor.reshape((-1)),  module.lr_ph : lr}
+                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels, labels_coeff_loss_ph: coeff_factor.reshape((-1)),  module.lr_ph : lr, module.keep_prob_ph : do}
 
                     # run the network
                     out_belief_predicate_val, out_belief_object_val, loss_val, gradients_val = \
                         sess.run([out_belief_predicate, out_belief_object, loss, gradients],
                                  feed_dict=feed_dict)
-
+                    
+                    out_belief_predicate_val[indices, indices, :] = predicate_neg
                     steps.append(gradients_val)
                     # statistic
                     total_loss += loss_val
@@ -247,7 +258,7 @@ def train(name="test",
                     else:
                         for key in results:
                             accum_results[key] += results[key]
-                    if len(steps) == 10:
+                    if len(steps) == 100:
                         # apply steps
                         for step in steps:
                             feed_grad_apply_dict = {grad_placeholder[j][0]: step[j][0] for j in xrange(len(grad_placeholder))}
@@ -284,21 +295,32 @@ def train(name="test",
                     #if np.max(count_ids) > 1:
                     #    continue
 
+                    # set diagonal to be neg
+                    indices = np.arange(entity.predicates_probes.shape[0])
+                    entity.predicates_outputs_with_no_activation[indices, indices, :] = predicate_neg
+                    entity.predicates_labels[indices, indices, :] = predicate_neg
+                    entity.predicates_probes[indices, indices, :] = predicate_neg
+
                     # get shape of extended object to be used by the module
                     extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
                     extended_belief_object_shape[2] = NOF_OBJECTS
-
+                    
+                    # dropout
+                    do = np.ones(module.nof_features)
                     # create the feed dictionary
-                    feed_dict = {belief_predicate_ph: entity.predicates_probes, belief_object_ph: entity.objects_probs,
-                                 extended_belief_object_shape_ph: extended_belief_object_shape,
+                    feed_dict = {belief_predicate_ph: entity.predicates_outputs_with_no_activation, belief_object_ph: entity.objects_outputs_with_no_activations,
+                                 extended_belief_object_shape_ph: extended_belief_object_shape, likelihood_predicate_ph: entity.predicates_outputs_with_no_activation,
                                  visual_features_predicate_ph: entity.predicates_features,
                                  visual_features_object_ph: entity.objects_features,
-                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels}
+                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels,
+                                 module.keep_prob_ph : do}
 
                     # run the network
                     out_belief_predicate_val, out_belief_object_val = sess.run(
                         [out_belief_predicate, out_belief_object],
                         feed_dict=feed_dict)
+
+                    out_belief_predicate_val[indices, indices, :] = predicate_neg
 
                     # statistic
                     results = test(entity.predicates_labels, entity.objects_labels,
