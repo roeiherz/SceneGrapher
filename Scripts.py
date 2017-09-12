@@ -638,13 +638,14 @@ def parser_from_logger(dir_path="Temp"):
 
     # Define from each files we are gonna to parse
     files = ["PredictFeaturesModule_0_to_18013.log", "PredictFeaturesModule_18013_to_36026.log"]
+    files = ["PredictFeaturesModule_mini_entities_module.log"]
     # files = ["PredictFeaturesModule_mini_entities.log"]
 
     # Get the data frame from logger
     df = create_dataframe_from_logger(files)
 
     # Save DataFrame
-    df.to_csv(os.path.join(dir_path, "logger_data.csv"))
+    df.to_csv(os.path.join(dir_path, "logger_data_unseen_data.csv"))
     fl = open(os.path.join(dir_path, "logger_data_df.p"), "wb")
     cPickle.dump(df, fl)
     fl.close()
