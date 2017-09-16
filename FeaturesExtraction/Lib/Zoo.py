@@ -7,7 +7,7 @@ from keras.models import Model
 from keras.models import Sequential
 from keras.layers import ZeroPadding2D, Convolution2D, MaxPooling2D, Flatten, Dense, Dropout, Lambda, \
     BatchNormalization, \
-    Activation, Merge, merge, AveragePooling2D, TimeDistributed, Conv2D
+    Activation, Merge, merge, AveragePooling2D, TimeDistributed, Conv2D, concatenate
 from keras.optimizers import SGD
 from DesignPatterns.Singleton import Singleton
 from FeaturesExtraction.Layers.FixedBatchNormalization import FixedBatchNormalization
@@ -338,10 +338,7 @@ class ModelZoo(object):
     def resnet50_base(self, input_tensor, trainable=True):
         """
         This function defines resnet50 base+rpn+classifier as in faster-rcnn
-        :param num_rois: number of ROIs
-        :param num_anchors: number of anchors: anchor_box_scale * anchor_box_ratio
-        :param roi_input: rois as a keras Input
-        :param img_input: image Input used to instantiate a keras tensor
+        :param input_tensor: image Input used to instantiate a keras tensor
         :param trainable: "freeze" a layer - exclude it from training
         :return: full model
         """
@@ -460,6 +457,156 @@ class ModelZoo(object):
         x = FixedBatchNormalization(trainable=False, axis=bn_axis, name='bn_conv1')(x)
         x = Activation('relu')(x)
         x = MaxPooling2D((3, 3), strides=(2, 2))(x)
+
+        x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1), trainable=trainable)
+        x = identity_block(x, 3, [64, 64, 256], stage=2, block='b', trainable=trainable)
+        x = identity_block(x, 3, [64, 64, 256], stage=2, block='c', trainable=trainable)
+
+        x = conv_block(x, 3, [128, 128, 512], stage=3, block='a', trainable=trainable)
+        x = identity_block(x, 3, [128, 128, 512], stage=3, block='b', trainable=trainable)
+        x = identity_block(x, 3, [128, 128, 512], stage=3, block='c', trainable=trainable)
+        x = identity_block(x, 3, [128, 128, 512], stage=3, block='d', trainable=trainable)
+
+        x = conv_block(x, 3, [256, 256, 1024], stage=4, block='a', trainable=trainable)
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='b', trainable=trainable)
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='c', trainable=trainable)
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='d', trainable=trainable)
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='e', trainable=trainable)
+        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='f', trainable=trainable)
+
+        x = conv_block(x, 3, [512, 512, 2048], stage=5, block='a', trainable=trainable)
+        x = identity_block(x, 3, [512, 512, 2048], stage=5, block='b', trainable=trainable)
+        x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c', trainable=trainable)
+
+        return x
+
+    def resnet50_with_masking(self, input_tensor, trainable=True):
+        """
+        This function defines resnet50 base+rpn+classifier as in faster-rcnn
+        :param input_tensor:
+        :param trainable: "freeze" a layer - exclude it from training
+        :return: full model
+        """
+
+        def identity_block(input_tensor, kernel_size, filters, stage, block, trainable=True):
+            """
+            This function creates resnet block with identity shortcut (no conv)
+            This blocks sums between   conv 1x1 -> BN -> ReLU ->
+                           conv 3x3 -> BN -> ReLU ->
+                           conv 1x1 -> BN -> ReLU ->
+            and shortcut is identity (f(x)=x)
+            :param input_tensor: input tensor
+            :param kernel_size: defualt 3, the kernel size of middle conv layer at main path
+            :param filters: list of integers, the nb_filters of 3 conv layer at main path
+            :param stage: integer, current stage label, used for generating layer names
+            :param block: 'a','b'..., current block label, used for generating layer names
+            :param trainable:
+            :return:
+            """
+
+            nb_filter1, nb_filter2, nb_filter3 = filters
+            if K.image_dim_ordering() == 'tf':
+                bn_axis = 3
+            else:
+                bn_axis = 1
+            conv_name_base = 'res' + str(stage) + block + '_branch'
+            bn_name_base = 'bn' + str(stage) + block + '_branch'
+
+            x = Conv2D(nb_filter1, (1, 1), name=conv_name_base + '2a', trainable=trainable)(input_tensor)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2a')(x)
+            x = Activation('relu')(x)
+
+            x = Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same', name=conv_name_base + '2b',
+                       trainable=trainable)(x)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2b')(x)
+            x = Activation('relu')(x)
+
+            x = Conv2D(nb_filter3, (1, 1), name=conv_name_base + '2c', trainable=trainable)(x)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2c')(x)
+
+            x = add([x, input_tensor])
+            x = Activation('relu')(x)
+            return x
+
+        def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2), trainable=True):
+            """
+            This function creates resnet block with conv as shortcut
+            This blocks sums between   conv 1x1 -> BN -> ReLU ->
+                                       conv 3x3 -> BN -> ReLU ->
+                                       conv 1x1 -> BN -> ReLU ->
+                        and shortcut conv 1x1 -> BN
+            :param input_tensor: input tensor
+            :param kernel_size: kernel size. default is 3 which is the middle conv in the block
+            :param filters: list of integers which contains the nof_filters of 3 conv layer
+            :param stage: integer, current stage label, used for generating layer names
+            :param block: 'a','b'..., current block label, used for generating layer names
+            :param strides: stride
+            :param trainable: "freeze" a layer - exclude it from training
+            # Note that from stage 3, the first conv layer at main path is with strides=(2,2)
+            # And the shortcut should have strides=(2,2) as well
+            :return:
+            """
+
+            nb_filter1, nb_filter2, nb_filter3 = filters
+            if K.image_dim_ordering() == 'tf':
+                bn_axis = 3
+            else:
+                bn_axis = 1
+
+            conv_name_base = 'res' + str(stage) + block + '_branch'
+            bn_name_base = 'bn' + str(stage) + block + '_branch'
+
+            x = Conv2D(nb_filter1, (1, 1), strides=strides, name=conv_name_base + '2a', trainable=trainable)(
+                input_tensor)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2a')(x)
+            x = Activation('relu')(x)
+
+            x = Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same', name=conv_name_base + '2b',
+                       trainable=trainable)(x)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2b')(x)
+            x = Activation('relu')(x)
+
+            x = Conv2D(nb_filter3, (1, 1), name=conv_name_base + '2c', trainable=trainable)(x)
+            x = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '2c')(x)
+
+            shortcut = Conv2D(nb_filter3, (1, 1), strides=strides, name=conv_name_base + '1',
+                              trainable=trainable)(input_tensor)
+            shortcut = FixedBatchNormalization(trainable=False, axis=bn_axis, name=bn_name_base + '1')(shortcut)
+
+            x = add([x, shortcut])
+            x = Activation('relu')(x)
+            return x
+
+        if K.image_dim_ordering() == 'tf':
+            bn_axis = 3
+        else:
+            bn_axis = 1
+
+        input_rgb, input_heatmap = Lambda(lambda x: x[:, :, :, 0:3])(input_tensor), \
+                                   Lambda(lambda x: x[:, :, :, 3:4])(input_tensor)
+
+        # Get conv from image RGB
+        # conv1_rgb = _conv_bn_relu(nb_filter=60, nb_row=7, nb_col=7, subsample=(2, 2))(input_rgb)
+        conv1_rgb = ZeroPadding2D((3, 3))(input_rgb)
+        conv1_rgb = Conv2D(60, (7, 7), strides=(2, 2), name='conv1a', trainable=trainable)(conv1_rgb)
+        conv1_rgb = FixedBatchNormalization(trainable=False, axis=bn_axis, name='bn_conv1a')(conv1_rgb)
+        conv1_rgb = Activation('relu')(conv1_rgb)
+
+        # Get conv from image heat-map
+        # conv1_heatmap = _conv_bn_relu(nb_filter=4, nb_row=7, nb_col=7, subsample=(2, 2))(input_heatmap)
+        conv1_heatmap = ZeroPadding2D((3, 3))(input_heatmap)
+        conv1_heatmap = Conv2D(4, (7, 7), strides=(2, 2), name='conv1b', trainable=trainable)(conv1_heatmap)
+        conv1_heatmap = FixedBatchNormalization(trainable=False, axis=bn_axis, name='bn_conv1b')(conv1_heatmap)
+        conv1_heatmap = Activation('relu')(conv1_heatmap)
+
+        x = concatenate(inputs=[conv1_rgb, conv1_heatmap], axis=3)
+        x = MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding="same")(x)
+
+        # x = ZeroPadding2D((3, 3))(pool1)
+        # x = Conv2D(64, (7, 7), strides=(2, 2), name='conv1', trainable=trainable)(x)
+        # x = FixedBatchNormalization(trainable=False, axis=bn_axis, name='bn_conv1')(x)
+        # x = Activation('relu')(x)
+        # x = MaxPooling2D((3, 3), strides=(2, 2))(x)
 
         x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1), trainable=trainable)
         x = identity_block(x, 3, [64, 64, 256], stage=2, block='b', trainable=trainable)

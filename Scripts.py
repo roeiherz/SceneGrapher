@@ -730,6 +730,24 @@ if __name__ == '__main__':
     file_manager = FilesManager()
     logger = Logger()
 
+    entities, hierarchy_mapping_objects, _ = get_filtered_data(filtered_data_file_name="mini_filtered_data",
+                                                               category="entities")
+
+    predicates_dict = {}
+
+    for entity in entities:
+        predicates = entity.relationships
+        for pred in predicates:
+            rel = pred.predicate
+
+            if rel in predicates_dict:
+                predicates_dict[rel] += 1
+            else:
+                predicates_dict[rel] = 1
+
+    print("hi")
+
+    exit()
     # df = cPickle.load(open("Temp/logger_data_df_entities.p"))
 
     parser_from_logger(dir_path="Temp")
