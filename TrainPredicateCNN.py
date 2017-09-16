@@ -30,7 +30,6 @@ NUM_EPOCHS = 90
 NUM_BATCHES = 128
 RATIO = 3.0 / 10
 
-
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
 if not used_percent == 1:
@@ -214,6 +213,38 @@ def pick_different_negative_sample_ratio(detections, ratio=1):
     return detections[all_indice]
 
 
+def sorting_urls(train_imgs, test_imgs, val_imgs):
+    """
+    This function sorting bad urls from the objects data-sets
+    :param train_imgs: train data
+    :param test_imgs: test data
+    :param val_imgs: validation data
+    :return: train, test and validation object list after sorting
+    """
+
+    # Get the bad urls
+    bad_urls = get_sorting_url()
+
+    # Remove bad urls
+    # Get indices that are not bad urls
+    train_indices = np.where(np.in1d(train_imgs[Detections.Url], bad_urls) == False)[0]
+    real_train_imgs = train_imgs[train_indices]
+
+    # Get indices that are not bad urls
+    test_indices = np.where(np.in1d(test_imgs[Detections.Url], bad_urls) == False)[0]
+    real_test_imgs = test_imgs[test_indices]
+
+    # Get indices that are not bad urls
+    val_indices = np.where(np.in1d(val_imgs[Detections.Url], bad_urls) == False)[0]
+    real_val_imgs = val_imgs[val_indices]
+
+    logger.log("Debug printing after sorting- the number of train samples: {0}, the number of test samples: {1}, "
+               "the number of validation samples: {2}".format(len(real_train_imgs),
+                                                              len(real_test_imgs),
+                                                              len(real_val_imgs)))
+    return real_train_imgs, real_test_imgs, real_val_imgs
+
+
 if __name__ == '__main__':
 
     # Define FileManager
@@ -270,13 +301,13 @@ if __name__ == '__main__':
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(
                                                         filtered_data_file_name="full_filtered_data",
                                                         # "mini_filtered_data",
-                                                        category='entities_visual_module')
+                                                        category='entities_visual_module',
+                                                        load_entities=False)
 
     if config.only_pos and "neg" in hierarchy_mapping_predicates:
         # Remove negative label from hierarchy_mapping_predicates because we want to train only positive
         hierarchy_mapping_predicates.pop("neg")
         RATIO = 0
-
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
@@ -294,6 +325,9 @@ if __name__ == '__main__':
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
                                                             testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
                                                             path=path, config=config)
+
+    # Sorting bad urls - should be delete sometime
+    train_imgs, test_imgs, val_imgs = sorting_urls(train_imgs, test_imgs, val_imgs)
 
     # Get the predicate hierarchy mapping and the number of the predicated classes
     # predicate_classes_count, predicate_hierarchy_mapping = get_predicate_hierarchy_mapping_from_detections(detections,
@@ -313,7 +347,8 @@ if __name__ == '__main__':
                                                                          hierarchy_mapping=hierarchy_mapping_predicates,
                                                                          config=config, mode='test',
                                                                          classification=Detections.Predicate,
-                                                                         type_box=Detections.UnionBox, batch_size=NUM_BATCHES)
+                                                                         type_box=Detections.UnionBox,
+                                                                         batch_size=NUM_BATCHES)
 
     # Create a data generator for VisualGenome
     data_gen_validation_vg = visual_genome_data_predicate_generator_with_batch(data=val_imgs,

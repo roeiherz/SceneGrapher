@@ -14,8 +14,8 @@ class Config:
 
         # Do we continuing to train or start from fresh
         self.loading_model = False
-        self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesCNN/Wed_Aug__2_21:38:55_2017"
-        self.loading_model_token = "scene_graph_base_module.visual_module.predicate_cnn"
+        self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Mon_Jul_24_19:58:35_2017"
+        self.loading_model_token = "scene_graph_base_module.visual_module.object_cnn"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
         self.use_cache_dir = False
@@ -28,7 +28,10 @@ class Config:
             self.nof_classes = 50
 
         # The Training is only with positive samples
-        self.only_pos = True
+        self.only_pos = False
+
+        # Use all objects data
+        self.use_all_objects_data = True
 
         # # Use masking for predicates CNN network
         # self.use_mask_predicate = True

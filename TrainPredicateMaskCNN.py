@@ -18,7 +18,7 @@ from keras import backend as K
 from keras.models import Model
 import sys
 import matplotlib.pyplot as plt
-from FeaturesExtraction.Utils.Utils import get_time_and_date, TRAINING_PREDICATE_CNN_PATH, get_sorting_url, \
+from FeaturesExtraction.Utils.Utils import get_time_and_date, TRAINING_PREDICATE_MASK_CNN_PATH, get_sorting_url, \
     replace_top_layer, DATA, \
     VISUAL_GENOME
 from Utils.Utils import create_folder
@@ -30,8 +30,8 @@ NOF_LABELS = 150
 TRAINING_PERCENT = 0.75
 VALIDATION_PERCENT = 0.05
 TESTING_PERCENT = 0.2
-NUM_EPOCHS = 1
-NUM_BATCHES = 1
+NUM_EPOCHS = 90
+NUM_BATCHES = 128
 RATIO = 3.0 / 10
 
 # If the allocation of training, validation and testing does not adds up to one
@@ -282,7 +282,7 @@ if __name__ == '__main__':
     time_and_date = get_time_and_date()
 
     # Path for the training folder
-    path = os.path.join(TRAINING_PREDICATE_CNN_PATH, time_and_date)
+    path = os.path.join(TRAINING_PREDICATE_MASK_CNN_PATH, time_and_date)
     # Create a new folder for training
     create_folder(path)
     # loading model weights
@@ -303,9 +303,10 @@ if __name__ == '__main__':
 
     # Load filtered data
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(
-                                                        filtered_data_file_name="mini_filtered_data",
-                                                        # "mini_filtered_data",
-                                                        category='entities_visual_module')
+        filtered_data_file_name="full_filtered_data",
+        # "mini_filtered_data",
+        category='entities',
+        load_entities=False)
 
     if config.only_pos and "neg" in hierarchy_mapping_predicates:
         # Remove negative label from hierarchy_mapping_predicates because we want to train only positive
@@ -314,17 +315,15 @@ if __name__ == '__main__':
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                                        relation_file_name="mini_relations")
+                                        relation_file_name="full_relations_all")
 
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="mini_detections")
+    detections = process_to_detections(relations, detections_file_name="full_detections_all")
 
     # Get new negative - positive ratio
     detections = pick_different_negative_sample_ratio(detections, ratio=RATIO)
 
     logger.log('Number of detections after sorting negatives: {0} with RATIO: {1}'.format(len(detections), RATIO))
-
-    detections = detections[:200]
 
     # Split the data to train, test and validate
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
@@ -332,7 +331,7 @@ if __name__ == '__main__':
                                                             path=path, config=config)
 
     # Sorting bad urls - should be delete sometime
-    # train_imgs, test_imgs, val_imgs = sorting_urls(train_imgs, test_imgs, val_imgs)
+    train_imgs, test_imgs, val_imgs = sorting_urls(train_imgs, test_imgs, val_imgs)
 
     # Get the predicate hierarchy mapping and the number of the predicated classes
     # predicate_classes_count, predicate_hierarchy_mapping = get_predicate_hierarchy_mapping_from_detections(detections,
@@ -341,27 +340,27 @@ if __name__ == '__main__':
 
     # Create a data generator for VisualGenome with batch size
     data_gen_train_vg = visual_genome_data_predicate_mask_generator_with_batch(data=train_imgs,
-                                                                          hierarchy_mapping=hierarchy_mapping_predicates,
-                                                                          config=config, mode='train',
-                                                                          classification=Detections.Predicate,
-                                                                          type_box=Detections.UnionBox,
-                                                                          batch_size=NUM_BATCHES)
-
-    # Create a data generator for VisualGenome
-    data_gen_test_vg = visual_genome_data_predicate_mask_generator_with_batch(data=test_imgs,
-                                                                         hierarchy_mapping=hierarchy_mapping_predicates,
-                                                                         config=config, mode='test',
-                                                                         classification=Detections.Predicate,
-                                                                         type_box=Detections.UnionBox,
-                                                                         batch_size=NUM_BATCHES)
-
-    # Create a data generator for VisualGenome
-    data_gen_validation_vg = visual_genome_data_predicate_mask_generator_with_batch(data=val_imgs,
                                                                                hierarchy_mapping=hierarchy_mapping_predicates,
-                                                                               config=config, mode='valid',
+                                                                               config=config, mode='train',
                                                                                classification=Detections.Predicate,
                                                                                type_box=Detections.UnionBox,
                                                                                batch_size=NUM_BATCHES)
+
+    # Create a data generator for VisualGenome
+    data_gen_test_vg = visual_genome_data_predicate_mask_generator_with_batch(data=test_imgs,
+                                                                              hierarchy_mapping=hierarchy_mapping_predicates,
+                                                                              config=config, mode='test',
+                                                                              classification=Detections.Predicate,
+                                                                              type_box=Detections.UnionBox,
+                                                                              batch_size=NUM_BATCHES)
+
+    # Create a data generator for VisualGenome
+    data_gen_validation_vg = visual_genome_data_predicate_mask_generator_with_batch(data=val_imgs,
+                                                                                    hierarchy_mapping=hierarchy_mapping_predicates,
+                                                                                    config=config, mode='valid',
+                                                                                    classification=Detections.Predicate,
+                                                                                    type_box=Detections.UnionBox,
+                                                                                    batch_size=NUM_BATCHES)
 
     # Set the number of classes
     if config.replace_top:

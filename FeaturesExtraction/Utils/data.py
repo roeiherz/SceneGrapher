@@ -860,13 +860,15 @@ def create_random_tuples(entity, positive_negative_ratio):
     return sub_obj_lst
 
 
-def get_filtered_data(filtered_data_file_name="filtered_module_data.p", category='entities_visual_module'):
+def get_filtered_data(filtered_data_file_name="filtered_module_data.p", category='entities_visual_module',
+                      load_entities=True):
     """
     This function loads a dict that was created by get_module_filter_data function.
     The dict contains:
     * filtered entities by the top 150 objects and top 50 predicates 
     * hierarchy mapping of objects  
     * hierarchy mapping of predicates
+    :param load_entities: A flag to load entities or return None
     :param category: category is 'entities_visual_module' (only second - 1/2 entities) or 'entities' (all entities) or 
             'entities_module' (only first - 1/2 entities/ shiko)
     :param filtered_data_file_name: the file name of the filtered data
@@ -879,8 +881,11 @@ def get_filtered_data(filtered_data_file_name="filtered_module_data.p", category
     filtered_module_data = filemanager.load_file(
         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(filtered_data_file_name)))
 
-    entities = filtered_module_data[category]
-    # entities = filtered_module_data['entities']
+    if load_entities:
+        entities = filtered_module_data[category]
+    else:
+        entities = None
+
     hierarchy_mapping_objects = filtered_module_data['object_ids']
     hierarchy_mapping_predicates = filtered_module_data['predicate_ids']
     return entities, hierarchy_mapping_objects, hierarchy_mapping_predicates

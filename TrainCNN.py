@@ -245,13 +245,15 @@ if __name__ == '__main__':
     #                                                              entities_file_name="final_entities.p",
     #                                                              nof_labels=NOF_LABELS)
 
-    entities, hierarchy_mapping_objects, _ = get_filtered_data(filtered_data_file_name="mini_filtered_data")
+    entities, hierarchy_mapping_objects, _ = get_filtered_data(filtered_data_file_name="full_filtered_data",
+                                                               category='entities',
+                                                               load_entities=False)
 
     # Get Visual Genome Data objects
-    objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="mini_objects")
+    objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="full_objects_all")
 
-    # If there is too much data tak only part pf the data
-    if len(objects) > MAX_NOF_SAMPLES_THR:
+    # If there is too much data take only part pf the data
+    if len(objects) > MAX_NOF_SAMPLES_THR and not config.use_all_objects_data:
         objects = objects[:MAX_NOF_SAMPLES]
 
     train_imgs, test_imgs, val_imgs = splitting_to_datasets(objects, training_percent=TRAINING_PERCENT,

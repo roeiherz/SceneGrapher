@@ -13,11 +13,12 @@ data:
         hierarchy_mapping_objects:
             name: "Data/VisualGenome/hierarchy_mapping_objects.p"
             type: "pickle"
-            doc: "dictionary mapping supported object labels to object ids"
+            doc: "dictionary mapping supported object labels to object ids old data"
+
         hierarchy_mapping_predicates:
             name: "Data/VisualGenome/hierarchy_mapping_predicates.p"
             type: "pickle"
-            doc: "dictionary mapping supported object labels to predicate ids"
+            doc: "dictionary mapping supported object labels to predicate ids old data"
 
         # Don't know what is it..1000 entities/50000 entities?
         filtered_data:
@@ -85,6 +86,11 @@ data:
             type: "pickle"
             doc:  "Relations (ONLY FROM 54000 ENTITIES) includes *ONLY* positive "
 
+        full_relations_all:
+            name: "Data/VisualGenome/full_entities_filtered_relations_all.p"
+            type: "pickle"
+            doc:  "Relations (ALL 108000 ENTITIES) includes positive and negative predicates 1X3"
+
         # Detections (for TrainPredicateCNN)
         mini_detections:
             name: "Data/VisualGenome/mini_visual_filtered_detections.p"
@@ -107,6 +113,11 @@ data:
             type: "pickle"
             doc:  "Detections (ONLY FROM 54000 ENTITIES) includes *ONLY* positive"
 
+        full_detections_all:
+            name: "Data/VisualGenome/full_entities_filtered_detections_all.p"
+            type: "pickle"
+            doc:  "Detections (ALL 108000 ENTITIES) includes positive and negative predicates 1X3"
+
         # Objects (for TrainCNN)
         mini_objects:
             name: "Data/VisualGenome/mini_visual_filtered_objects.p"
@@ -116,6 +127,10 @@ data:
             name: "Data/VisualGenome/full_visual_filtered_objects.p"
             type: "pickle"
             doc:  "Objects (ONLY FROM 54000 ENTITIES) only positive"
+        full_objects_all:
+            name: "Data/VisualGenome/full_entities_filtered_objects_all.p"
+            type: "pickle"
+            doc:  "Objects (ALL 108000 ENTITIES) only positive"
 
         # Objects with Probabilities (for PredictVisualModel)
         mini_objects_with_probs:
@@ -201,7 +216,7 @@ scene_graph_base_module:
             doc: "detections of mini data with neg"
 
         object_cnn:
-            name: "FeaturesExtraction/ObjectsCNN/Thu_Jul_13_13:37:54_2017/model_vg_resnet50.hdf5"
+            name: "FeaturesExtraction/ObjectsCNN/Mon_Jul_24_19:58:35_2017/model_vg_resnet50.hdf5"
             type: "dir"
             doc: "path to object cnn"
             versions:
@@ -209,8 +224,12 @@ scene_graph_base_module:
                     date: "xx:xx:xx"
                     name: "FeaturesExtraction/ObjectCNN/Fri_Jun__2_19:16:26_2017/model_vg_resnet50.hdf5"
                     doc: "trained 650000 positives without negative examples"
+                1:
+                    date: "xx:xx:xx"
+                    name: "FeaturesExtraction/ObjectCNN/Thu_Jul_13_13:37:54_2017/model_vg_resnet50.hdf5"
+                    doc: "trained 650000 positives without negative examples"
 
-        predicate_cnn:
+        predicate_cnn_no_neg:
             name: "FeaturesExtraction/PredicatesCNN/Wed_Aug__2_21:38:55_2017/model_vg_resnet50.hdf5"
             type: "dir"
             doc: "path to predicate cnn. A network which trained on the best 50 most probable predicats in the data (without neg) wiht the NEW DATA"
@@ -219,6 +238,17 @@ scene_graph_base_module:
                     date: "02:06:17"
                     name: "FeaturesExtraction/PredicatesCNN/Fri_Jun__2_20:00:24_2017/model_vg_resnet50.hdf5"
                     doc: "path to predicate cnn. A network which trained on the best 50 most probable predicats in the data (without neg)"
+
+        predicate_cnn:
+            name: "FeaturesExtraction/PredicatesCNN/Wed_Aug__2_21:55:12_2017/model_vg_resnet50.hdf5"
+            type: "dir"
+            doc: "path to predicate cnn. A network which trained on the best 50 most probable predicats in the data (with neg) wiht the NEW DATA"
+
+        predicate_mask_cnn:
+            name: "FeaturesExtraction/PredicatesMaskCNN/Sat_Sep_16_14:36:13_2017/model_vg_resnet50.hdf5"
+            type: "dir"
+            doc: "path to predicate mask cnn. A network which trained on the best 50 most probable predicats in the data (with neg) with the NEW DATA"
+
 
         image_net_tf:
             name: "Data/VisualGenome/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5"
