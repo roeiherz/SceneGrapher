@@ -60,3 +60,8 @@ USED in base case
 -------------------
 objects: Fri_Jun__2_19:16:26_2017
 predicates: Wed_Jun_14_20:25:16_2017
+
+USED in course project
+--------------------------------
+objects: Mon_Jul_24_19:58:35_2017
+predicates: Wed_Aug__2_21:55:12_2017
