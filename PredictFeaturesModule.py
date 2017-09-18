@@ -3,7 +3,8 @@ from __future__ import print_function
 from Data.VisualGenome.models import ObjectMapping
 from DesignPatterns.Detections import Detections
 from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator_with_batch, \
-    visual_genome_data_predicate_pairs_generator_with_batch
+    visual_genome_data_predicate_pairs_generator_with_batch, \
+    visual_genome_data_predicate_mask_pairs_generator_with_batch
 
 from FeaturesExtraction.Lib.Zoo import ModelZoo
 import traceback
@@ -19,7 +20,7 @@ import math
 from FeaturesExtraction.Utils.Boxes import BOX, find_union_box
 from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH, get_img_resize, TRAINING_OBJECTS_CNN_PATH, \
     TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img, get_mask_from_object, get_time_and_date, \
-    PREDICATED_FEATURES_PATH
+    PREDICATED_FEATURES_PATH, get_bad_urls, get_sorting_url, TRAINING_PREDICATE_MASK_CNN_PATH
 from FeaturesExtraction.Utils.data import get_filtered_data, get_name_from_file
 from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
 from FilesManager.FilesManager import FilesManager
@@ -28,7 +29,8 @@ import itertools
 from Utils.Utils import create_folder
 
 NUM_EPOCHS = 1
-NUM_BATCHES = 128 * 3
+NUM_BATCHES = 128 * 1
+USE_PREDICATES_MASK = True
 
 __author__ = 'roeih'
 
@@ -64,9 +66,10 @@ def save_files(path, files, name="predicated_entities"):
     Logger().log("File Have been save in {}".format(detections_filename))
 
 
-def get_model(number_of_classes, weight_path, config, activation="softmax"):
+def get_model(number_of_classes, weight_path, config, activation="softmax", use_mask=False):
     """
         This function loads the model
+        :param use_mask: Using mask means different ResNet50 model
         :param activation: softmax is the default, otherwise its none
         :param weight_path: model weights path
         :param number_of_classes: number of classes
@@ -75,15 +78,25 @@ def get_model(number_of_classes, weight_path, config, activation="softmax"):
         """
 
     if K.image_dim_ordering() == 'th':
-        input_shape_img = (3, None, None)
+        if use_mask:
+            input_shape_img = (4, None, None)
+        else:
+            input_shape_img = (3, None, None)
     else:
-        input_shape_img = (config.crop_height, config.crop_width, 3)
+        if use_mask:
+            input_shape_img = (config.crop_height, config.crop_width, 4)
+        else:
+            input_shape_img = (config.crop_height, config.crop_width, 3)
 
     img_input = Input(shape=input_shape_img, name="image_input")
 
     # Define ResNet50 model Without Top
     net = ModelZoo()
-    model_resnet50 = net.resnet50_base(img_input, trainable=True)
+    if use_mask:
+        model_resnet50 = net.resnet50_with_masking(img_input, trainable=True)
+    else:
+        model_resnet50 = net.resnet50_base(img_input, trainable=True)
+
     model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
     output_resnet50 = Dense(number_of_classes, kernel_initializer="he_normal", activation=activation, name='fc')(
         model_resnet50)
@@ -138,10 +151,13 @@ def from_object_to_objects_mapping(objects, correct_labels, url):
     return objects_lst
 
 
-def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_objects):
+def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_objects, save_features=True,
+                               save_beliefs=True):
     """
     This function predicts objects for module later - object_probes [n, 150], object_features [n, 2048], object_labels
-    [n, 150]
+    [n, 150], objects_beliefs [n, 150]
+    :param save_beliefs: Saving beliefs
+    :param save_features: Saving features
     :param objects: List of objects
     :param entity: Entity visual genome class
     :param url_data: a url data
@@ -180,6 +196,10 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
     # Save labels
     entity.objects_labels = np.copy(objects_labels)
 
+    # End if we do not saving features and not features
+    if not save_beliefs and not save_features:
+        return
+
     ## Get object features
     resized_img_lst = []
     # Define the function
@@ -214,33 +234,48 @@ def predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_obje
     objects_outputs_without_softmax = []
     features_lst = []
     for batch in range(num_of_batches_per_epoch):
-        logger.log(
-            "Prediction Batch Number of Features from *Objects* is {0}/{1}".format(batch + 1, num_of_batches_per_epoch))
-        # Get the object features [len(objects), 2048]
-        object_features = \
-            features_output_object_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
-        features_lst.append(object_features)
 
-        logger.log(
-            "Prediction Batch Number of Outputs with no activation from *Objects* is {0}/{1}".format(batch + 1,
-                                                                                                     num_of_batches_per_epoch))
+        ## Get the object features [len(objects), 2048]
+        if save_features:
+            # If we want to predict and save features
+            logger.log(
+                "Prediction Batch Number of Features from *Objects* is {0}/{1}".format(batch + 1,
+                                                                                       num_of_batches_per_epoch))
 
-        # Get the object features [len(objects), 150]
-        objects_noactivation_outputs = \
-            noactivation_outputs_object_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
-        objects_outputs_without_softmax.append(objects_noactivation_outputs)
+            object_features = \
+                features_output_object_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+            features_lst.append(object_features)
 
-    # Save objects features - [len(objects), 2048]
-    entity.objects_features = np.copy(np.concatenate(features_lst))
+        if save_beliefs:
+            # If we want to predict and save beliefs
+            logger.log(
+                "Prediction Batch Number of Outputs with no activation from *Objects* is {0}/{1}".format(batch + 1,
+                                                                                                         num_of_batches_per_epoch))
 
-    # Save objects output with no activation (no softmax) - [len(objects), 150]
-    entity.objects_outputs_with_no_activations = np.copy(np.concatenate(objects_outputs_without_softmax))
+            ## Get the object features [len(objects), 150]
+            objects_noactivation_outputs = \
+                noactivation_outputs_object_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+            objects_outputs_without_softmax.append(objects_noactivation_outputs)
+
+    # If we want to predict and save features
+    if save_features:
+        # Save objects features - [len(objects), 2048]
+        entity.objects_features = np.copy(np.concatenate(features_lst))
+
+    # If we want to predict and save beliefs
+    if save_beliefs:
+        # Save objects output with no activation (no softmax) - [len(objects), 150]
+        entity.objects_outputs_with_no_activations = np.copy(np.concatenate(objects_outputs_without_softmax))
 
 
-def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_predicates):
+def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_predicates, save_features=True,
+                                  save_beliefs=True, use_mask=False):
     """
     This function predicts predicates for module later - predicates_probes [n, n, 51], predicates_features [n, n, 2048],
-    predicates_labels [n, n, 51]
+    predicates_labels [n, n, 51], predicate_beliefs [n, n, 51]
+    :param use_mask: Using mask means different ResNet50 model and different generator
+    :param save_beliefs: Saving beliefs
+    :param save_features: Saving features
     :param objects: List of objects
     :param entity: Entity visual genome class
     :param url_data: a url data
@@ -269,15 +304,25 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
                      .format(entity.image.id, len(entity.relationships), len(relations_dict)))
         # exit()
 
-    # Create a data generator for VisualGenome for PREDICATES
-    data_gen_val_predicates_vg = visual_genome_data_predicate_pairs_generator_with_batch(data=objects_pairs,
-                                                                                         relations_dict=relations_dict,
-                                                                                         hierarchy_mapping=hierarchy_mapping_predicates,
-                                                                                         config=config,
-                                                                                         mode='validation',
-                                                                                         batch_size=NUM_BATCHES,
-                                                                                         evaluate=True)
-    # Get the Predicate probabilities [n, 51]
+    # Create a data generator for VisualGenome for PREDICATES depends using masks
+    if use_mask:
+        data_gen_val_predicates_vg = visual_genome_data_predicate_mask_pairs_generator_with_batch(data=objects_pairs,
+                                                                                                  relations_dict=relations_dict,
+                                                                                                  hierarchy_mapping=hierarchy_mapping_predicates,
+                                                                                                  config=config,
+                                                                                                  mode='validation',
+                                                                                                  batch_size=NUM_BATCHES,
+                                                                                                  evaluate=True)
+    else:
+        data_gen_val_predicates_vg = visual_genome_data_predicate_pairs_generator_with_batch(data=objects_pairs,
+                                                                                             relations_dict=relations_dict,
+                                                                                             hierarchy_mapping=hierarchy_mapping_predicates,
+                                                                                             config=config,
+                                                                                             mode='validation',
+                                                                                             batch_size=NUM_BATCHES,
+                                                                                             evaluate=True)
+
+    ## Get the Predicate probabilities [n, 51]
     predicates_probes = predicate_model.predict_generator(data_gen_val_predicates_vg,
                                                           steps=int(math.ceil(len(objects_pairs) / float(NUM_BATCHES))),
                                                           max_q_size=1, workers=1)
@@ -295,7 +340,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
          if (pair[0].id, pair[1].id) in relations_dict else hierarchy_mapping_predicates['neg']
          for pair in objects_pairs])
 
-    # Get the predicate GT label - [ len(objects_pairs), ]
+    ## Get the predicate GT label by name - [ len(objects_pairs), ]
     predicate_gt_sample = np.array(
         [relations_dict[(pair[0].id, pair[1].id)] if (pair[0].id, pair[1].id) in relations_dict else -1
          for pair in objects_pairs])
@@ -303,7 +348,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     reshape_predicate_gt_sample = predicate_gt_sample.reshape(len(objects), len(objects))
     entity.predicates_gt_names = np.copy(reshape_predicate_gt_sample)
 
-    # Get the predicate GT label - [ len(objects_pairs), ]
+    ## Get the predicate GT label by id - [ len(objects_pairs), ]
     relation_filtered_id_gt_sample = np.array([relations_filtered_id_dict[(pair[0].id, pair[1].id)]
                                                if (pair[0].id, pair[1].id) in relations_filtered_id_dict else -1
                                                for pair in objects_pairs])
@@ -355,7 +400,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
                      (index_labels_per_gt_sample == hierarchy_mapping_predicates['neg']))[0].shape[0] /
             float(np.sum(index_labels_per_gt_sample == hierarchy_mapping_predicates['neg']))))
 
-    # Get the object labels on hot vector per object [len(objects), 51]
+    ## Get the object labels on hot vector per object [len(objects), 51]
     predicates_labels = np.eye(len(hierarchy_mapping_predicates), dtype='uint8')[index_labels_per_gt_sample.reshape(-1)]
     # Reshape the predicates labels [n, n, 51]
     reshaped_predicates_labels = predicates_labels.reshape(
@@ -363,7 +408,11 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     # Save labels
     entity.predicates_labels = np.copy(reshaped_predicates_labels)
 
-    ## Get object features
+    # End if we do not saving features and not features
+    if not save_beliefs and not save_features:
+        return
+
+    ## Get predicates features
     resized_img_lst = []
     # Define the function
     for object_pair in objects_pairs:
@@ -389,6 +438,22 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
 
             patch = img[union_box[BOX.Y1]: union_box[BOX.Y2], union_box[BOX.X1]: union_box[BOX.X2], :]
             resized_img = get_img_resize(patch, config.crop_width, config.crop_height, type=config.padding_method)
+
+            # Using mask means the data should be
+            if use_mask:
+                # Fill HeatMap
+                heat_map = np.zeros(img.shape)
+                heat_map[subject_box[BOX.Y1]: subject_box[BOX.Y2], subject_box[BOX.X1]: subject_box[BOX.X2],
+                :] = 255
+                heat_map[object_box[BOX.Y1]: object_box[BOX.Y2], object_box[BOX.X1]: object_box[BOX.X2], :] = 255
+                # Cropping the patch from the heat map.
+                patch_heatmap = heat_map[union_box[BOX.Y1]: union_box[BOX.Y2], union_box[BOX.X1]: union_box[BOX.X2], :]
+                # Resize the image according the padding method
+                resized_heatmap = get_img_resize(patch_heatmap, config.crop_width, config.crop_height,
+                                                 type=config.padding_method)
+                # Concatenate the heat-map to the image in the kernel axis
+                resized_img = np.concatenate((resized_img, resized_heatmap[:, :, :1]), axis=2)
+
             resized_img = np.expand_dims(resized_img, axis=0)
             resized_img_lst.append(resized_img)
 
@@ -413,42 +478,50 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
     predicates_outputs_without_softmax = []
 
     for batch in range(num_of_batches_per_epoch):
-        logger.log(
-            "Prediction Batch Number of Features from *Relations* is {0}/{1}".format(batch + 1,
-                                                                                     num_of_batches_per_epoch))
-        # Get the object features [len(objects), 2048]
-        predicate_features = \
-            features_output_predicate_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
-        features_lst.append(predicate_features)
 
-        logger.log(
-            "Prediction Batch Number of Outputs with no activation from *Relations* is {0}/{1}".format(batch + 1,
-                                                                                                       num_of_batches_per_epoch))
+        ## Get the object features [len(objects), 2048]
+        if save_features:
+            # If we want to predict and save features
+            logger.log(
+                "Prediction Batch Number of Features from *Relations* is {0}/{1}".format(batch + 1,
+                                                                                         num_of_batches_per_epoch))
+            predicate_features = \
+                features_output_predicate_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+            features_lst.append(predicate_features)
 
-        # Get the object features [len(objects), 150]
-        predict_noactivation_outputs = \
-            noactivation_outputs_predicate_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
-        predicates_outputs_without_softmax.append(predict_noactivation_outputs)
+        # If we want to predict and save beliefs
+        if save_beliefs:
+            ##  Get the predicate beliefs [len(objects), len(objects), 51]
+            logger.log(
+                "Prediction Batch Number of Outputs with no activation from *Relations* is {0}/{1}".format(batch + 1,
+                                                                                                           num_of_batches_per_epoch))
+            predict_noactivation_outputs = \
+                noactivation_outputs_predicate_func([resized_img_arr[batch * batch_size: (batch + 1) * batch_size]])[0]
+            predicates_outputs_without_softmax.append(predict_noactivation_outputs)
 
-    # Concatenate to [n*n, 2048]
-    predicates_features = np.concatenate(features_lst)
-    # Number of features
-    number_of_features = predicates_features.shape[1]
-    # Reshape the predicates labels [n, n, 2048]
-    reshaped_predicates_features = predicates_features.reshape((len(objects), len(objects), number_of_features))
-    # Save predicates features
-    entity.predicates_features = np.copy(reshaped_predicates_features)
+    # If we want to predict and save features
+    if save_features:
+        # Concatenate to [n*n, 2048]
+        predicates_features = np.concatenate(features_lst)
+        # Number of features
+        number_of_features = predicates_features.shape[1]
+        # Reshape the predicates labels [n, n, 2048]
+        reshaped_predicates_features = predicates_features.reshape((len(objects), len(objects), number_of_features))
+        # Save predicates features
+        entity.predicates_features = np.copy(reshaped_predicates_features)
 
-    # Concatenate to [n*n, 51]
-    predicates_outputs_with_no_activation = np.concatenate(predicates_outputs_without_softmax)
-    # Number of features
-    number_of_outputs = predicates_outputs_with_no_activation.shape[1]
-    # Reshape the predicates labels [n, n, 51]
-    reshaped_predicates_outputs_with_no_activation = predicates_outputs_with_no_activation.reshape((len(objects),
-                                                                                                    len(objects),
-                                                                                                    number_of_outputs))
-    # Save predicate outputs with no activations (no softmax)
-    entity.predicates_outputs_with_no_activation = np.copy(reshaped_predicates_outputs_with_no_activation)
+    # If we want to predict and save beliefs
+    if save_beliefs:
+        # Concatenate to [n*n, 51]
+        predicates_outputs_with_no_activation = np.concatenate(predicates_outputs_without_softmax)
+        # Number of features
+        number_of_outputs = predicates_outputs_with_no_activation.shape[1]
+        # Reshape the predicates labels [n, n, 51]
+        reshaped_predicates_outputs_with_no_activation = predicates_outputs_with_no_activation.reshape((len(objects),
+                                                                                                        len(objects),
+                                                                                                        number_of_outputs))
+        # Save predicate outputs with no activations (no softmax)
+        entity.predicates_outputs_with_no_activation = np.copy(reshaped_predicates_outputs_with_no_activation)
 
 
 if __name__ == '__main__':
@@ -501,8 +574,13 @@ if __name__ == '__main__':
     # Load the weight paths
     objects_model_weight_path = os.path.join(TRAINING_OBJECTS_CNN_PATH, objects_training_dir_name,
                                              WEIGHTS_NAME)
-    predicates_model_weight_path = os.path.join(TRAINING_PREDICATE_CNN_PATH, predicates_training_dir_name,
-                                                WEIGHTS_NAME)
+
+    if USE_PREDICATES_MASK:
+        predicates_model_weight_path = os.path.join(TRAINING_PREDICATE_MASK_CNN_PATH, predicates_training_dir_name,
+                                                    WEIGHTS_NAME)
+    else:
+        predicates_model_weight_path = os.path.join(TRAINING_PREDICATE_CNN_PATH, predicates_training_dir_name,
+                                                    WEIGHTS_NAME)
 
     if config.only_pos and "neg" in hierarchy_mapping_predicates:
         # Remove negative label from hierarchy_mapping_predicates because we want to train only positive
@@ -514,13 +592,14 @@ if __name__ == '__main__':
 
     # Get the object and predicate models
     object_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path, config=config)
-    predicate_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config)
+    predicate_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config,
+                                use_mask=USE_PREDICATES_MASK)
 
     # Get objects model without activation (no softmax) in the last Dense layer
     objects_no_activation_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path,
                                             config=config, activation=None)
     predicates_no_activation_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path,
-                                               config=config, activation=None)
+                                               config=config, activation=None, use_mask=USE_PREDICATES_MASK)
 
     # Get the functions for later predict features and outputs without softmax
     noactivation_outputs_predicate_func = K.function([predicates_no_activation_model.layers[0].input],
@@ -543,6 +622,8 @@ if __name__ == '__main__':
     # total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
     SPLIT_ENT = 1000
+    bad_urls = get_bad_urls()
+    # bad_urls = get_sorting_url()
     num_of_iters = int(math.ceil(float(len(total_entities)) / SPLIT_ENT))
 
     logger.log(
@@ -572,6 +653,10 @@ if __name__ == '__main__':
                     # if entity.image.id != 2366365:
                     #     continue
 
+                    # Make sure
+                    if entity.image.url in bad_urls:
+                        continue
+
                     # Increment index
                     ind += 1
 
@@ -587,10 +672,12 @@ if __name__ == '__main__':
                         continue
 
                     # Predict objects per entity
-                    predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_objects)
+                    predict_objects_for_module(entity, objects, url_data, hierarchy_mapping_objects,
+                                               save_features=False)
 
                     # Predict predicates per entity
-                    predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_predicates)
+                    predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_predicates,
+                                                  save_features=False, use_mask=USE_PREDICATES_MASK)
 
                     predicated_entities.append(entity)
                 except Exception as e:

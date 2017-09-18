@@ -16,7 +16,7 @@ import sys
 import math
 from FeaturesExtraction.Utils.Boxes import BOX
 from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH, get_img_resize, TRAINING_OBJECTS_CNN_PATH, \
-    TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img
+    TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img, get_bad_urls
 import time
 from FeaturesExtraction.Utils.data import get_filtered_data, get_name_from_file, process_to_detections
 from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
@@ -156,11 +156,14 @@ def sort_detections_by_url(detections):
     :param detections: detections numpy dtype array
     :return: sorted detections 
     """
-    idx = np.where((detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2321818.jpg") |
-                   (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2334844.jpg") |
-                   (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K_2/3807.jpg") |
-                   (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K_2/2410658.jpg") |
-                   (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2374264.jpg"))
+    # idx = np.where((detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2321818.jpg") |
+    #                (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2334844.jpg") |
+    #                (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K_2/3807.jpg") |
+    #                (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K_2/2410658.jpg") |
+    #                (detections[Detections.Url] == "https://cs.stanford.edu/people/rak248/VG_100K/2374264.jpg"))
+
+    bad_urls = get_bad_urls()
+    idx = np.where(np.in1d(detections[Detections.Url], bad_urls) == True)[0]
     new_detections = np.delete(detections, idx)
     return new_detections
 
