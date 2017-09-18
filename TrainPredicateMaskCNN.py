@@ -229,6 +229,9 @@ def sorting_urls(train_imgs, test_imgs, val_imgs):
     # Get the bad urls
     bad_urls = get_sorting_url()
 
+    if len(bad_urls) < 100:
+        logger.log("WARNING: number of bad urls is lower than 100")
+
     # Remove bad urls
     # Get indices that are not bad urls
     train_indices = np.where(np.in1d(train_imgs[Detections.Url], bad_urls) == False)[0]
@@ -303,10 +306,11 @@ if __name__ == '__main__':
 
     # Load filtered data
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(
-        filtered_data_file_name="full_filtered_data",
-        # "mini_filtered_data",
-        category='entities',
-        load_entities=False)
+                                                                            filtered_data_file_name=
+                                                                            # "full_filtered_data",
+                                                                            "mini_filtered_data",
+                                                                            category='entities',
+                                                                            load_entities=False)
 
     if config.only_pos and "neg" in hierarchy_mapping_predicates:
         # Remove negative label from hierarchy_mapping_predicates because we want to train only positive
@@ -315,10 +319,10 @@ if __name__ == '__main__':
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                                        relation_file_name="full_relations_all")
+                                        relation_file_name="mini_relations")
 
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="full_detections_all")
+    detections = process_to_detections(relations, detections_file_name="mini_detections")
 
     # Get new negative - positive ratio
     detections = pick_different_negative_sample_ratio(detections, ratio=RATIO)

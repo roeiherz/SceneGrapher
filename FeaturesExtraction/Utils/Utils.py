@@ -1320,7 +1320,7 @@ def get_sorting_url():
                          u'https://cs.stanford.edu/people/rak248/VG_100K/2338130.jpg',
                          u'https://cs.stanford.edu/people/rak248/VG_100K/2338129.jpg']
 
-    # mini_entities_lst = []
+    mini_entities_lst = []
     return bad_lst + mini_entities_lst
 
 
