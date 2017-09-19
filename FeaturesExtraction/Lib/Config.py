@@ -14,13 +14,13 @@ class Config:
 
         # Do we continuing to train or start from fresh
         self.loading_model = False
-        self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Mon_Jul_24_19:58:35_2017"
+        self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sat_Sep_16_14:36:13_2017"
         self.loading_model_token = "scene_graph_base_module.visual_module.object_cnn"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
         self.use_cache_dir = False
         # Load weights
-        self.load_weights = False
+        self.load_weights = True
         # Replace the Dense layer
         self.replace_top = False
         # If we replace top, what is the old top number of classes
@@ -28,7 +28,7 @@ class Config:
             self.nof_classes = 50
 
         # The Training is only with positive samples
-        self.only_pos = True
+        self.only_pos = False
 
         # Use all objects data
         self.use_all_objects_data = True

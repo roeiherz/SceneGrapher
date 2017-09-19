@@ -329,17 +329,22 @@ def splitting_to_datasets(entities, training_percent, testing_percent, num_epoch
     val_imgs = entities[indices[train_size + test_size:]]
 
     # Take the round number of each dataset per the number of epochs
-    num_of_samples_per_train_updated = len(train_imgs) / num_epochs * num_epochs
-    train_imgs = train_imgs[:num_of_samples_per_train_updated]
-    num_of_samples_per_test_updated = len(test_imgs) / num_epochs * num_epochs
-    test_imgs = test_imgs[:num_of_samples_per_test_updated]
-    num_of_samples_per_val_updated = number_of_samples - num_of_samples_per_train_updated - num_of_samples_per_test_updated
-    val_imgs = val_imgs[:num_of_samples_per_val_updated]
+    # num_of_samples_per_train_updated = len(train_imgs) / num_epochs * num_epochs
+    # train_imgs = train_imgs[:num_of_samples_per_train_updated]
+    # num_of_samples_per_test_updated = len(test_imgs) / num_epochs * num_epochs
+    # test_imgs = test_imgs[:num_of_samples_per_test_updated]
+    # num_of_samples_per_val_updated = number_of_samples - num_of_samples_per_train_updated - num_of_samples_per_test_updated
+    # val_imgs = val_imgs[:num_of_samples_per_val_updated]
+
+    # print("Debug printing- the number of train samples: {0}, the number of test samples: {1}, "
+    #       "the number of validation samples: {2}".format(num_of_samples_per_train_updated,
+    #                                                      num_of_samples_per_test_updated,
+    #                                                      num_of_samples_per_val_updated))
 
     print("Debug printing- the number of train samples: {0}, the number of test samples: {1}, "
-          "the number of validation samples: {2}".format(num_of_samples_per_train_updated,
-                                                         num_of_samples_per_test_updated,
-                                                         num_of_samples_per_val_updated))
+          "the number of validation samples: {2}".format(train_size,
+                                                         test_size,
+                                                         validation_size))
 
     # Save train-set and test-set and validation-set
     pickle_dataset(train_imgs, test_imgs, val_imgs, path)
