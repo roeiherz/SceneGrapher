@@ -1320,7 +1320,7 @@ def get_sorting_url():
                          u'https://cs.stanford.edu/people/rak248/VG_100K/2338130.jpg',
                          u'https://cs.stanford.edu/people/rak248/VG_100K/2338129.jpg']
 
-    mini_entities_lst = []
+    # mini_entities_lst = []
     return bad_lst + mini_entities_lst
 
 
@@ -1337,7 +1337,7 @@ def get_bad_urls():
             "https://cs.stanford.edu/people/rak248/VG_100K/2317411.jpg",
             "https://cs.stanford.edu/people/rak248/VG_100K_2/617.jpg",
             "https://cs.stanford.edu/people/rak248/VG_100K_2/2395526.jpg",
-            "https://cs.stanford.edu/people/rak248/VG_100K_2/2387785.jpg"
+            "https://cs.stanford.edu/people/rak248/VG_100K_2/2387785.jpg",
             "https://cs.stanford.edu/people/rak248/VG_100K/150325.jpg",
             "https://cs.stanford.edu/people/rak248/VG_100K/2367629.jpg",
             "https://cs.stanford.edu/people/rak248/VG_100K_2/2414329.jpg",
