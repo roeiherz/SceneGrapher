@@ -1,6 +1,7 @@
 import inspect
 import os
 import sys
+from multiprocessing import Process
 
 sys.path.append("..")
 
@@ -117,6 +118,8 @@ def eval_image(img, reverse_object_ids, reverse_predicate_ids, labels_predicate,
             indices = sub_predictions_indices & obj_predictions_indices & relation_indices
             if len(indices) != 0:
                 img_score += 1
+            else:
+                img_score = img_score
 
     if nof_pos_relationship != 0:
         img_score_precent = float(img_score) / nof_pos_relationship
@@ -128,11 +131,11 @@ def eval_image(img, reverse_object_ids, reverse_predicate_ids, labels_predicate,
     return img_score_precent, img_score, nof_pos_relationship
 
 
-def eval(load_module_name="lh_relu_2", sg_class=True, rnn_steps=1, gpu=0):
+def eval(load_module_name=None, k_recall=True, pred_class=True, rnn_steps=0, k=100, gpu=1):
     """
     Evaluate module:
     - Scene Graph Classification - R@k metric (measures the fraction of ground truth relationships
-      triplets that appear among the k most confident triplet prediction in an image)
+      triplets that appear among the k most confident triplet predirction in an image)
     - Predicate Classification - Examine the model performance on predicates classification in isolation from other factors
     :param nof_iterations: - nof of images to test
     :param load_module_name: name of the module to load
@@ -184,15 +187,17 @@ def eval(load_module_name="lh_relu_2", sg_class=True, rnn_steps=1, gpu=0):
     reverse_predicate_ids = {predicate_ids[id]: id for id in predicate_ids}
 
     with tf.Session() as sess:
-        # Restore variables from disk.
-        module_path = filesmanager.get_file_path("sg_module.train.saver")
-        module_path_load = os.path.join(module_path, load_module_name + "_module.ckpt")
-        if os.path.exists(module_path_load + ".index"):
-            saver.restore(sess, module_path_load)
-            logger.log("Model restored.")
+        if load_module_name != None:
+            # Restore variables from disk.
+            module_path = filesmanager.get_file_path("sg_module.train.saver")
+            module_path_load = os.path.join(module_path, load_module_name + "_module.ckpt")
+            if os.path.exists(module_path_load + ".index"):
+                saver.restore(sess, module_path_load)
+                logger.log("Model restored.")
+            else:
+                raise Exception("Module not found")
         else:
-            raise Exception("Module not found")
-
+            sess.run(init)
         # eval module
         correct_predicate = np.zeros(NOF_PREDICATES)
         total_predicate = np.zeros(NOF_PREDICATES)
@@ -217,9 +222,15 @@ def eval(load_module_name="lh_relu_2", sg_class=True, rnn_steps=1, gpu=0):
                 # get shape of extended object to be used by the module
                 extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
                 extended_belief_object_shape[2] = NOF_OBJECTS
+                
+                # use object class labels for pred class (multiply be some factor to convert to belief)                
+                if pred_class:
+                    in_object_belief = entity.objects_labels * 10
+                else:
+                    in_object_belief = entity.objects_outputs_with_no_activations
 
                 # create the feed dictionary
-                feed_dict = {belief_predicate_ph: entity.predicates_outputs_with_no_activation, belief_object_ph: entity.objects_outputs_with_no_activations,
+                feed_dict = {belief_predicate_ph: entity.predicates_outputs_with_no_activation, belief_object_ph: in_object_belief,
                              extended_belief_object_shape_ph: extended_belief_object_shape,
                              visual_features_predicate_ph: entity.predicates_features,
                              visual_features_object_ph: entity.objects_features}
@@ -227,12 +238,16 @@ def eval(load_module_name="lh_relu_2", sg_class=True, rnn_steps=1, gpu=0):
                 out_predicate_probes_val, out_object_probes_val = \
                     sess.run([out_predicate_probes, out_object_probes],
                              feed_dict=feed_dict)
-
+                # set diag in order to take in statistic  
                 out_predicate_probes_val[indices, indices, :] = predicate_neg
-
+                
+                # use object class labels for pred class                
+                if pred_class:
+                    out_object_probes_val = entity.objects_labels
+                
                 # eval image
-                if sg_class:
-                    k_metric_res, correct_image, total_image = eval_image(entity, reverse_object_ids, reverse_predicate_ids, entity.predicates_labels, entity.objects_labels, out_predicate_probes_val, out_object_probes_val)
+                if k_recall:
+                    k_metric_res, correct_image, total_image = eval_image(entity, reverse_object_ids, reverse_predicate_ids, entity.predicates_labels, entity.objects_labels, out_predicate_probes_val, out_object_probes_val, k=k)
                     correct += correct_image
                     total += total_image
                     total_score = float(correct) / total
@@ -245,6 +260,7 @@ def eval(load_module_name="lh_relu_2", sg_class=True, rnn_steps=1, gpu=0):
                 total_predicate += total_predicate_image
                 index += 1
 
+
         for i in range(NOF_PREDICATES):
             if total_predicate[i] != 0:
                 logger.log("{0} recall@5 is {1} (total - {2}, correct {3})".format(reverse_predicate_ids[i],
@@ -253,10 +269,58 @@ def eval(load_module_name="lh_relu_2", sg_class=True, rnn_steps=1, gpu=0):
                                                                                    total_predicate[i],
                                                                                    correct_predicate[i]))
 
-        print("Debug")
+        print("Final Result for pred_class=%s k=%d - %f" % (str(pred_class), k, total_score))
 
     print("Debug")
 
 
 if __name__ == "__main__":
-    eval()
+    load_module_name="obj_test_new2_best"
+    k_recall=True
+    rnn_steps=2
+    gpu=2
+     
+    
+    pred_class=False
+    k=100
+    p = Process(target=eval, args=(load_module_name, k_recall, pred_class, rnn_steps, k, gpu))
+    p.start()
+    p.join()
+    exit()
+    
+    p = Process(target=eval, args=(load_module_name, k_recall, pred_class, rnn_steps, k, gpu))
+    p.start()
+    p.join()
+    
+    p = Process(target=eval, args=(load_module_name, k_recall, pred_class, rnn_steps, k, gpu))
+    p.start()
+    p.join()
+    
+    p = Process(target=eval, args=(load_module_name, k_recall, pred_class, rnn_steps, k, gpu))
+    p.start()
+    p.join()
+    
+    p = Process(target=eval, args=(load_module_name, k_recall, pred_class, rnn_steps, k, gpu))
+    p.start()
+    p.join()
+    
+    exit()
+    pred_class=True
+    k=50
+    p = Process(target=eval, args=(load_module_name, k_recall, pred_class, rnn_steps, k, gpu))
+    p.start()
+    p.join()
+    
+
+    pred_class=True
+    k=100
+    p = Process(target=eval, args=(load_module_name, k_recall, pred_class, rnn_steps, k, gpu))
+    p.start()
+    p.join()
+
+    pred_class=True
+    k=50
+    p = Process(target=eval, args=(load_module_name, k_recall, pred_class, rnn_steps, k, gpu))
+    p.start()
+    p.join()
+

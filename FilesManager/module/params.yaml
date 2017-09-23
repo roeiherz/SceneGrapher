@@ -1,13 +1,14 @@
 nof_p: 1
 1:
-    name: lh_relu_2
+    name: obj_test_new2
     nof_iterations: 10000
-    learning_rate: 0.005
+    learning_rate: 0.000025
     learning_rate_steps: 10
     learning_rate_decay: 0.5
-    load_model_name: "lh_relu_module.ckpt"
+    load_model_name: "obj_test_new_best_module.ckpt"
     use_saved_model: True
-    rnn_steps: 1
-    loss_func: "all"
-    lr_object_coeff: 1
+    rnn_steps: 2
+    loss_func: "ce"
+    lr_object_coeff: 10
+    including_object: True
     gpu: 0

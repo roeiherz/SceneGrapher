@@ -92,6 +92,7 @@ def train(name="test",
           rnn_steps=1,
           loss_func="all",
           lr_object_coeff=1,
+          including_object=False,
           gpu=0):
 
     # get filesmanager
@@ -121,7 +122,8 @@ def train(name="test",
                     learning_rate_decay=learning_rate_decay,
                     rnn_steps=rnn_steps,
                     loss_func=loss_func,
-                    lr_object_coeff=lr_object_coeff)
+                    lr_object_coeff=lr_object_coeff,
+                    including_object=including_object)
 
     # get input place holders
     belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph = module.get_in_ph()
@@ -157,9 +159,9 @@ def train(name="test",
 
         # train entities
         entities_path = filesmanager.get_file_path("data.visual_genome.detections_v4")
-        files_list = ["Wed_Aug_23_14:01:18_2017/predicated_entities_0_to_1000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_1000_to_2000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_2000_to_3000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_3000_to_4000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_4000_to_5000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_0_to_1000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_1000_to_2000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_2000_to_3000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_3000_to_4000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_4000_to_5000.p"]
+        files_list = ["Wed_Aug_23_14:01:18_2017/predicated_entities_0_to_1000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_1000_to_2000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_2000_to_3000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_3000_to_4000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_4000_to_5000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_5000_to_6000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_6000_to_6500.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_6500_to_7000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_7000_to_7500.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_8000_to_8500.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_8500_to_9000.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_9000_to_9500.p", "Wed_Aug_23_14:01:18_2017/predicated_entities_9500_to_10000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_0_to_1000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_1000_to_2000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_2000_to_3000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_3000_to_4000.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_4000_to_5000.p",  "Wed_Aug_23_14:00:45_2017/predicated_entities_5000_to_5500.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_5500_to_6000.p",  "Wed_Aug_23_14:00:45_2017/predicated_entities_6000_to_6500.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_6500_to_7000.p",  "Wed_Aug_23_14:00:45_2017/predicated_entities_7000_to_7500.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_7500_to_8000.p",  "Wed_Aug_23_14:00:45_2017/predicated_entities_8000_to_8500.p", "Wed_Aug_23_14:00:45_2017/predicated_entities_8500_to_9000.p",  "Wed_Aug_23_14:00:45_2017/predicated_entities_9000_to_9500.p"]
+        # get mini data to filter
         img_ids = Scripts.get_img_ids()
-
         # read test entities
         test_entities = filesmanager.load_file("data.visual_genome.detections_v4_test")
 
@@ -190,7 +192,6 @@ def train(name="test",
                     entity.predicates_outputs_with_no_activation[indices, indices, :] = predicate_neg
                     entity.predicates_labels[indices, indices, :] = predicate_neg
                     entity.predicates_probes[indices, indices, :] = predicate_neg
-                    gt = np.argmax(entity.predicates_labels, axis=2)
 
                     # get shape of extended object to be used by the module
                     extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
@@ -201,6 +202,9 @@ def train(name="test",
                     if np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2]) == 0 or np.sum(predicates_neg_labels) == 0:
                        continue
 
+                    
+                    #in_object_belief = entity.objects_labels * 10
+                    in_object_belief = entity.objects_outputs_with_no_activations
                     # give lower weight to negatives
                     coeff_factor = np.ones(predicates_neg_labels.shape)
                     factor = float(np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2])) / np.sum(
@@ -209,7 +213,7 @@ def train(name="test",
                     coeff_factor[indices, indices] = 0
 
                     # create the feed dictionary
-                    feed_dict = {belief_predicate_ph: entity.predicates_outputs_with_no_activation, belief_object_ph: entity.objects_outputs_with_no_activations,
+                    feed_dict = {belief_predicate_ph: entity.predicates_outputs_with_no_activation, belief_object_ph: in_object_belief,
                                  extended_belief_object_shape_ph: extended_belief_object_shape,
                                  visual_features_predicate_ph: entity.predicates_features,
                                  visual_features_object_ph: entity.objects_features,
@@ -279,13 +283,29 @@ def train(name="test",
                     # get shape of extended object to be used by the module
                     extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
                     extended_belief_object_shape[2] = NOF_OBJECTS
+
+                    # filter non mixed cases
+                    predicates_neg_labels = entity.predicates_labels[:, :, NOF_PREDICATES-1:]
+                    if np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2]) == 0 or np.sum(predicates_neg_labels) == 0:
+                       continue
+                    
+                    # give lower weight to negatives
+                    coeff_factor = np.ones(predicates_neg_labels.shape)
+                    factor = float(np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2])) / np.sum(
+                        predicates_neg_labels) / POS_NEG_FACTOR 
+                    coeff_factor[predicates_neg_labels == 1] *= factor
+                    coeff_factor[indices, indices] = 0
+                    
+                    #in_object_belief = entity.objects_labels * 10
+                    in_object_belief = entity.objects_outputs_with_no_activations
                     
                     # create the feed dictionary
-                    feed_dict = {belief_predicate_ph: entity.predicates_outputs_with_no_activation, belief_object_ph: entity.objects_outputs_with_no_activations,
+                    feed_dict = {belief_predicate_ph: entity.predicates_outputs_with_no_activation, belief_object_ph: in_object_belief,
                                  extended_belief_object_shape_ph: extended_belief_object_shape,
                                  visual_features_predicate_ph: entity.predicates_features,
                                  visual_features_object_ph: entity.objects_features,
-                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels}
+                                 labels_predicate_ph: entity.predicates_labels, labels_object_ph: entity.objects_labels,
+labels_coeff_loss_ph: coeff_factor.reshape((-1))}
 
                     # run the network
                     out_predicate_probes_val, out_object_probes_val, loss_val = sess.run(
@@ -331,9 +351,10 @@ def train(name="test",
 
                 # save best module so far
                 if best_test_loss == -1 or total_test_loss < best_test_loss:
-                    module_path_save = os.path.join(module_path, name + "best_module.ckpt")
+                    module_path_save = os.path.join(module_path, name + "_best_module.ckpt")
                     save_path = saver.save(sess, module_path_save)
                     logger.log("Model saved in file: %s" % save_path)
+                    best_test_loss = total_test_loss
 
             # save module
             if epoch % SAVE_MODEL_ITERATIONS == 0:
@@ -409,9 +430,10 @@ if __name__ == "__main__":
         rnn_steps = process_params["rnn_steps"]
         loss_func = process_params["loss_func"]
         lr_object_coeff = process_params["lr_object_coeff"]
+        including_object = process_params["including_object"]
         gpu = process_params["gpu"]
 
-        train(name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name, use_saved_model, rnn_steps, loss_func, lr_object_coeff, gpu)
+        train(name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name, use_saved_model, rnn_steps, loss_func, lr_object_coeff, including_object, gpu)
         p = Process(target=train, args=(
             name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
             use_saved_model, rnn_steps, loss_func, lr_object_coeff, gpu))

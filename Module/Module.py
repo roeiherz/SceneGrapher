@@ -43,7 +43,7 @@ class Module(object):
         ## create weights
         self.nn_predicate_weights(self.nof_features, self.nof_predicates)
         if including_object:
-            self.nn_object_weights(self.nof_predicates * 2 + self.nof_objects + self.visual_features_object_size, self.nof_objects)
+            self.nn_object_weights(self.nof_predicates * 2 + self.nof_objects * 2, self.nof_objects)
 
         ## module input
         # Visual features
@@ -68,8 +68,11 @@ class Module(object):
                                                       name="labels_predicate")
             self.labels_object_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects), name="labels_object")
             self.labels_coeff_loss_ph = tf.placeholder(dtype=tf.float32, shape=(None), name="labels_coeff_loss")
-
-        # single rnn stage module
+        
+        # store all the outputs of of rnn steps
+        self.out_belief_object_lst = []
+        self.out_belief_predicate_lst = []
+        # rnn stage module
         belief_predicate = self.belief_predicate_ph
         belief_object = self.belief_object_ph
 
@@ -80,9 +83,12 @@ class Module(object):
                            in_belief_object=belief_object,
                            in_extended_belief_object_shape=self.extended_belief_object_shape_ph,
                            scope_name="rnn" + str(step))
-
+            # store the belief
+            self.out_belief_predicate_lst.append(belief_predicate)
             if self.including_object:
                 belief_object = belief_object_temp
+                # store the belief
+                self.out_belief_object_lst.append(belief_object_temp)
 
         self.out_belief_predicate = belief_predicate
         self.out_belief_object = belief_object
@@ -278,7 +284,7 @@ class Module(object):
 
             # fully cnn to calc belief object for every object
             if self.including_object:
-                out_belief_object = self.nn_object(object_all_features, in_belief_object, out_size=self.nof_objects)
+                out_belief_object = self.nn_object(object_all_features, in_belief_object)
             else:
                 out_belief_object = in_belief_object
 
@@ -297,55 +303,68 @@ class Module(object):
         """
         with tf.variable_scope(scope_name):
             # reshape to batch like shape
-            shaped_in_belief_predicate = tf.reshape(self.belief_predicate_ph, (-1, self.nof_predicates))
-            shaped_belief_predicate = tf.reshape(self.out_belief_predicate, (-1, self.nof_predicates))
             shaped_labels_predicate = tf.reshape(self.labels_predicate_ph, (-1, self.nof_predicates))
+            shaped_in_belief_predicate = tf.reshape(self.belief_predicate_ph, (-1, self.nof_predicates))
+            
+            loss = 0
+            for rnn_step in range(self.rnn_steps):
+            
+            
+                shaped_belief_predicate = tf.reshape(self.out_belief_predicate_lst[rnn_step], (-1, self.nof_predicates))
+            
 
-            # set predicate loss
-            self.predicate_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=shaped_labels_predicate,
+                # set predicate loss
+                self.predicate_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=shaped_labels_predicate,
                                                                              logits=shaped_belief_predicate,
                                                                              name="predicate_ce_loss")
-            self.predicate_original_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=shaped_labels_predicate,
-                                                                                      logits=shaped_in_belief_predicate,
-                                                                                      name="predicate_original_ce_loss")
+                #self.predicate_original_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=shaped_labels_predicate,
+                #                                                                      logits=shaped_in_belief_predicate,
+                #                                                                      name="predicate_original_ce_loss")
 
-            self.predicate_delta_loss = tf.maximum(self.predicate_ce_loss - self.predicate_original_ce_loss, 0.0)
-            self.predicate_delta_sum = tf.reduce_sum(tf.square(self.predicate_delta), axis=1)
-
-            # set loss per requested loss_func
-            if self.loss_func == "all":
-                self.loss_predicate = self.predicate_delta_loss + self.predicate_ce_loss + 0.01 * self.predicate_delta_sum
-            elif self.loss_func == "exclude_sum":
-                self.loss_predicate = self.predicate_delta_loss + self.predicate_ce_loss
-            elif self.loss_func == "ce":
-                self.loss_predicate = self.predicate_ce_loss
-            
-            self.loss_predicate_weighted = tf.multiply(self.loss_predicate, self.labels_coeff_loss_ph)
-
-            loss = tf.reduce_mean(self.loss_predicate_weighted)
-
-            # set object loss
-            if self.including_object:
-                self.object_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph,
-                                                                                 logits=self.out_belief_obect,
-                                                                                 name="object_ce_loss")
-
-                self.object_original_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph,
-                                                                                          logits=self.belief_object_ph,
-                                                                                          name="in_loss_predicate")
-
-                self.object_delta_loss = tf.maximum(self.object_ce_loss - self.object_original_ce_loss, 0.0)
-                self.object_delta_sum = tf.reduce_sum(tf.square(self.object_delta), axis=1)
+                #self.predicate_delta_loss = tf.maximum(self.predicate_ce_loss - self.predicate_original_ce_loss, 0.0)
+                #self.predicate_delta_sum = tf.reduce_sum(tf.square(self.predicate_delta), axis=1)
 
                 # set loss per requested loss_func
                 if self.loss_func == "all":
-                    self.loss_object = self.object_delta_loss + self.object_ce_loss + 0.01 * self.object_delta_sum
+                    self.loss_predicate = self.predicate_delta_loss + self.predicate_ce_loss + 0.01 * self.predicate_delta_sum
                 elif self.loss_func == "exclude_sum":
-                    self.loss_object = self.object_delta_loss + self.object_ce_loss
+                    self.loss_predicate = self.predicate_delta_loss + self.predicate_ce_loss
                 elif self.loss_func == "ce":
-                    self.loss_object = self.object_ce_loss
+                    self.loss_predicate = self.predicate_ce_loss
+            
+                self.loss_predicate_weighted = tf.multiply(self.loss_predicate, self.labels_coeff_loss_ph)
 
-                loss += self.lr_object_coeff * tf.reduce_mean(self.loss_object)
+                img_weight = tf.reduce_sum(self.labels_coeff_loss_ph, name="img_weight")
+                loss += tf.reduce_sum(self.loss_predicate_weighted) / ((self.rnn_steps - rnn_step) * img_weight)  
+
+                # set object loss
+                if self.including_object:
+                    self.object_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph,
+                                                                                 logits=self.out_belief_object_lst[rnn_step],
+                                                                                 name="object_ce_loss")
+
+                    #self.object_original_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph,
+                    #                                                                      logits=self.belief_object_ph,
+                    #                                                                      name="in_loss_predicate")
+
+                    #self.object_delta_loss = tf.maximum(self.object_ce_loss - self.object_original_ce_loss, 0.0)
+                    #self.object_delta_sum = tf.reduce_sum(tf.square(self.object_delta), axis=1)
+
+                    # set loss per requested loss_func
+                    if self.loss_func == "all":
+                        self.loss_object = self.object_delta_loss + self.object_ce_loss + 0.01 * self.object_delta_sum
+                    elif self.loss_func == "exclude_sum":
+                        self.loss_object = self.object_delta_loss + self.object_ce_loss
+                    elif self.loss_func == "ce":
+                        self.loss_object = self.object_ce_loss
+
+                    loss += self.lr_object_coeff * tf.reduce_mean(self.loss_object) / (self.rnn_steps - rnn_step)
+
+            
+            # reg
+            #trainable_vars   = tf.trainable_variables() 
+            #lossL2 = tf.add_n([tf.nn.l2_loss(v) for v in trainable_vars ]) * 0.0001
+            #loss += lossL2
 
             # minimize
             gradients = tf.train.GradientDescentOptimizer(self.lr_ph).compute_gradients(loss)
