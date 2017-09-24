@@ -29,7 +29,7 @@ import itertools
 from Utils.Utils import create_folder
 
 NUM_EPOCHS = 1
-NUM_BATCHES = 128 * 1
+NUM_BATCHES = 128 * 3
 USE_PREDICATES_MASK = True
 
 __author__ = 'roeih'
