@@ -28,7 +28,7 @@ class Config:
             self.nof_classes = 50
 
         # The Training is only with positive samples
-        self.only_pos = True
+        self.only_pos = False
 
         # Use all objects data
         self.use_all_objects_data = True
