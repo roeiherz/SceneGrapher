@@ -2,7 +2,7 @@ from __future__ import print_function
 
 from DesignPatterns.Detections import Detections
 from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator_with_batch, \
-    visual_genome_data_predicate_generator_with_batch
+    visual_genome_data_predicate_generator_with_batch, visual_genome_data_predicate_mask_generator_with_batch
 from FeaturesExtraction.Lib.Zoo import ModelZoo
 import traceback
 import os
@@ -16,7 +16,7 @@ import sys
 import math
 from FeaturesExtraction.Utils.Boxes import BOX
 from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH, get_img_resize, TRAINING_OBJECTS_CNN_PATH, \
-    TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img, get_bad_urls
+    TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img, get_bad_urls, TRAINING_PREDICATE_MASK_CNN_PATH
 import time
 from FeaturesExtraction.Utils.data import get_filtered_data, get_name_from_file, process_to_detections
 from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
@@ -31,6 +31,7 @@ TESTING_PERCENT = 0.2
 NUM_EPOCHS = 1
 NUM_BATCHES = 128
 RATIO = 3.0 / 10
+USE_PREDICATES_MASK = True
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -91,9 +92,10 @@ def load_full_detections(detections_file_name):
     return None
 
 
-def get_model(number_of_classes, weight_path, config):
+def get_model(number_of_classes, weight_path, config, use_mask=False):
     """
         This function loads the model
+        :param use_mask: Using mask means different ResNet50 model
         :param weight_path: model weights path
         :param number_of_classes: number of classes
         :param config: config file
@@ -101,15 +103,25 @@ def get_model(number_of_classes, weight_path, config):
         """
 
     if K.image_dim_ordering() == 'th':
-        input_shape_img = (3, None, None)
+        if use_mask:
+            input_shape_img = (4, None, None)
+        else:
+            input_shape_img = (3, None, None)
     else:
-        input_shape_img = (config.crop_height, config.crop_width, 3)
+        if use_mask:
+            input_shape_img = (config.crop_height, config.crop_width, 4)
+        else:
+            input_shape_img = (config.crop_height, config.crop_width, 3)
 
     img_input = Input(shape=input_shape_img, name="image_input")
 
     # Define ResNet50 model Without Top
     net = ModelZoo()
-    model_resnet50 = net.resnet50_base(img_input, trainable=True)
+    if use_mask:
+        model_resnet50 = net.resnet50_with_masking(img_input, trainable=True)
+    else:
+        model_resnet50 = net.resnet50_base(img_input, trainable=True)
+
     model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
     output_resnet50 = Dense(number_of_classes, kernel_initializer="he_normal", activation='softmax', name='fc')(
         model_resnet50)
@@ -181,6 +193,7 @@ def load_predicts(file_name=""):
 
     tt = np.where((detections[Detections.PredictSubjectClassifications] == detections[Detections.Predicate]) &
                   (detections[Detections.Predicate] != u'neg'))
+
     logger.log('debug')
 
 
@@ -230,14 +243,14 @@ if __name__ == '__main__':
     # Load detections dtype numpy array and hierarchy mappings
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
                                                                                           "mini_filtered_data",
-                                                                                          category='entities_module')
+                                                                                          category='entities')
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                                        relation_file_name="mini_relations_module")
+                                        relation_file_name="mini_relations")
 
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="mini_detections_module")
+    detections = process_to_detections(relations, detections_file_name="mini_detections")
 
     detections = sort_detections_by_url(detections)
 
@@ -249,8 +262,13 @@ if __name__ == '__main__':
     # Load the weight paths
     objects_model_weight_path = os.path.join(TRAINING_OBJECTS_CNN_PATH, objects_training_dir_name,
                                              WEIGHTS_NAME)
-    predicates_model_weight_path = os.path.join(TRAINING_PREDICATE_CNN_PATH, predicates_training_dir_name,
-                                                WEIGHTS_NAME)
+
+    if USE_PREDICATES_MASK:
+        predicates_model_weight_path = os.path.join(TRAINING_PREDICATE_MASK_CNN_PATH, predicates_training_dir_name,
+                                                    WEIGHTS_NAME)
+    else:
+        predicates_model_weight_path = os.path.join(TRAINING_PREDICATE_CNN_PATH, predicates_training_dir_name,
+                                                    WEIGHTS_NAME)
 
     # Set the number of classes
     number_of_classes_objects = len(hierarchy_mapping_objects)
@@ -274,18 +292,28 @@ if __name__ == '__main__':
                                                                                config=config, mode='valid',
                                                                                batch_size=NUM_BATCHES)
 
-    # Create a data generator for VisualGenome for PREDICATES
-    data_gen_val_predicates_vg = visual_genome_data_predicate_generator_with_batch(data=detections,
-                                                                                   hierarchy_mapping=hierarchy_mapping_predicates,
-                                                                                   config=config, mode='valid',
-                                                                                   classification=Detections.Predicate,
-                                                                                   type_box=Detections.UnionBox,
-                                                                                   batch_size=NUM_BATCHES,
-                                                                                   evaluate=True)
+    if USE_PREDICATES_MASK:
+        # Create a data generator for VisualGenome for PREDICATES depends using masks
+        data_gen_val_predicates_vg = visual_genome_data_predicate_mask_generator_with_batch(data=detections,
+                                                                       hierarchy_mapping=hierarchy_mapping_predicates,
+                                                                       config=config, mode='train',
+                                                                       classification=Detections.Predicate,
+                                                                       type_box=Detections.UnionBox,
+                                                                       batch_size=NUM_BATCHES)
+    else:
+        # Create a data generator for VisualGenome for PREDICATES
+        data_gen_val_predicates_vg = visual_genome_data_predicate_generator_with_batch(data=detections,
+                                                                                       hierarchy_mapping=hierarchy_mapping_predicates,
+                                                                                       config=config, mode='valid',
+                                                                                       classification=Detections.Predicate,
+                                                                                       type_box=Detections.UnionBox,
+                                                                                       batch_size=NUM_BATCHES,
+                                                                                       evaluate=True)
 
     # Get the object and predicate model
     object_model = get_model(number_of_classes_objects, weight_path=objects_model_weight_path, config=config)
-    predicate_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config)
+    predicate_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config,
+                                use_mask=True)
 
     # Save Weights
     # save_weights(predict_model, file_name="last_layer_ratio3_weights.p")
@@ -303,7 +331,7 @@ if __name__ == '__main__':
                                                           steps=int(math.ceil(len(detections) / float(NUM_BATCHES))),
                                                           max_q_size=1, workers=1)
     logger.log("Saving Predicates Probabilities")
-    save_files(predicted_objects, name="mini_predicated_predicates_010817.p")
+    save_files(predicted_objects, name="mini_predicated_mask_predicates_240917.p")
     logger.log("Finished successfully saving Predicates Probabilities")
     # Get the max argument
     index_predicates_labels_per_sample = np.argmax(predicted_objects, axis=1)
@@ -315,7 +343,7 @@ if __name__ == '__main__':
     detections[Detections.PredictSubjectClassifications] = labels_per_sample[:len(detections)]
     # Save detections
     logger.log("Saving predicates detections")
-    save_files(detections, name="mini_predicated_predicates_010817.p")
+    save_files(detections, name="mini_predicated_mask_predicates_240917.p")
     logger.log("Finished successfully saving predicated_detections")
 
     exit()
