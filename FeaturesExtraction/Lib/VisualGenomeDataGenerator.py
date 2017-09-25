@@ -777,6 +777,145 @@ def visual_genome_data_predicate_mask_generator_with_batch(data, hierarchy_mappi
                 Logger().log(str(e))
 
 
+def visual_genome_data_predicate_mask_dual_generator_with_batch(data, hierarchy_mapping, config, mode, classification,
+                                                               type_box, batch_size=128, evaluate=False):
+    """
+    This function is a generator for Predicate with Detections with batch-size
+    :param evaluate: A flag which indicates if we evaluate in PredictVisualModule
+    :param batch_size: batch size
+    :param type_box: Detections.SubjectBox ('subject_box') or Detections.ObjectBox ('object_box') or
+                     Detection.UnionBox ('union_box')
+    :param classification: Detections.SubjectClassifications ('subject_classifications') or
+            Detections.ObjectClassifications ('object_classifications') or Detections.Predicate ('predicate')
+    :param data: dictionary of Data
+    :param hierarchy_mapping: hierarchy mapping
+    :param config: the class config which contains different parameters
+    :param mode: 'train' or 'test' or 'validate'
+    """
+
+    correct_labels = hierarchy_mapping.keys()
+    size = len(data)
+
+    # The number of batches per epoch depends if size % batch_size == 0
+    if size % batch_size == 0:
+        num_of_batches_per_epoch = size / batch_size
+    else:
+        num_of_batches_per_epoch = size / batch_size + 1
+
+    while True:
+
+        # Batch number
+        for batch_num in range(num_of_batches_per_epoch):
+            try:
+                imgs = []
+                labels = []
+
+                if evaluate:
+                    Logger().log("Prediction Batch Number is {0}/{1}".format(batch_num + 1, num_of_batches_per_epoch))
+
+                # Define number of samples per batch
+                if batch_size * (batch_num + 1) >= size:
+                    nof_samples_per_batch = size - batch_size * batch_num
+                else:
+                    nof_samples_per_batch = batch_size
+
+                # Start one batch
+                for current_index in range(nof_samples_per_batch):
+                    # Get detection
+                    ind = batch_num * batch_size + current_index
+                    detection = data[ind]
+
+                    # Get image
+                    img = get_img(detection[Detections.Url], download=True)
+
+                    if img is None:
+                        Logger().log("Coulden't get the image in url {}".format(detection[Detections.Url]))
+                        continue
+
+                    # In-case we want to normalize
+                    if config.use_jitter:
+                        # Subtract mean and normalize
+                        mean_image = np.mean(img, axis=0)
+                        img -= mean_image
+                        img /= 128.
+
+                        # Zero-center by mean pixel
+                        # norm_img = img.astype(np.float32)
+                        # norm_img[:, :, 0] -= 103.939
+                        # norm_img[:, :, 1] -= 116.779
+                        # norm_img[:, :, 2] -= 123.68
+
+                    # Get the label of object
+                    label = detection[classification]
+
+                    # Check if it is a correct label
+                    if label not in correct_labels:
+                        Logger().log("WARNING: label isn't familiar")
+                        continue
+
+                    # Get the label uuid
+                    label_id = hierarchy_mapping[label]
+
+                    # Create the y labels as a one hot vector
+                    y_labels = np.eye(len(hierarchy_mapping), dtype='uint8')[label_id]
+
+                    # Get Subject and Object boxes
+                    subject_box = detection[Detections.SubjectBox]
+                    object_box = detection[Detections.ObjectBox]
+
+                    # Fill HeatMap
+                    heat_map_subject = np.zeros(img.shape)
+                    heat_map_subject[subject_box[BOX.Y1]: subject_box[BOX.Y2], subject_box[BOX.X1]: subject_box[BOX.X2],
+                    :] = 255
+                    heat_map_object = np.zeros(img.shape)
+                    heat_map_object[object_box[BOX.Y1]: object_box[BOX.Y2], object_box[BOX.X1]: object_box[BOX.X2], :] = 255
+
+                    # Get the box: a BOX (numpy array) with [x1,x2,y1,y2]
+                    box = detection[type_box]
+
+                    # Cropping the patch from the image.
+                    patch_predicate = img[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
+                    patch_heatmap_heat_map_subject = heat_map_subject[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
+                    patch_heatmap_heat_map_object = heat_map_object[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
+
+                    # Resize the image according the padding method
+                    resized_img = get_img_resize(patch_predicate, config.crop_width, config.crop_height,
+                                                 type=config.padding_method)
+                    resized_heatmap_subject = get_img_resize(patch_heatmap_heat_map_subject, config.crop_width,
+                                                             config.crop_height, type=config.padding_method)
+                    resized_heatmap_object = get_img_resize(patch_heatmap_heat_map_object, config.crop_width,
+                                                            config.crop_height, type=config.padding_method)
+
+                    # Concatenate the heat-map to the image in the kernel axis
+                    resized_img = np.concatenate((resized_img, resized_heatmap_subject[:, :, :1]), axis=2)
+                    resized_img = np.concatenate((resized_img, resized_heatmap_object[:, :, :1]), axis=2)
+
+                    if mode == 'train' and config.use_jitter:
+                        # Augment only in training
+                        # todo: create a regular jitter for each patch increase the number of patches by some constant
+                        # resized_img = augment_visual_genome(resized_img, detection, config, mask)
+                        Logger().log("No data augmentation")
+
+                    # Expand dimensions - add batch dimension for the numpy
+                    resized_img = np.expand_dims(resized_img, axis=0)
+                    y_labels = np.expand_dims(y_labels, axis=0)
+
+                    imgs.append(np.copy(resized_img))
+                    labels.append(np.copy(y_labels))
+
+                # Continue if imgs and labels are empty
+                if len(imgs) == 0 or len(labels) == 0:
+                    continue
+
+                # Finished one batch
+                yield np.concatenate(imgs, axis=0), np.concatenate(labels, axis=0)
+
+            except Exception as e:
+                Logger().log("Exception for image {0} in current batch: {1} and number of samples in batch: {2}".format(
+                    detection[Detections.Url], batch_num, current_index))
+                Logger().log(str(e))
+
+
 def visual_genome_data_generator(data, hierarchy_mapping, config, mode, classification, type_box):
     """
     This function is a generator for Detections
