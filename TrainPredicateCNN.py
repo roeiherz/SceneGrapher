@@ -311,10 +311,10 @@ if __name__ == '__main__':
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                                        relation_file_name="full_relations")
+                                        relation_file_name="full_relations_all")
 
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="full_detections")
+    detections = process_to_detections(relations, detections_file_name="full_detections_all")
 
     # Get new negative - positive ratio
     detections = pick_different_negative_sample_ratio(detections, ratio=RATIO)
