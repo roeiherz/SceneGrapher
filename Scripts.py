@@ -751,10 +751,11 @@ def create_dataframe_from_detection(files):
 
     # Define the rows for the DataFrame
     dataframe_labels = [Detections.Id, Detections.SubjectBox, Detections.SubjectId, Detections.ObjectBox,
-                        Detections.ObjectId, Detections.Predicate, Detections.UnionBox,
+                        Detections.ObjectId, Detections.Predicate, Detections.UnionBox, Detections.UnionFeature,
                         Detections.SubjectClassifications,Detections.PredictSubjectClassifications,
                         Detections.ObjectClassifications, Detections.PredictObjectClassifications,
                         Detections.SubjectConfidence, Detections.ObjectConfidence, Detections.Url]
+
 
     # Define DataFrame
     df = pd.DataFrame(columns=dataframe_labels)
@@ -775,6 +776,7 @@ def create_dataframe_from_detection(files):
                 row_data[Detections.PredictSubjectClassifications] = detection[Detections.PredictSubjectClassifications]
                 row_data[Detections.ObjectClassifications] = detection[Detections.ObjectClassifications]
                 row_data[Detections.PredictObjectClassifications] = detection[Detections.PredictObjectClassifications]
+                row_data[Detections.UnionFeature] = detection[Detections.UnionFeature]
 
                 if detection[Detections.SubjectConfidence] is not None:
                     row_data[Detections.SubjectConfidence] = float(detection[Detections.SubjectConfidence])
