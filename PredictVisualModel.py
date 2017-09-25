@@ -32,6 +32,7 @@ NUM_EPOCHS = 1
 NUM_BATCHES = 128
 RATIO = 3.0 / 10
 USE_PREDICATES_MASK = True
+FILE_NAME = "mini_predicated_mask_predicates_240917.p"
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -331,7 +332,7 @@ if __name__ == '__main__':
                                                           steps=int(math.ceil(len(detections) / float(NUM_BATCHES))),
                                                           max_q_size=1, workers=1)
     logger.log("Saving Predicates Probabilities")
-    save_files(predicted_objects, name="mini_predicated_mask_predicates_240917.p")
+    save_files(predicted_objects, name=FILE_NAME)
     logger.log("Finished successfully saving Predicates Probabilities")
     # Get the max argument
     index_predicates_labels_per_sample = np.argmax(predicted_objects, axis=1)
@@ -339,11 +340,11 @@ if __name__ == '__main__':
     index_to_label_mapping_predicates = {label: id for id, label in hierarchy_mapping_predicates.iteritems()}
     labels_per_sample = np.array(
         [index_to_label_mapping_predicates[label] for label in index_predicates_labels_per_sample])
-    # Save detections in PredictSubjectClassifications
-    detections[Detections.PredictSubjectClassifications] = labels_per_sample[:len(detections)]
+    # Save detections in UnionFeature
+    detections[Detections.UnionFeature] = labels_per_sample[:len(detections)]
     # Save detections
     logger.log("Saving predicates detections")
-    save_files(detections, name="mini_predicated_mask_predicates_240917.p")
+    save_files(detections, name=FILE_NAME)
     logger.log("Finished successfully saving predicated_detections")
 
     exit()
@@ -355,9 +356,10 @@ if __name__ == '__main__':
                                                     steps=int(math.ceil(len(detections) / float(NUM_BATCHES))),
                                                     max_q_size=1, workers=1)
     logger.log("Saving Objects Probabilities")
-    objects_probes_path = filemanager.get_file_path(
-        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "mini_objects_with_probs"))
-    filemanager.save_file(objects_probes_path, objects_probes)
+    save_files(detections, name=FILE_NAME)
+    # objects_probes_path = filemanager.get_file_path(
+    #     "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "mini_objects_with_probs"))
+    # filemanager.save_file(objects_probes_path, objects_probes)
     logger.log("Finished successfully saving Objects Probabilities")
 
     # Slice the Subject prob (even index)
@@ -381,14 +383,16 @@ if __name__ == '__main__':
 
     # Save detections
     logger.log("Saving predicated_detections")
-    detections_probes_path = filemanager.get_file_path(
-        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "mini_detections_with_probs"))
-    filemanager.save_file(detections_probes_path, detections)
+    save_files(detections, name=FILE_NAME)
+    # detections_probes_path = filemanager.get_file_path(
+    #     "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "mini_detections_with_probs"))
+    # filemanager.save_file(detections_probes_path, detections)
     logger.log("Finished successfully saving predicated_detections")
 
     # Get the Union-Box Features
     # resized_img_mat = get_resize_images_array(detections, config)
 
+    exit()
     logger.log('Calculating Union-Box Features')
     # Define the function
     get_features_output_func = K.function([predicate_model.layers[0].input], [predicate_model.layers[-2].output])
@@ -426,5 +430,6 @@ if __name__ == '__main__':
 
     # Save detections
     logger.log("Saving predicated_detections")
-    filemanager.save_file(detections_probes_path, detections)
+    save_files(detections, name=FILE_NAME)
+    # filemanager.save_file(detections_probes_path, detections)
     logger.log("Finished successfully saving predicated_detections")

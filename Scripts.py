@@ -630,7 +630,7 @@ def get_bad_img_ids_from_logger():
     return bad_img_ids
 
 
-def parser_from_logger(dir_path="Temp"):
+def logger_parser(dir_path="Temp"):
     """
     This function returns good image ids from logger from the original run
     :return:
@@ -639,13 +639,14 @@ def parser_from_logger(dir_path="Temp"):
     # Define from each files we are gonna to parse
     files = ["PredictFeaturesModule_0_to_18013.log", "PredictFeaturesModule_18013_to_36026.log"]
     # files = ["PredictFeaturesModule_mini_entities.log"]
+    files = ["PredictFeaturesModule_mini_entities_module_mask.log"]
 
     # Get the data frame from logger
     df = create_dataframe_from_logger(files)
 
     # Save DataFrame
-    df.to_csv(os.path.join(dir_path, "logger_data.csv"))
-    fl = open(os.path.join(dir_path, "logger_data_df.p"), "wb")
+    df.to_csv(os.path.join(dir_path, "logger_data_entities_mask_Sun_Sep_24_15:24:55_2017.csv"))
+    fl = open(os.path.join(dir_path, "logger_data_entities_mask_Sun_Sep_24_15:24:55_2017_df.p"), "wb")
     cPickle.dump(df, fl)
     fl.close()
 
@@ -722,18 +723,87 @@ def create_dataframe_from_logger(files):
     return df
 
 
-if __name__ == '__main__':
-    # Create mini data-set
-    # create_data_object_and_predicates_by_img_id()
+def detection_parser(dir_path="Temp"):
+    """
+    This function returns csv file from detection pickle file (Detections numpy array)
+    :return:
+    """
 
-    file_manager = FilesManager()
-    logger = Logger()
+    # Define from each files we are gonna to parse
+    files = ["mini_predicated_mask_predicates_pos_and_neg_Sat_Sep_16_19:10:07_2017_240917.p"]
 
+    # Get the data frame from logger
+    df = create_dataframe_from_detection(files)
+
+    # Save DataFrame
+    df.to_csv(os.path.join(dir_path, "logger_data_detections_SSat_Sep_16_19:10:07_2017_240917.csv"))
+    fl = open(os.path.join(dir_path, "logger_data_detections_SSat_Sep_16_19:10:07_2017_240917_df.p"), "wb")
+    cPickle.dump(df, fl)
+    fl.close()
+
+
+def create_dataframe_from_detection(files):
+    """
+    This function will create data frame from detections which are Detections numpy array
+    :param files: a list of files which are the logger
+    :return:
+    """
+
+    # Define the rows for the DataFrame
+    dataframe_labels = [Detections.Id, Detections.SubjectBox, Detections.SubjectId, Detections.ObjectBox,
+                        Detections.ObjectId, Detections.Predicate, Detections.UnionBox,
+                        Detections.SubjectClassifications,Detections.PredictSubjectClassifications,
+                        Detections.ObjectClassifications, Detections.PredictObjectClassifications,
+                        Detections.SubjectConfidence, Detections.ObjectConfidence, Detections.Url]
+
+    # Define DataFrame
+    df = pd.DataFrame(columns=dataframe_labels)
+
+    for fl in files:
+        with open(fl) as f:
+            detection_file = cPickle.load(f)
+            for detection in detection_file:
+                row_data = {}
+                row_data[Detections.Id] = int(detection[Detections.Id])
+                row_data[Detections.SubjectBox] = detection[Detections.SubjectBox]
+                row_data[Detections.SubjectId] = int(detection[Detections.SubjectId])
+                row_data[Detections.ObjectBox] = detection[Detections.ObjectBox]
+                row_data[Detections.ObjectId] = int(detection[Detections.ObjectId])
+                row_data[Detections.Predicate] = detection[Detections.Predicate]
+                row_data[Detections.UnionBox] = detection[Detections.UnionBox]
+                row_data[Detections.SubjectClassifications] = detection[Detections.SubjectClassifications]
+                row_data[Detections.PredictSubjectClassifications] = detection[Detections.PredictSubjectClassifications]
+                row_data[Detections.ObjectClassifications] = detection[Detections.ObjectClassifications]
+                row_data[Detections.PredictObjectClassifications] = detection[Detections.PredictObjectClassifications]
+
+                if detection[Detections.SubjectConfidence] is not None:
+                    row_data[Detections.SubjectConfidence] = float(detection[Detections.SubjectConfidence])
+                else:
+                    row_data[Detections.SubjectConfidence] = detection[Detections.SubjectConfidence]
+
+                if detection[Detections.ObjectConfidence] is not None:
+                    row_data[Detections.ObjectConfidence] = float(detection[Detections.ObjectConfidence])
+                else:
+                    row_data[Detections.ObjectConfidence] = detection[Detections.ObjectConfidence]
+
+                row_data[Detections.Url] = detection[Detections.Url]
+
+                # Section ends in this line
+                # Adding a row
+                df.loc[-1] = row_data
+                # Shifting index
+                df.index = df.index + 1
+                # Sorting by index
+                df = df.sort()
+
+    return df
+
+
+def get_predicates_dict_from_entities():
+    global entities
     entities, hierarchy_mapping_objects, _ = get_filtered_data(filtered_data_file_name="mini_filtered_data",
                                                                category="entities")
-
     predicates_dict = {}
-
     for entity in entities:
         predicates = entity.relationships
         for pred in predicates:
@@ -744,16 +814,25 @@ if __name__ == '__main__':
             else:
                 predicates_dict[rel] = 1
 
+
+if __name__ == '__main__':
+    # Create mini data-set
+    # create_data_object_and_predicates_by_img_id()
+
+    file_manager = FilesManager()
+    logger = Logger()
+
+    detection_parser(dir_path="Temp")
+
+    exit()
+
+    logger_parser(dir_path="Temp")
+
     print("hi")
 
     exit()
-    # df = cPickle.load(open("Temp/logger_data_df_entities.p"))
 
-    parser_from_logger(dir_path="Temp")
-
-    exit()
-
-    bad_img_ids = get_bad_img_ids_from_logger()
+    get_predicates_dict_from_entities()
 
     exit()
 
