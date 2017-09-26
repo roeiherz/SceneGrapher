@@ -784,8 +784,8 @@ def create_dataframe_from_detection(files):
 
     # Define the rows for the DataFrame
     dataframe_labels = [Detections.Id, Detections.SubjectBox, Detections.SubjectId, Detections.ObjectBox,
-                        Detections.ObjectId, Detections.Predicate, Detections.UnionBox, Detections.UnionFeature,
-                        Detections.SubjectClassifications,Detections.PredictSubjectClassifications,
+                        Detections.ObjectId, Detections.Predicate, "predict_predicate", Detections.UnionBox,
+                        Detections.SubjectClassifications, Detections.PredictSubjectClassifications,
                         Detections.ObjectClassifications, Detections.PredictObjectClassifications,
                         Detections.SubjectConfidence, Detections.ObjectConfidence, Detections.Url]
 
@@ -796,7 +796,7 @@ def create_dataframe_from_detection(files):
         with open(fl) as f:
             detection_file = cPickle.load(f)
             for detection in detection_file:
-                row_data = {}
+                row_data = dict()
                 row_data[Detections.Id] = int(detection[Detections.Id])
                 row_data[Detections.SubjectBox] = detection[Detections.SubjectBox]
                 row_data[Detections.SubjectId] = int(detection[Detections.SubjectId])
@@ -808,11 +808,11 @@ def create_dataframe_from_detection(files):
                 row_data[Detections.PredictSubjectClassifications] = detection[Detections.PredictSubjectClassifications]
                 row_data[Detections.ObjectClassifications] = detection[Detections.ObjectClassifications]
                 row_data[Detections.PredictObjectClassifications] = detection[Detections.PredictObjectClassifications]
-                row_data[Detections.UnionFeature] = detection[Detections.UnionFeature]
+                row_data["predict_predicate"] = detection[Detections.UnionFeature]
 
                 # Probabilities are not interesting
-                # row_data[Detections.SubjectConfidence] = detection[Detections.SubjectConfidence]
-                # row_data[Detections.ObjectConfidence] = detection[Detections.ObjectConfidence]
+                row_data[Detections.SubjectConfidence] = 0
+                row_data[Detections.ObjectConfidence] = 0
 
                 row_data[Detections.Url] = detection[Detections.Url]
 
