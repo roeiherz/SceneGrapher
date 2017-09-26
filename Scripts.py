@@ -640,6 +640,7 @@ def logger_parser(dir_path="Temp"):
     files = ["PredictFeaturesModule_0_to_18013.log", "PredictFeaturesModule_18013_to_36026.log"]
     # files = ["PredictFeaturesModule_mini_entities.log"]
     files = ["PredictFeaturesModule_mini_entities_module_mask.log"]
+    files = ["PredictFeaturesModule_mini_entities_mask_dual_260917.log"]
 
     # Get the data frame from logger
     df = create_dataframe_from_logger(files)
@@ -647,6 +648,7 @@ def logger_parser(dir_path="Temp"):
     # Get time and date
     time_and_date = get_time_and_date()
     dir_path = os.path.join(dir_path, time_and_date)
+    create_folder(dir_path)
 
     # Save DataFrame
     df.to_csv(os.path.join(dir_path, "logger_data_entities_mask_Sun_Sep_24_15:24:55_2017.csv"))
@@ -750,33 +752,27 @@ def detection_parser(dir_path="Temp"):
     total_nof_predicates = df.groupby(df.predicate).count()
     predicates_acc = (predicates_nof_eq / total_nof_predicates)["id"]
     # Save the accuracy of the Predicates
-    predicates_acc.to_csv(os.path.join(dir_path, "predicting_predicates.csv"))
+    predicates_acc.to_csv(os.path.join(dir_path, "predicting_predicates_accuracy.csv"))
 
     # Calc the accuracy of the Subjects
     subjects_nof_eq = df[df.subject_classifications == df.predict_subject_classifications].groupby(df.subject_classifications).count()
     total_nof_subjects = df.groupby(df.subject_classifications).count()
     subjects_acc = (subjects_nof_eq / total_nof_subjects)["id"]
     # Save the accuracy of the Subjects
-    subjects_acc.to_csv(os.path.join(dir_path, "predicting_subjects.csv"))
+    subjects_acc.to_csv(os.path.join(dir_path, "predicting_subjects_accuracy.csv"))
 
     # Calc the accuracy of the Objects
     objects_nof_eq = df[df.object_classifications == df.predict_object_classifications].groupby(df.object_classifications).count()
     total_nof_objects = df.groupby(df.object_classifications).count()
     objects_acc = (objects_nof_eq / total_nof_objects)["id"]
     # Save the accuracy of the Objects
-    objects_acc.to_csv(os.path.join(dir_path, "predicting_objects.csv"))
-
-    # predicates_neq_acc = (predicates_nof_neq / total_nof_predicates_df)["id"]
-    # predicates_neq_acc.to_csv(os.path.join(dir_path, "predicting_predicates_not_equals.csv"))
-    # predicates_eq_dict = dict(predicates_nof_eq["id"])
-    # total_nof_predicates_dict = dict(total_nof_predicates_df["id"])
+    objects_acc.to_csv(os.path.join(dir_path, "predicting_objects_accuracy.csv"))
 
     # Save DataFrame
     df.to_csv(os.path.join(dir_path, "logger_data_detections_Mon_Sep_25_17:47:17_2017_260917.csv"))
     fl = open(os.path.join(dir_path, "logger_data_detections_Mon_Sep_25_17:47:17_2017_260917_df.p"), "wb")
     cPickle.dump(df, fl)
     fl.close()
-    print("debug")
 
 
 def create_dataframe_from_detection(files):
@@ -813,17 +809,8 @@ def create_dataframe_from_detection(files):
                 row_data[Detections.ObjectClassifications] = detection[Detections.ObjectClassifications]
                 row_data[Detections.PredictObjectClassifications] = detection[Detections.PredictObjectClassifications]
                 row_data[Detections.UnionFeature] = detection[Detections.UnionFeature]
-
-                if detection[Detections.SubjectConfidence] is not None:
-                    row_data[Detections.SubjectConfidence] = float(detection[Detections.SubjectConfidence])
-                else:
-                    row_data[Detections.SubjectConfidence] = detection[Detections.SubjectConfidence]
-
-                if detection[Detections.ObjectConfidence] is not None:
-                    row_data[Detections.ObjectConfidence] = float(detection[Detections.ObjectConfidence])
-                else:
-                    row_data[Detections.ObjectConfidence] = detection[Detections.ObjectConfidence]
-
+                row_data[Detections.SubjectConfidence] = detection[Detections.SubjectConfidence]
+                row_data[Detections.ObjectConfidence] = detection[Detections.ObjectConfidence]
                 row_data[Detections.Url] = detection[Detections.Url]
 
                 # Section ends in this line
@@ -861,6 +848,8 @@ if __name__ == '__main__':
     logger = Logger()
 
     detection_parser(dir_path="Temp")
+
+    print("hi")
 
     exit()
 
