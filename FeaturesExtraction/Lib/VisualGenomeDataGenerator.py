@@ -71,7 +71,7 @@ def visual_genome_data_parallel_generator_with_batch(data, hierarchy_mapping, co
                         continue
 
                     # In-case we want to normalize
-                    if config.normalize:
+                    if config.use_jitter:
                         # Subtract mean and normalize
                         mean_image = np.mean(img, axis=0)
                         img -= mean_image
@@ -177,7 +177,7 @@ def visual_genome_data_parallel_generator(data, hierarchy_mapping, config, mode)
                     continue
 
                 # In-case we want to normalize
-                if config.normalize:
+                if config.use_jitter:
                     # Subtract mean and normalize
                     mean_image = np.mean(img, axis=0)
                     img -= mean_image
