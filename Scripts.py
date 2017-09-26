@@ -748,7 +748,7 @@ def detection_parser(dir_path="Temp"):
 
     # Make queries
     # Calc the accuracy of the Predicates
-    predicates_nof_eq = df[df.predicate == df.union_feature].groupby(df.predicate).count()
+    predicates_nof_eq = df[df.predicate == df.predict_predicate].groupby(df.predicate).count()
     total_nof_predicates = df.groupby(df.predicate).count()
     predicates_acc = (predicates_nof_eq / total_nof_predicates)["id"]
     # Save the accuracy of the Predicates
@@ -850,11 +850,11 @@ if __name__ == '__main__':
     file_manager = FilesManager()
     logger = Logger()
 
-    detection_parser(dir_path="Temp")
+    # detection_parser(dir_path="Temp")
+    #
+    # print("hi")
 
-    print("hi")
-
-    exit()
+    # exit()
 
     logger_parser(dir_path="Temp")
 
