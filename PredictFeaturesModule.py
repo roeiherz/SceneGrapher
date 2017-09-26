@@ -440,20 +440,48 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
             patch = img[union_box[BOX.Y1]: union_box[BOX.Y2], union_box[BOX.X1]: union_box[BOX.X2], :]
             resized_img = get_img_resize(patch, config.crop_width, config.crop_height, type=config.padding_method)
 
-            # Using mask means the data should be
+            # Using mask dual means the data should be prepared
             if use_mask:
+
                 # Fill HeatMap
-                heat_map = np.zeros(img.shape)
-                heat_map[subject_box[BOX.Y1]: subject_box[BOX.Y2], subject_box[BOX.X1]: subject_box[BOX.X2],
+                heat_map_subject = np.zeros(img.shape)
+                heat_map_subject[subject_box[BOX.Y1]: subject_box[BOX.Y2], subject_box[BOX.X1]: subject_box[BOX.X2],
                 :] = 255
-                heat_map[object_box[BOX.Y1]: object_box[BOX.Y2], object_box[BOX.X1]: object_box[BOX.X2], :] = 255
+                heat_map_object = np.zeros(img.shape)
+                heat_map_object[object_box[BOX.Y1]: object_box[BOX.Y2], object_box[BOX.X1]: object_box[BOX.X2], :] = 255
+
                 # Cropping the patch from the heat map.
-                patch_heatmap = heat_map[union_box[BOX.Y1]: union_box[BOX.Y2], union_box[BOX.X1]: union_box[BOX.X2], :]
+                patch_heatmap_heat_map_subject = heat_map_subject[union_box[BOX.Y1]: union_box[BOX.Y2], union_box[BOX.X1]: union_box[BOX.X2], :]
+                patch_heatmap_heat_map_object = heat_map_object[union_box[BOX.Y1]: union_box[BOX.Y2], union_box[BOX.X1]: union_box[BOX.X2], :]
+
                 # Resize the image according the padding method
-                resized_heatmap = get_img_resize(patch_heatmap, config.crop_width, config.crop_height,
-                                                 type=config.padding_method)
+                resized_heatmap_subject = get_img_resize(patch_heatmap_heat_map_subject, config.crop_width,
+                                                         config.crop_height, type=config.padding_method)
+                resized_heatmap_object = get_img_resize(patch_heatmap_heat_map_object, config.crop_width,
+                                                        config.crop_height, type=config.padding_method)
+
                 # Concatenate the heat-map to the image in the kernel axis
-                resized_img = np.concatenate((resized_img, resized_heatmap[:, :, :1]), axis=2)
+                resized_img = np.concatenate((resized_img, resized_heatmap_subject[:, :, :1]), axis=2)
+                resized_img = np.concatenate((resized_img, resized_heatmap_object[:, :, :1]), axis=2)
+
+                # region PredicateMaskCNN
+                # # Fill HeatMap
+                # heat_map = np.zeros(img.shape)
+                # heat_map[subject_box[BOX.Y1]: subject_box[BOX.Y2], subject_box[BOX.X1]: subject_box[BOX.X2],
+                # :] = 255
+                # heat_map[object_box[BOX.Y1]: object_box[BOX.Y2], object_box[BOX.X1]: object_box[BOX.X2], :] = 255
+
+                # # Cropping the patch from the heat map.
+                # patch_heatmap = heat_map[union_box[BOX.Y1]: union_box[BOX.Y2], union_box[BOX.X1]: union_box[BOX.X2], :]
+
+                # # Resize the image according the padding method
+                # resized_heatmap = get_img_resize(patch_heatmap, config.crop_width, config.crop_height,
+                #                                  type=config.padding_method)
+
+                # # Concatenate the heat-map to the image in the kernel axis
+                # resized_img = np.concatenate((resized_img, resized_heatmap[:, :, :1]), axis=2)
+
+                # endregion
 
             resized_img = np.expand_dims(resized_img, axis=0)
             resized_img_lst.append(resized_img)
