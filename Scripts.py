@@ -809,8 +809,11 @@ def create_dataframe_from_detection(files):
                 row_data[Detections.ObjectClassifications] = detection[Detections.ObjectClassifications]
                 row_data[Detections.PredictObjectClassifications] = detection[Detections.PredictObjectClassifications]
                 row_data[Detections.UnionFeature] = detection[Detections.UnionFeature]
-                row_data[Detections.SubjectConfidence] = detection[Detections.SubjectConfidence]
-                row_data[Detections.ObjectConfidence] = detection[Detections.ObjectConfidence]
+
+                # Probabilities are not interesting
+                # row_data[Detections.SubjectConfidence] = detection[Detections.SubjectConfidence]
+                # row_data[Detections.ObjectConfidence] = detection[Detections.ObjectConfidence]
+
                 row_data[Detections.Url] = detection[Detections.Url]
 
                 # Section ends in this line
