@@ -4,7 +4,8 @@ from Data.VisualGenome.models import ObjectMapping
 from DesignPatterns.Detections import Detections
 from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator_with_batch, \
     visual_genome_data_predicate_pairs_generator_with_batch, \
-    visual_genome_data_predicate_mask_pairs_generator_with_batch
+    visual_genome_data_predicate_mask_pairs_generator_with_batch, \
+    visual_genome_data_predicate_mask_dual_pairs_generator_with_batch
 
 from FeaturesExtraction.Lib.Zoo import ModelZoo
 import traceback
@@ -79,12 +80,12 @@ def get_model(number_of_classes, weight_path, config, activation="softmax", use_
 
     if K.image_dim_ordering() == 'th':
         if use_mask:
-            input_shape_img = (4, None, None)
+            input_shape_img = (5, None, None)
         else:
             input_shape_img = (3, None, None)
     else:
         if use_mask:
-            input_shape_img = (config.crop_height, config.crop_width, 4)
+            input_shape_img = (config.crop_height, config.crop_width, 5)
         else:
             input_shape_img = (config.crop_height, config.crop_width, 3)
 
@@ -93,7 +94,7 @@ def get_model(number_of_classes, weight_path, config, activation="softmax", use_
     # Define ResNet50 model Without Top
     net = ModelZoo()
     if use_mask:
-        model_resnet50 = net.resnet50_with_masking(img_input, trainable=True)
+        model_resnet50 = net.resnet50_with_masking_dual(img_input, trainable=True)
     else:
         model_resnet50 = net.resnet50_base(img_input, trainable=True)
 
@@ -306,7 +307,7 @@ def predict_predicates_for_module(entity, objects, url_data, hierarchy_mapping_p
 
     # Create a data generator for VisualGenome for PREDICATES depends using masks
     if use_mask:
-        data_gen_val_predicates_vg = visual_genome_data_predicate_mask_pairs_generator_with_batch(data=objects_pairs,
+        data_gen_val_predicates_vg = visual_genome_data_predicate_mask_dual_pairs_generator_with_batch(data=objects_pairs,
                                                                                                   relations_dict=relations_dict,
                                                                                                   hierarchy_mapping=hierarchy_mapping_predicates,
                                                                                                   config=config,
