@@ -734,7 +734,7 @@ def detection_parser(dir_path="Temp"):
     """
 
     # Define from each files we are gonna to parse
-    files = ["mini_predicated_mask_predicates_pos_and_neg_Sat_Sep_16_19:10:07_2017_240917.p"]
+    files = ["mini_predicated_mask_predicates_Mon_Sep_25_17:47:17_2017_260917.p"]
 
     # Get the data frame from logger
     df = create_dataframe_from_detection(files)
@@ -746,7 +746,7 @@ def detection_parser(dir_path="Temp"):
 
     # Make queries
     # Calc the accuracy of the Predicates
-    predicates_nof_eq = df[df.predicate == df.predict_subject_classifications].groupby(df.predicate).count()
+    predicates_nof_eq = df[df.predicate == df.union_feature].groupby(df.predicate).count()
     total_nof_predicates = df.groupby(df.predicate).count()
     predicates_acc = (predicates_nof_eq / total_nof_predicates)["id"]
     # Save the accuracy of the Predicates
@@ -772,10 +772,11 @@ def detection_parser(dir_path="Temp"):
     # total_nof_predicates_dict = dict(total_nof_predicates_df["id"])
 
     # Save DataFrame
-    df.to_csv(os.path.join(dir_path, "logger_data_detections_Sat_Sep_16_19:10:07_2017_240917.csv"))
-    fl = open(os.path.join(dir_path, "logger_data_detections_Sat_Sep_16_19:10:07_2017_240917_df.p"), "wb")
+    df.to_csv(os.path.join(dir_path, "logger_data_detections_Mon_Sep_25_17:47:17_2017_260917.csv"))
+    fl = open(os.path.join(dir_path, "logger_data_detections_Mon_Sep_25_17:47:17_2017_260917_df.p"), "wb")
     cPickle.dump(df, fl)
     fl.close()
+    print("debug")
 
 
 def create_dataframe_from_detection(files):

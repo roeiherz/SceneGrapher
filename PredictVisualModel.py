@@ -348,7 +348,6 @@ if __name__ == '__main__':
     save_files(detections, name=FILE_NAME)
     logger.log("Finished successfully saving predicated_detections")
 
-    exit()
     # endregion
 
     logger.log('Predicting Probabilities - Objects')
