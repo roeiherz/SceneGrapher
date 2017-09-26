@@ -2,7 +2,8 @@ from __future__ import print_function
 
 from DesignPatterns.Detections import Detections
 from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_parallel_generator_with_batch, \
-    visual_genome_data_predicate_generator_with_batch, visual_genome_data_predicate_mask_generator_with_batch
+    visual_genome_data_predicate_generator_with_batch, visual_genome_data_predicate_mask_generator_with_batch, \
+    visual_genome_data_predicate_mask_dual_generator_with_batch
 from FeaturesExtraction.Lib.Zoo import ModelZoo
 import traceback
 import os
@@ -105,12 +106,12 @@ def get_model(number_of_classes, weight_path, config, use_mask=False):
 
     if K.image_dim_ordering() == 'th':
         if use_mask:
-            input_shape_img = (4, None, None)
+            input_shape_img = (5, None, None)
         else:
             input_shape_img = (3, None, None)
     else:
         if use_mask:
-            input_shape_img = (config.crop_height, config.crop_width, 4)
+            input_shape_img = (config.crop_height, config.crop_width, 5)
         else:
             input_shape_img = (config.crop_height, config.crop_width, 3)
 
@@ -119,7 +120,7 @@ def get_model(number_of_classes, weight_path, config, use_mask=False):
     # Define ResNet50 model Without Top
     net = ModelZoo()
     if use_mask:
-        model_resnet50 = net.resnet50_with_masking(img_input, trainable=True)
+        model_resnet50 = net.resnet50_with_masking_dual(img_input, trainable=True)
     else:
         model_resnet50 = net.resnet50_base(img_input, trainable=True)
 
@@ -248,10 +249,10 @@ if __name__ == '__main__':
 
     # Get Visual Genome Data relations
     relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                                        relation_file_name="mini_relations")
+                                        relation_file_name="mini_relations_all")
 
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="mini_detections")
+    detections = process_to_detections(relations, detections_file_name="mini_detections_all")
 
     detections = sort_detections_by_url(detections)
 
@@ -295,7 +296,7 @@ if __name__ == '__main__':
 
     if USE_PREDICATES_MASK:
         # Create a data generator for VisualGenome for PREDICATES depends using masks
-        data_gen_val_predicates_vg = visual_genome_data_predicate_mask_generator_with_batch(data=detections,
+        data_gen_val_predicates_vg = visual_genome_data_predicate_mask_dual_generator_with_batch(data=detections,
                                                                        hierarchy_mapping=hierarchy_mapping_predicates,
                                                                        config=config, mode='train',
                                                                        classification=Detections.Predicate,

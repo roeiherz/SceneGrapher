@@ -13,7 +13,7 @@ from FilesManager.FilesManager import FilesManager
 from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
     HIERARCHY_MAPPING, plot_graph, POSITIVE_NEGATIVE_RATIO, DATA_PATH, CLASSES_COUNT_FILE, RELATIONS_COUNT_FILE, \
     VisualGenome_PICKLES_PATH, TRAINING_OBJECTS_CNN_PATH, WEIGHTS_NAME, TRAINING_PREDICATE_CNN_PATH, \
-    PREDICATED_FEATURES_PATH
+    PREDICATED_FEATURES_PATH, get_time_and_date
 from TrainCNN import preprocessing_objects
 from Utils.Utils import create_folder
 from FeaturesExtraction.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data
@@ -644,6 +644,10 @@ def logger_parser(dir_path="Temp"):
     # Get the data frame from logger
     df = create_dataframe_from_logger(files)
 
+    # Get time and date
+    time_and_date = get_time_and_date()
+    dir_path = os.path.join(dir_path, time_and_date)
+
     # Save DataFrame
     df.to_csv(os.path.join(dir_path, "logger_data_entities_mask_Sun_Sep_24_15:24:55_2017.csv"))
     fl = open(os.path.join(dir_path, "logger_data_entities_mask_Sun_Sep_24_15:24:55_2017_df.p"), "wb")
@@ -735,9 +739,41 @@ def detection_parser(dir_path="Temp"):
     # Get the data frame from logger
     df = create_dataframe_from_detection(files)
 
+    # Get time and date
+    time_and_date = get_time_and_date()
+    dir_path = os.path.join(dir_path, time_and_date)
+    create_folder(dir_path)
+
+    # Make queries
+    # Calc the accuracy of the Predicates
+    predicates_nof_eq = df[df.predicate == df.predict_subject_classifications].groupby(df.predicate).count()
+    total_nof_predicates = df.groupby(df.predicate).count()
+    predicates_acc = (predicates_nof_eq / total_nof_predicates)["id"]
+    # Save the accuracy of the Predicates
+    predicates_acc.to_csv(os.path.join(dir_path, "predicting_predicates.csv"))
+
+    # Calc the accuracy of the Subjects
+    subjects_nof_eq = df[df.subject_classifications == df.predict_subject_classifications].groupby(df.subject_classifications).count()
+    total_nof_subjects = df.groupby(df.subject_classifications).count()
+    subjects_acc = (subjects_nof_eq / total_nof_subjects)["id"]
+    # Save the accuracy of the Subjects
+    subjects_acc.to_csv(os.path.join(dir_path, "predicting_subjects.csv"))
+
+    # Calc the accuracy of the Objects
+    objects_nof_eq = df[df.object_classifications == df.predict_object_classifications].groupby(df.object_classifications).count()
+    total_nof_objects = df.groupby(df.object_classifications).count()
+    objects_acc = (objects_nof_eq / total_nof_objects)["id"]
+    # Save the accuracy of the Objects
+    objects_acc.to_csv(os.path.join(dir_path, "predicting_objects.csv"))
+
+    # predicates_neq_acc = (predicates_nof_neq / total_nof_predicates_df)["id"]
+    # predicates_neq_acc.to_csv(os.path.join(dir_path, "predicting_predicates_not_equals.csv"))
+    # predicates_eq_dict = dict(predicates_nof_eq["id"])
+    # total_nof_predicates_dict = dict(total_nof_predicates_df["id"])
+
     # Save DataFrame
-    df.to_csv(os.path.join(dir_path, "logger_data_detections_SSat_Sep_16_19:10:07_2017_240917.csv"))
-    fl = open(os.path.join(dir_path, "logger_data_detections_SSat_Sep_16_19:10:07_2017_240917_df.p"), "wb")
+    df.to_csv(os.path.join(dir_path, "logger_data_detections_Sat_Sep_16_19:10:07_2017_240917.csv"))
+    fl = open(os.path.join(dir_path, "logger_data_detections_Sat_Sep_16_19:10:07_2017_240917_df.p"), "wb")
     cPickle.dump(df, fl)
     fl.close()
 
@@ -755,7 +791,6 @@ def create_dataframe_from_detection(files):
                         Detections.SubjectClassifications,Detections.PredictSubjectClassifications,
                         Detections.ObjectClassifications, Detections.PredictObjectClassifications,
                         Detections.SubjectConfidence, Detections.ObjectConfidence, Detections.Url]
-
 
     # Define DataFrame
     df = pd.DataFrame(columns=dataframe_labels)
