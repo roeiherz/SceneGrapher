@@ -592,8 +592,8 @@ if __name__ == '__main__':
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
                                                                                           'full_filtered_data',
                                                                                           # "mini_filtered_data",
-                                                                                          # category='entities_visual_module')
-                                                                                          category='entities')
+                                                                                          category='entities_visual_module')
+                                                                                          # category='entities')
 
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
@@ -686,12 +686,12 @@ if __name__ == '__main__':
                     # if entity.image.id != 2366365:
                     #     continue
 
+                    # Increment index
+                    ind += 1
+
                     # Make sure
                     if entity.image.url in bad_urls:
                         continue
-
-                    # Increment index
-                    ind += 1
 
                     logger.log('Predicting image id {0} in iteration {1} \n'.format(entity.image.id, ind))
                     # Get the url image
