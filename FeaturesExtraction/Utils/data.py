@@ -887,12 +887,15 @@ def get_filtered_data(filtered_data_file_name="filtered_module_data.p", category
         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(filtered_data_file_name)))
 
     if load_entities:
-        entities = filtered_module_data[category]
+        entities = list(filtered_module_data[category])
     else:
         entities = None
 
-    hierarchy_mapping_objects = filtered_module_data['object_ids']
-    hierarchy_mapping_predicates = filtered_module_data['predicate_ids']
+    hierarchy_mapping_objects = dict(filtered_module_data['object_ids'])
+    hierarchy_mapping_predicates = dict(filtered_module_data['predicate_ids'])
+
+    # Delete the whole data, is no longer needed
+    del filtered_module_data
     return entities, hierarchy_mapping_objects, hierarchy_mapping_predicates
 
 

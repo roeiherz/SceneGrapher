@@ -66,7 +66,7 @@ data:
         temp_filtered_data:
             name: "Data/VisualGenome/temp_filtered_data.p"
             type: "pickle"
-            doc:  "visual genome data (first 20000 of 108000 entities) filtered according to the most popular objects and predicates and includes negative predicates 1X3"
+            doc:  "visual genome data (0:20000 of 108000 entities from entities_visual_module) filtered according to the most popular objects and predicates and includes negative predicates 1X3"
 
         # Relations (for TrainPredicateCNN)
         mini_relations:
@@ -250,6 +250,11 @@ scene_graph_base_module:
 
         predicate_mask_cnn:
             name: "FeaturesExtraction/PredicatesMaskCNN/Sat_Sep_16_14:36:13_2017/model_vg_resnet50.hdf5"
+            type: "dir"
+            doc: "path to predicate mask cnn. A network which trained on the best 50 most probable predicats in the data (with neg) with the NEW DATA"
+
+        predicate_mask_dual_cnn:
+            name: "FeaturesExtraction/PredicatesMaskCNN/Mon_Sep_25_17:47:17_2017/model_vg_resnet50.hdf5"
             type: "dir"
             doc: "path to predicate mask cnn. A network which trained on the best 50 most probable predicats in the data (with neg) with the NEW DATA"
 

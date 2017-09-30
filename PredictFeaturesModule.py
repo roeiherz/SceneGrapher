@@ -590,8 +590,8 @@ if __name__ == '__main__':
 
     # Load detections dtype numpy array and hierarchy mappings
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                          'temp_filtered_data',
-                                                                                          # 'full_filtered_data',
+                                                                                          # 'temp_filtered_data',
+                                                                                          'full_filtered_data',
                                                                                           # "mini_filtered_data",
                                                                                           category='entities_visual_module')
                                                                                           # category='entities')
