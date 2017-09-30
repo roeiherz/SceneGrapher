@@ -648,7 +648,8 @@ if __name__ == '__main__':
     logger.log('Starting Prediction')
     ind = 0
 
-    total_entities = entities[:20000]
+    # total_entities = entities[:20000]
+    total_entities = entities[20000:50000]
     # total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
     SPLIT_ENT = 1000
