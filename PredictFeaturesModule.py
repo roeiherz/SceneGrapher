@@ -671,7 +671,7 @@ if __name__ == '__main__':
         try:
 
             # Current batch
-            if batch_idx < 6:
+            if batch_idx < 9:
                 continue
 
             predicated_entities = []
