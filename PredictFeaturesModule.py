@@ -590,7 +590,8 @@ if __name__ == '__main__':
 
     # Load detections dtype numpy array and hierarchy mappings
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                          'temp_filtered_data',
+                                                                                          # 'temp_filtered_data',
+                                                                                          'temp2_filtered_data',
                                                                                           # 'temp3_filtered_data',
                                                                                           # 'full_filtered_data',
                                                                                           # "mini_filtered_data",
@@ -649,8 +650,8 @@ if __name__ == '__main__':
     logger.log('Starting Prediction')
     ind = 0
 
-    total_entities = entities[:20000]
-    # total_entities = entities[20000:50000]
+    # total_entities = entities[:20000]
+    total_entities = entities[20000:50000]
     # total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
     SPLIT_ENT = 1000
@@ -671,7 +672,7 @@ if __name__ == '__main__':
         try:
 
             # Current batch
-            if batch_idx < 9:
+            if batch_idx < 5:
                 continue
 
             predicated_entities = []

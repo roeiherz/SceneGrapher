@@ -67,6 +67,11 @@ data:
             name: "Data/VisualGenome/temp_filtered_data.p"
             type: "pickle"
             doc:  "visual genome data (0:20000 of 54000 entities from entities_visual_module) filtered according to the most popular objects and predicates and includes negative predicates 1X3"
+        temp2_filtered_data:
+            name: "Data/VisualGenome/temp2_filtered_data.p"
+            type: "pickle"
+            doc:  "visual genome data (20000:50000 of 54000 entities from entities_visual_module) filtered according to the most popular objects and predicates and includes negative predicates 1X3"
+
         temp3_filtered_data:
             name: "Data/VisualGenome/temp3_filtered_data.p"
             type: "pickle"
