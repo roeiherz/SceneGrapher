@@ -651,7 +651,7 @@ if __name__ == '__main__':
     ind = 0
 
     # total_entities = entities[:20000]
-    total_entities = entities[5000:30000]
+    total_entities = entities[:30000]
     # total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
     SPLIT_ENT = 1000
