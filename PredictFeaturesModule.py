@@ -591,12 +591,12 @@ if __name__ == '__main__':
     # Load detections dtype numpy array and hierarchy mappings
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
                                                                                           # 'temp_filtered_data',
-                                                                                          'temp2_filtered_data',
+                                                                                          # 'temp2_filtered_data',
                                                                                           # 'temp3_filtered_data',
                                                                                           # 'full_filtered_data',
-                                                                                          # "mini_filtered_data",
+                                                                                          "mini_filtered_data",
                                                                                           # category='entities_visual_module')
-                                                                                          category='entities_visual_module')
+                                                                                          category='entities')
 
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
@@ -655,8 +655,8 @@ if __name__ == '__main__':
     # total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
     SPLIT_ENT = 1000
-    # bad_urls = get_bad_urls()
-    bad_urls = get_sorting_url()
+    bad_urls = get_bad_urls()
+    # bad_urls = get_sorting_url()
 
     if len(bad_urls) < 100:
         logger.log("WARNING: number of bad urls is lower than 100")
@@ -671,9 +671,9 @@ if __name__ == '__main__':
     for batch_idx in range(num_of_iters):
         try:
 
-            # Current batch
-            if batch_idx < 5:
-                continue
+            # # Current batch
+            # if batch_idx < 5:
+            #     continue
 
             predicated_entities = []
             entities = total_entities[SPLIT_ENT * batch_idx: SPLIT_ENT * (batch_idx + 1)]
