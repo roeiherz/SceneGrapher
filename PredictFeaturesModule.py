@@ -593,7 +593,8 @@ if __name__ == '__main__':
                                                                                           # 'temp_filtered_data',
                                                                                           # 'temp2_filtered_data',
                                                                                           # 'temp3_filtered_data',
-                                                                                          'temp5_filtered_data',
+                                                                                          # 'temp5_filtered_data',
+                                                                                          'temp6_filtered_data',
                                                                                           # 'full_filtered_data',
                                                                                           # "mini_filtered_data",
                                                                                           # category='entities_visual_module')
