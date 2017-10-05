@@ -593,8 +593,9 @@ if __name__ == '__main__':
                                                                                           # 'temp_filtered_data',
                                                                                           # 'temp2_filtered_data',
                                                                                           # 'temp3_filtered_data',
+                                                                                          'temp5_filtered_data',
                                                                                           # 'full_filtered_data',
-                                                                                          "mini_filtered_data",
+                                                                                          # "mini_filtered_data",
                                                                                           # category='entities_visual_module')
                                                                                           category='entities')
 
@@ -655,8 +656,8 @@ if __name__ == '__main__':
     # total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
     SPLIT_ENT = 1000
-    bad_urls = get_bad_urls()
-    # bad_urls = get_sorting_url()
+    # bad_urls = get_bad_urls()
+    bad_urls = get_sorting_url()
 
     if len(bad_urls) < 100:
         logger.log("WARNING: number of bad urls is lower than 100")
