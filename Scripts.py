@@ -13,7 +13,7 @@ from FilesManager.FilesManager import FilesManager
 from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
     HIERARCHY_MAPPING, plot_graph, POSITIVE_NEGATIVE_RATIO, DATA_PATH, CLASSES_COUNT_FILE, RELATIONS_COUNT_FILE, \
     VisualGenome_PICKLES_PATH, TRAINING_OBJECTS_CNN_PATH, WEIGHTS_NAME, TRAINING_PREDICATE_CNN_PATH, \
-    PREDICATED_FEATURES_PATH, get_time_and_date
+    PREDICATED_FEATURES_PATH, get_time_and_date, get_img
 from TrainCNN import preprocessing_objects
 from Utils.Utils import create_folder
 from FeaturesExtraction.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data
@@ -24,6 +24,7 @@ from DesignPatterns.Detections import Detections
 from Utils.Logger import Logger
 from keras import backend as K
 import pandas as pd
+import cv2
 
 
 def check_loading_pickle_time():
@@ -641,6 +642,7 @@ def logger_parser(dir_path="Temp"):
     # files = ["PredictFeaturesModule_mini_entities.log"]
     files = ["PredictFeaturesModule_mini_entities_module_mask.log"]
     files = ["PredictFeaturesModule_mini_entities_mask_dual_260917.log"]
+    files = ["PredictFeaturesModule_mini_entities_mask_dual_031017.log"]
 
     # Get the data frame from logger
     df = create_dataframe_from_logger(files)
@@ -651,8 +653,8 @@ def logger_parser(dir_path="Temp"):
     create_folder(dir_path)
 
     # Save DataFrame
-    df.to_csv(os.path.join(dir_path, "logger_data_entities_mask_Sun_Sep_24_15:24:55_2017.csv"))
-    fl = open(os.path.join(dir_path, "logger_data_entities_mask_Sun_Sep_24_15:24:55_2017_df.p"), "wb")
+    df.to_csv(os.path.join(dir_path, "logger_data_entities_mask_Tue_Oct_3_22:13:00_2017.csv"))
+    fl = open(os.path.join(dir_path, "logger_data_entities_mask_Sun_Tue_Oct_3_22:13:00_2017_df.p"), "wb")
     cPickle.dump(df, fl)
     fl.close()
 
@@ -843,12 +845,34 @@ def get_predicates_dict_from_entities():
                 predicates_dict[rel] = 1
 
 
+def find_image_id_via_object(object=""):
+    """
+    This function find the image id by same object
+    :param object: the object category that we are searching
+    :return:
+    """
+    # Filter the data
+    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
+                                                                                          "full_filtered_data",
+                                                                                          category='entities')
+    for entity in entities:
+        for obj in entity.objects:
+            if obj.names[0] == object:
+                # Get image - the pair is from the same image
+                img = get_img(entity.image.url, download=True)
+                cv2.imwrite("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Temp/Elephant/{}.jpg".format(entity.image.id), img)
+                break
+
+
 if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
 
     file_manager = FilesManager()
     logger = Logger()
+
+    find_image_id_via_object("elephant")
+    exit()
 
     # detection_parser(dir_path="Temp")
     #
