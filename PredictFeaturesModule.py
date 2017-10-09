@@ -594,11 +594,11 @@ if __name__ == '__main__':
                                                                                           # 'temp2_filtered_data',
                                                                                           # 'temp3_filtered_data',
                                                                                           # 'temp5_filtered_data',
-                                                                                          'temp6_filtered_data',
-                                                                                          # 'full_filtered_data',
+                                                                                          # 'temp6_filtered_data',
+                                                                                          'full_filtered_data',
                                                                                           # "mini_filtered_data",
-                                                                                          # category='entities_visual_module')
-                                                                                          category='entities')
+                                                                                          category='entities_visual_module')
+                                                                                          # category='entities')
 
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
@@ -653,7 +653,7 @@ if __name__ == '__main__':
     ind = 0
 
     # total_entities = entities[:20000]
-    total_entities = entities[:30000]
+    total_entities = entities[50000:]
     # total_entities = entities[18013:36026]
     # total_entities = entities[36026:54039]
     SPLIT_ENT = 1000
