@@ -15,7 +15,7 @@ from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, DATA_PATH, CLASSES_MAP
     VALIDATION_DATA_SET, TEST_DATA_SET, TRAIN_DATA_SET, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
     MINI_VG_DATASET_PATH, MINI_IMDB, get_time_and_date, VG_PICKLES_FOLDER_PATH, VisualGenome_DATASETS_PICKLES_PATH, \
     get_img, get_sorting_url, POSITIVE_NEGATIVE_RATIO, OBJECTS_ALIAS, PREDICATES_ALIAS, PREDICATES_LIST, OBJECTS_LIST, \
-    DATA, VISUAL_GENOME
+    DATA, VISUAL_GENOME, OUTPUTS_PATH
 from DesignPatterns.Detections import Detections
 from FeaturesExtraction.Utils.Visualizer import VisualizerDrawer, CvColor
 import cv2
@@ -935,3 +935,123 @@ def get_name_from_file(filename):
     :return: only the name of the filename
     """
     return filename.split(".")[0]
+
+
+def visualize_detections(detections=None, relations=None, path_to_save=OUTPUTS_PATH, img_id=""):
+    """
+    This function
+    :param img_id: image id
+    :param path_to_save: path to save the output folder
+    :param relations:
+    :param detections: The detections to be visualized
+    :return:
+    """
+
+    def create_folder(path):
+        """
+        Checks if the path exists, if not creates it.
+        :param path: A valid path that might not exist
+        :return: An indication if the folder was created
+        """
+        folder_missing = not os.path.exists(path)
+
+        if folder_missing:
+            # Using makedirs since the path hierarchy might not fully exist.
+            try:
+                os.makedirs(path)
+            except OSError as e:
+                if (e.errno, e.strerror) == (17, 'File exists'):
+                    print(e)
+                else:
+                    raise
+
+            print('Created folder {0}'.format(path))
+
+        return folder_missing
+
+    detections = cPickle.load(open("{}_detections.p".format(img_id)))
+    # Get image
+    img_objects = get_img(detections[0][Detections.Url])
+    img_relations = get_img(detections[0][Detections.Url])
+    img_relations_pos = get_img(detections[0][Detections.Url])
+    img_relations_triplets = get_img(detections[0][Detections.Url])
+
+    for detection in detections:
+
+        # Get the subject box
+        draw_subject_box = detection[Detections.SubjectBox]
+        # Get Predicted Subject
+        subject_predict = detection[Detections.PredictSubjectClassifications]
+        # Get Subject GT
+        subject_gt = detection[Detections.SubjectClassifications]
+        # Define Subject color
+        subject_color = CvColor.BLUE
+        if subject_gt != subject_predict:
+            subject_color = CvColor.BLACK
+
+        if subject_predict == "person":
+            subject_color = CvColor.RED
+
+        # Draw Subject box with their labels
+        VisualizerDrawer.draw_labeled_box(img_objects, draw_subject_box, label=subject_predict + "/" + subject_gt,
+                                          rect_color=subject_color, scale=500)
+
+        # Get the subject box
+        draw_object_box = detection[Detections.ObjectBox]
+        # Get Predicted Object
+        object_predict = detection[Detections.PredictObjectClassifications]
+        # Get Object GT
+        object_gt = detection[Detections.ObjectClassifications]
+        # Define Subject color
+        object_color = CvColor.GREEN
+        if object_gt != object_predict:
+            object_color = CvColor.BLACK
+
+        if object_predict == "person":
+            object_color = CvColor.RED
+
+        # Draw Object box with their labels
+        VisualizerDrawer.draw_labeled_box(img_objects, draw_object_box, label=object_predict + "/" + object_gt,
+                                          rect_color=object_color, scale=500)
+
+        # Get the predicate box
+        draw_predicate_box = detection[Detections.UnionBox]
+        # Get Predicted Predicate
+        predicate_predict = detection[Detections.UnionFeature]
+        # Get Predicate GT
+        predicate_gt = detection[Detections.Predicate]
+        # Define Subject color
+        predicate_color = CvColor.GREEN
+        if predicate_predict != predicate_gt:
+            predicate_color = CvColor.BLACK
+
+        if predicate_predict == "has":
+            predicate_color = CvColor.RED
+
+        if predicate_gt != "neg":
+            # Draw Predicate box with their labels
+            VisualizerDrawer.draw_labeled_box(img_relations_pos, draw_predicate_box,
+                                              label=predicate_predict + "/" + predicate_gt, rect_color=predicate_color,
+                                              scale=500)
+            # Draw Predicate box with their labels
+            VisualizerDrawer.draw_labeled_box(img_relations_triplets, draw_predicate_box,
+                                              label="<{0}, {1}, {2}>/".format(subject_predict, predicate_predict, object_predict),
+                                              label2="<{0}, {1}, {2}>".format(subject_gt, predicate_gt, object_gt),
+                                              rect_color=predicate_color, scale=500)
+
+        # Draw Predicate box with their labels
+        VisualizerDrawer.draw_labeled_box(img_relations, draw_predicate_box,
+                                          label=predicate_predict + "/" + predicate_gt, rect_color=predicate_color,
+                                          scale=500)
+
+    # Get time and date
+    time_and_date = get_time_and_date()
+
+    # Path for the training folder
+    path = os.path.join(path_to_save, time_and_date)
+    # Create a new folder for training
+    create_folder(path)
+    cv2.imwrite(os.path.join(path, "objects_img_{}.jpg".format(img_id)), img_objects)
+    cv2.imwrite(os.path.join(path, "predicates_all_img_{}.jpg".format(img_id)), img_relations)
+    cv2.imwrite(os.path.join(path, "predicates_pos_img_{}.jpg".format(img_id)), img_relations_pos)
+    cv2.imwrite(os.path.join(path, "predicates_triplets_img_{}.jpg".format(img_id)), img_relations_triplets)
