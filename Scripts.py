@@ -16,7 +16,8 @@ from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE,
     PREDICATED_FEATURES_PATH, get_time_and_date, get_img
 from TrainCNN import preprocessing_objects
 from Utils.Utils import create_folder
-from FeaturesExtraction.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data
+from FeaturesExtraction.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data, \
+    visualize_detections
 from PredictVisualModel import get_resize_images_array, load_full_detections, get_model
 from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH
 from FeaturesExtraction.Lib.Config import Config
@@ -870,6 +871,9 @@ if __name__ == '__main__':
 
     file_manager = FilesManager()
     logger = Logger()
+
+    visualize_detections(img_id=2415186)
+    exit()
 
     find_image_id_via_object("elephant")
     exit()
