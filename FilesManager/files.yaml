@@ -92,7 +92,6 @@ data:
             doc:  "visual genome data (40000:54000 of 108000 entities from all entities) filtered according to the most popular objects and predicates and includes negative predicates 1X3"
 
 
-
         # Relations (for TrainPredicateCNN)
         mini_relations:
             name: "Data/VisualGenome/mini_visual_filtered_relations.p"
@@ -120,6 +119,11 @@ data:
             type: "pickle"
             doc:  "Relations (ALL 108000 ENTITIES) includes positive and negative predicates 1X3"
 
+        2415186_relation:
+            name: "Data/VisualGenome/2415186_relation.p"
+            type: "pickle"
+            doc:  "Relations number 2415186"
+
         # Detections (for TrainPredicateCNN)
         mini_detections:
             name: "Data/VisualGenome/mini_visual_filtered_detections.p"
@@ -146,6 +150,11 @@ data:
             name: "Data/VisualGenome/full_entities_filtered_detections_all.p"
             type: "pickle"
             doc:  "Detections (ALL 108000 ENTITIES) includes positive and negative predicates 1X3"
+
+        2415186_detection:
+            name: "Data/VisualGenome/2415186_detection.p"
+            type: "pickle"
+            doc:  "Detections number 2415186"
 
         # Objects (for TrainCNN)
         mini_objects:
