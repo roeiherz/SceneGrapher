@@ -872,7 +872,7 @@ def split_filter_data():
     """
     # Filter the data
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                          "mini_filtered_data",
+                                                                                          "full_filtered_data",
                                                                                           category='entities')
 
     path = os.path.join(PROJECT_ROOT, FILTERED_DATA_SPLIT_PATH)
