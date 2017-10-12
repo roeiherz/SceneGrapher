@@ -44,6 +44,7 @@ TRAINING_PREDICATE_CNN_PATH = "FilesManager/FeaturesExtraction/PredicatesCNN"
 TRAINING_PREDICATE_MASK_CNN_PATH = "FilesManager/FeaturesExtraction/PredicatesMaskCNN"
 PREDICATED_FEATURES_PATH = "FilesManager/FeaturesExtraction/PredicatedFeatures"
 OUTPUTS_PATH = "Outputs"
+FILTERED_DATA_SPLIT_PATH = "FilesManager/Data/VisualGenome/FilteredData"
 WEIGHTS_NAME = 'model_vg_resnet50.hdf5'
 DATA = "data"
 VISUAL_GENOME = "visual_genome"

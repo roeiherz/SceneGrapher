@@ -13,7 +13,7 @@ from FilesManager.FilesManager import FilesManager
 from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
     HIERARCHY_MAPPING, plot_graph, POSITIVE_NEGATIVE_RATIO, DATA_PATH, CLASSES_COUNT_FILE, RELATIONS_COUNT_FILE, \
     VisualGenome_PICKLES_PATH, TRAINING_OBJECTS_CNN_PATH, WEIGHTS_NAME, TRAINING_PREDICATE_CNN_PATH, \
-    PREDICATED_FEATURES_PATH, get_time_and_date, get_img
+    PREDICATED_FEATURES_PATH, get_time_and_date, get_img, FILTERED_DATA_SPLIT_PATH, PROJECT_ROOT
 from TrainCNN import preprocessing_objects
 from Utils.Utils import create_folder
 from FeaturesExtraction.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data, \
@@ -865,12 +865,33 @@ def find_image_id_via_object(object=""):
                 break
 
 
+def split_filter_data():
+    """
+    This function splits the filter data
+    :return:
+    """
+    # Filter the data
+    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
+                                                                                          "full_filtered_data",
+                                                                                          category='entities')
+
+    path = os.path.join(PROJECT_ROOT, FILTERED_DATA_SPLIT_PATH)
+    create_folder(path)
+    for entity in entities:
+        path_fl = os.path.join(path, "{0}.p".format(str(entity.image.id)))
+        with open(path_fl, "wb") as fl:
+            cPickle.dump(entity, fl)
+
 if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
 
     file_manager = FilesManager()
     logger = Logger()
+
+    split_filter_data()
+
+    exit()
 
     visualize_detections(img_id=2415186)
     exit()
