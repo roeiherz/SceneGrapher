@@ -872,7 +872,7 @@ def split_filter_data():
     """
     # Filter the data
     entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                          "full_filtered_data",
+                                                                                          "mini_filtered_data",
                                                                                           category='entities')
 
     path = os.path.join(PROJECT_ROOT, FILTERED_DATA_SPLIT_PATH)
@@ -881,6 +881,7 @@ def split_filter_data():
         path_fl = os.path.join(path, "{0}.p".format(str(entity.image.id)))
         with open(path_fl, "wb") as fl:
             cPickle.dump(entity, fl)
+        print("Finish to save {0}".format(entity.image.id))
 
 if __name__ == '__main__':
     # Create mini data-set
