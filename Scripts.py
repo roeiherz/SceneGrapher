@@ -13,7 +13,8 @@ from FilesManager.FilesManager import FilesManager
 from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
     HIERARCHY_MAPPING, plot_graph, POSITIVE_NEGATIVE_RATIO, DATA_PATH, CLASSES_COUNT_FILE, RELATIONS_COUNT_FILE, \
     VisualGenome_PICKLES_PATH, TRAINING_OBJECTS_CNN_PATH, WEIGHTS_NAME, TRAINING_PREDICATE_CNN_PATH, \
-    PREDICATED_FEATURES_PATH, get_time_and_date, get_img, FILTERED_DATA_SPLIT_PATH, PROJECT_ROOT
+    PREDICATED_FEATURES_PATH, get_time_and_date, get_img, FILTERED_DATA_SPLIT_PATH, PROJECT_ROOT, \
+    EXTRACTED_DATA_SPLIT_PATH
 from TrainCNN import preprocessing_objects
 from Utils.Utils import create_folder
 from FeaturesExtraction.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data, \
@@ -883,12 +884,50 @@ def split_filter_data():
             cPickle.dump(entity, fl)
         print("Finish to save {0}".format(entity.image.id))
 
+
+def split_extracted_data():
+    """
+    This function splits the extracted data (First Module Feature-Extraction Module)
+    :return:
+    """
+
+    # Folders to be extracted
+    folders = ["Wed_Sep_27_20:58:45_2017", "Fri_Sep_29_14:11:13_2017", "Sat_Sep_30_12:37:31_2017",
+               "Thu_Oct__5_12:02:32_2017", "Thu_Oct__5_21:55:07_2017", "Mon_Oct__9_12:49:00_2017"]
+
+    # Get Paths
+    save_path = os.path.join(PROJECT_ROOT, EXTRACTED_DATA_SPLIT_PATH)
+    folders_path = os.path.join(PROJECT_ROOT, PREDICATED_FEATURES_PATH)
+    create_folder(save_path)
+
+    for folder in folders:
+        dir_path = os.path.join(folders_path, folder)
+        dir_files = os.listdir(dir_path)
+        for pickle_file in dir_files:
+
+            # Check the file is not a logger
+            if ".log" in pickle_file:
+                continue
+
+            pickle_file_path = os.path.join(dir_path, pickle_file)
+            entities = cPickle.load(open(pickle_file_path))
+            for entity in entities:
+                entity_path = os.path.join(save_path, "{0}.p".format(entity.image.id))
+                with open(entity_path, "wb") as fl:
+                    cPickle.dump(entity, fl)
+                print("Finish to save {0}".format(entity.image.id))
+
+
 if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
 
     file_manager = FilesManager()
     logger = Logger()
+
+    split_extracted_data()
+
+    exit()
 
     split_filter_data()
 
