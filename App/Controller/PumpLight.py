@@ -26,7 +26,7 @@ class PumpLight(object):
 
         # Start the interactive messages
         usr_name = getpass.getuser()
-        print("HELLO {0}".format(usr_name))
+        print("\nHELLO {0}".format(usr_name))
         print("WELCOME TO SCENE GRAPHER \n")
 
         # The field will hold the model object
@@ -245,6 +245,11 @@ class PumpLight(object):
         else:
             # Load pickled entity after earlier prediction
             entity = self.controller.load_preprocessed_entity(self.img_id)
+
+            if entity is None:
+                print("No preprocessed Entity has been found")
+                return
+
             # Plot stats on the pre-trained entity
             self.controller.plot_stats(entity)
 

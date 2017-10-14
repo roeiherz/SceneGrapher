@@ -894,6 +894,7 @@ def split_extracted_data():
     # Folders to be extracted
     folders = ["Wed_Sep_27_20:58:45_2017", "Fri_Sep_29_14:11:13_2017", "Sat_Sep_30_12:37:31_2017",
                "Thu_Oct__5_12:02:32_2017", "Thu_Oct__5_21:55:07_2017", "Mon_Oct__9_12:49:00_2017"]
+    folders = ["Tue_Oct__3_22:13:00_2017"]
 
     # Get Paths
     save_path = os.path.join(PROJECT_ROOT, EXTRACTED_DATA_SPLIT_PATH)
