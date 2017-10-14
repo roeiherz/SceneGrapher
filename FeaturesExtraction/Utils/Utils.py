@@ -10,7 +10,6 @@ from keras.engine import Model
 from keras.layers import Dense
 
 # todo: when moving to nova remove it
-
 PROJECT_ROOT = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/"
 # PROJECT_ROOT = "/home/roeih/SceneGrapher/"
 VG_DATA_PATH = "Data/VisualGenome/data"
@@ -45,6 +44,7 @@ TRAINING_PREDICATE_MASK_CNN_PATH = "FilesManager/FeaturesExtraction/PredicatesMa
 PREDICATED_FEATURES_PATH = "FilesManager/FeaturesExtraction/PredicatedFeatures"
 OUTPUTS_PATH = "Outputs"
 FILTERED_DATA_SPLIT_PATH = "FilesManager/Data/VisualGenome/FilteredData"
+EXTRACTED_DATA_SPLIT_PATH = "FilesManager/Data/VisualGenome/ExtractedData"
 WEIGHTS_NAME = 'model_vg_resnet50.hdf5'
 DATA = "data"
 VISUAL_GENOME = "visual_genome"
