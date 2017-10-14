@@ -1,3 +1,5 @@
+import sys
+sys.path.append("..")
 from App.Controller.PumpLight import PumpLight
 from FilesManager.FilesManager import FilesManager
 from Utils.Logger import Logger
