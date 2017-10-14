@@ -1,4 +1,5 @@
 from __future__ import print_function
+from graphviz import Digraph
 import os
 import cPickle
 import json
@@ -1055,3 +1056,50 @@ def visualize_detections(detections=None, relations=None, path_to_save=OUTPUTS_P
     cv2.imwrite(os.path.join(path, "predicates_all_img_{}.jpg".format(img_id)), img_relations)
     cv2.imwrite(os.path.join(path, "predicates_pos_img_{}.jpg".format(img_id)), img_relations_pos)
     cv2.imwrite(os.path.join(path, "predicates_triplets_img_{}.jpg".format(img_id)), img_relations_triplets)
+
+
+def draw_graph(only_gt, pred_gt, pred, obj_gt, obj, predicate_ids, object_ids, filename):
+    """
+    create a pdf of the scene graph
+    :param only_gt: Means we print ONLY GT without prediction
+    :param pred_gt: 2D array - ground truth label for every objects i and j
+    :param pred: 2D array - predicted label for every objects i and j
+    :param obj_gt: 1D array - ground truth label for every object i
+    :param obj: 1D array - predicted label for every object i
+    :param predicate_ids: predicate dictionary - label id to label name
+    :param object_ids: object dictionary - label id to label name
+    :param filename: file name to save
+    """
+    # create the graph
+    u = Digraph('sg', filename='sg.gv')
+    u.body.append('size="6,6"')
+    u.body.append('rankdir="LR"')
+    u.node_attr.update(style='filled')
+
+    # create objects nodes
+    for obj_index in range(obj_gt.shape[0]):
+        if only_gt:
+            name = object_ids[object_ids.keys().index(obj_gt[obj_index])]
+        else:
+            name = object_ids[object_ids.keys().index(obj[obj_index])] + "/" + \
+                   object_ids[object_ids.keys().index(obj_gt[obj_index])]
+
+        u.node(str(obj_index), label=name, color='lightblue2')
+
+    # create predicates nodes and edges
+    for sub_index in range(pred_gt.shape[0]):
+        for obj_index in range(pred_gt.shape[1]):
+            if pred_gt[sub_index][obj_index] != 50:
+                edge_key = '%s_%s' % (sub_index, obj_index)
+
+                if only_gt:
+                    name = predicate_ids[predicate_ids.keys().index(pred_gt[sub_index][obj_index])]
+                else:
+                    name = predicate_ids[predicate_ids.keys().index(pred[sub_index][obj_index])] + \
+                           "/" + predicate_ids[predicate_ids.keys().index(pred_gt[sub_index][obj_index])]
+
+                u.node(edge_key, label=name, color='red')
+                u.edge(str(sub_index), edge_key)
+                u.edge(edge_key, str(obj_index))
+    # u.save(filename, ".")
+    u.render(filename=filename)
