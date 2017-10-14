@@ -113,7 +113,8 @@ class PumpLight(object):
         """
 
         if option.lower() == 'start':
-            self.start()
+            # self.start()
+            self.handle_prediction(use_full_predict=False)
         elif option.lower() == 'gt_sg' or option.lower() == 'draw gt scene graph':
             self.draw_original_gt_scene_graph()
         elif option.lower() == 'img_id' or option.lower() == 'choose different image id':
@@ -342,6 +343,9 @@ class PumpLight(object):
 
         # Get GPU number
         gpu_num = raw_input('Please insert number of GPU to be used: ')
+
+        while not gpu_num.isdigit():
+            gpu_num = raw_input("Wrong GPU number. please enter a digit GPU number: ")
 
         # Define GPU training
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)

@@ -62,7 +62,7 @@ class AppController(object):
         print('Start Loading Entity.')
         path = os.path.join(PROJECT_ROOT, FILTERED_DATA_SPLIT_PATH, "{0}.p".format(img_id))
         # todo: debug
-        # path = "test_entity_{0}.p".format(img_id)
+        # path = "/home/roeih/SceneGrapher/App/Controller/test_entity_{0}.p".format(img_id)
 
         # If img_id pickle is not exist return False
         if not os.path.exists(path):

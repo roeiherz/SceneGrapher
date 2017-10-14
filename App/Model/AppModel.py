@@ -44,16 +44,6 @@ class AppModel(object):
         self.rnn_belief_model = None
         self.config = Config(gpu_num)
 
-    def predict_feature_extraction_module(self, entity, objects_hierarchy_mapping, predicates_hierarchy_mapping):
-        """
-
-        :param entity:
-        :param objects_hierarchy_mapping:
-        :param predicates_hierarchy_mapping:
-        :return:
-        """
-        pass
-
     def load_feature_extractions_model(self, number_of_classes_objects, number_of_classes_predicates):
         """
         This function load Feature Extraction model
