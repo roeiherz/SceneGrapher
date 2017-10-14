@@ -1071,7 +1071,7 @@ def draw_graph(only_gt, pred_gt, pred, obj_gt, obj, predicate_ids, object_ids, f
     :param filename: file name to save
     """
     # create the graph
-    u = Digraph('sg', filename='sg.gv')
+    u = Digraph('sg', filename='sg.gv', format="svg")
     u.body.append('size="6,6"')
     u.body.append('rankdir="LR"')
     u.node_attr.update(style='filled')
