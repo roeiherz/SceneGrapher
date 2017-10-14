@@ -247,8 +247,8 @@ class PumpLight(object):
             entity = self.controller.load_preprocessed_entity(self.img_id)
 
             if entity is None:
-                print("No preprocessed Entity has been found")
-                return
+                print("No pre-processed Entity has been found. Choose another Image ID.")
+                return False
 
             # Plot stats on the pre-trained entity
             self.controller.plot_stats(entity)
@@ -324,7 +324,7 @@ class PumpLight(object):
         img_id = int(raw_input('Choose Image ID: '))
         while img_id not in self.images_id:
             img_id = int(raw_input("Wrong Image ID. please enter image ID again: "))
-        print("The image ID that was seleted is {0} in url: {1}".format(img_id, self.images[img_id].url))
+        print("The image ID that was seleted is {0} in url: {1} \n".format(img_id, self.images[img_id].url))
         return img_id
 
     def draw_original_gt_scene_graph(self):
