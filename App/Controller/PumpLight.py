@@ -2,9 +2,10 @@ from App.Controller.AppController import AppController
 from App.Model.AppModel import AppModel
 from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
 from FeaturesExtraction.Utils.Utils import TRAINING_OBJECTS_CNN_PATH, WEIGHTS_NAME, TRAINING_PREDICATE_MASK_CNN_PATH, \
-    PROJECT_ROOT, VG_DATA_PATH, get_time_and_date
+    PROJECT_ROOT, VG_DATA_PATH, get_time_and_date, get_img
 import getpass
 import os
+import cv2
 
 from Utils.Utils import create_folder
 
@@ -38,7 +39,6 @@ class PumpLight(object):
         # The output path
         # Get time and date
         self.time_and_date = get_time_and_date()
-        self.output_path = None
         # Get the whole images string dict
         self.images = {img.id: img for img in GetAllImageData(os.path.join(PROJECT_ROOT, VG_DATA_PATH))}
         # Get the whole images ids string list
@@ -54,6 +54,14 @@ class PumpLight(object):
         """
 
         print ("Enter the following details: \n")
+
+        # Get the outputs path
+        # self.output_path = raw_input('Output directory path: ')
+        # todo: debug
+        self.output_path = "/home/roeih/SceneGrapher/Outputs"
+        self.output_path = os.path.join(self.output_path, self.time_and_date)
+        # Create folder for outputs path if its not exist
+        create_folder(self.output_path)
 
         # Get image ID
         self.img_id = self.get_img_id()
@@ -84,15 +92,6 @@ class PumpLight(object):
 
         # Get the Model
         self.model = AppModel(objects_model_weight_path, predicates_model_weight_path, self.gpu_num)
-
-        # Get the outputs path
-        self.output_path = raw_input('Output directory path: ')
-        # todo: debug
-        # self.output_path = "/home/roeih/SceneGrapher/Outputs"
-
-        self.output_path = os.path.join(self.output_path, self.time_and_date)
-        # Create folder for outputs path if its not exist
-        create_folder(self.output_path)
 
         # Get the Controller
         self.controller = AppController()
@@ -183,18 +182,38 @@ class PumpLight(object):
         if option.lower() == '1':
             self.predict(use_full_predict=use_full_predict, rnn_module_output=False)
         elif option.lower() == '2':
-            self.predict(use_full_predict=use_full_predict, rnn_module_output=True)
+            using_gt_object_boxes = self.get_using_gt_for_object_boxes()
+            self.predict(use_full_predict=use_full_predict, rnn_module_output=True,
+                         using_gt_object_boxes=using_gt_object_boxes)
         elif option.lower() == 'back':
             return False
         else:
-            print('command not supported')
+            print('command not supported.')
 
         return True
 
-    def predict(self, use_full_predict=False, rnn_module_output=True):
+    @staticmethod
+    def get_using_gt_for_object_boxes():
+        """
+        This function returns the flag if we want to predict with GT object boxes or not
+        :return:
+        """
+        start = True
+        # The different options
+        while start:
+            option = raw_input('Do you want to use Ground-truth to object boxes (the default should be no): [yes, no] ')
+            if option.lower() == 'yes':
+                return True
+            elif option.lower() == 'no':
+                return False
+            else:
+                print('command not supported.')
+
+    def predict(self, use_full_predict=False, rnn_module_output=True, using_gt_object_boxes=False):
         """
         This function do the prediction full-prediction (Feature Extraction module + Belief RNN module)
         or a semi-prediction (only Belief RNN module)
+        :param using_gt_object_boxes: A flag if we want to predict with GT object boxes or not.
         :param rnn_module_output: True: the outputs that you will see is from the Belief RNN module.
                                  False: the outputs that you will see is from the Feature Extraction module.
         :param use_full_predict: True: means full-prediction (Feature Extraction module + Belief RNN module).
@@ -213,7 +232,10 @@ class PumpLight(object):
         if predicates_hierarchy_mapping is not None:
             number_of_classes_predicates = len(predicates_hierarchy_mapping)
 
-        # Do we need to load the Feature Extraction module for Prediction
+        # Load the Belief RNN Model (create the session from tf)
+        self.model.load_belief_rnn_model(number_of_classes_objects, number_of_classes_predicates)
+
+        # Predict Feature Extraction module or load a pre-processed pickle
         if use_full_predict:
             # Get Entity
             entity = self.controller.load_entity(self.img_id)
@@ -236,6 +258,8 @@ class PumpLight(object):
                 print("No Objects have been found")
                 return False
 
+            print("\nPrint Stats for Feature Extraction Module:")
+
             # Predict objects per entity
             self.model.predict_objects_for_module(entity, objects, url_data, objects_hierarchy_mapping)
 
@@ -250,23 +274,22 @@ class PumpLight(object):
                 print("No pre-processed Entity has been found. Choose another Image ID.")
                 return False
 
+            print("\nPrint Stats for Feature Extraction Module:")
             # Plot stats on the pre-trained entity
             self.controller.plot_stats(entity)
 
-        # Load the Belief RNN Model
-        self.model.load_belief_rnn_model(number_of_classes_objects, number_of_classes_predicates)
-
+        # Prediction for RNN Belief Module
         if rnn_module_output:
             # Run Prediction of the Belief RNN Model
-            self.model.predict_rnn_belief_module(entity)
+            self.model.predict_rnn_belief_module(entity, using_gt_object_boxes)
+            print("\nPrint Stats for RNN Belief Module:")
             # Plot stats on the pre-trained entity
             self.controller.plot_stats(entity)
 
         start = True
         # The options
         while start:
-            option = raw_input(
-                'What can I do want to do? [draw objects [obj], draw relationships [rel], draw scene graph [sg] ,back]')
+            option = raw_input('What can I do want to do? [draw objects [obj], draw relationships [rel], draw scene graph [sg] ,back]')
             start = self.handle_predict_input(option, entity, rnn_module_output)
 
     def handle_predict_input(self, option, entity, rnn_module_output):
@@ -294,7 +317,7 @@ class PumpLight(object):
         elif option.lower() == 'back':
             return False
         else:
-            print('command not supported')
+            print('command not supported.')
 
         return True
 
@@ -325,6 +348,13 @@ class PumpLight(object):
         while img_id not in self.images_id:
             img_id = int(raw_input("Wrong Image ID. please enter image ID again: "))
         print("The image ID that was seleted is {0} in url: {1} \n".format(img_id, self.images[img_id].url))
+
+        # Save original image in Output path
+        img = get_img(self.images[img_id].url, download=True)
+        save_path = os.path.join(self.output_path, str(img_id))
+        create_folder(save_path)
+        cv2.imwrite(os.path.join(save_path, "{0}.jpg".format(img_id)), img)
+
         return img_id
 
     def draw_original_gt_scene_graph(self):

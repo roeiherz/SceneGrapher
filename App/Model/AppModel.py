@@ -42,6 +42,7 @@ class AppModel(object):
         self.noactivation_outputs_predicate_func = None
         self.noactivation_outputs_object_func = None
         self.rnn_belief_model = None
+        self.session = None
         self.config = Config(gpu_num)
 
     def load_feature_extractions_model(self, number_of_classes_objects, number_of_classes_predicates):
@@ -80,11 +81,13 @@ class AppModel(object):
             self.noactivation_outputs_object_func = K.function([self.objects_no_activation_model.layers[0].input],
                                                                [self.objects_no_activation_model.layers[-1].output])
 
-    def load_belief_rnn_model(self, number_of_classes_objects, number_of_classes_predicates):
+    def load_belief_rnn_model(self, number_of_classes_objects, number_of_classes_predicates,
+                              module_name="dual_predcl_sum2_best"):
         """
         This function load Feature Extraction model
         :param number_of_classes_objects: number of labels of objects
         :param number_of_classes_predicates: number of labels of predicates
+        :param module_name: the name of the module to load
         :return:
         """
 
@@ -94,17 +97,8 @@ class AppModel(object):
                                            visual_features_predicate_size=self.VISUAL_FEATURES_PREDICATE_SIZE,
                                            visual_features_object_size=self.VISUAL_FEATURES_OBJECT_SIZE, is_train=False,
                                            rnn_steps=self.RNN_STEPS)
-
-    def predict_rnn_belief_module(self, entity, module_name="dual_sum3_best"):
-        """
-        Load module and run over list of entities
-        :param module_name: the name of the module to load
-        :param entity: a single entity pre-processed by the Feature Extraction Module
-        :return: an entity with updating predicates and objects probabilities
-        """
-
-        with tf.Session() as sess:
-
+            # Create session
+            self.session = tf.Session()
             # Restore variables from disk.
             # Initialize the Computational Graph
             init = tf.global_variables_initializer()
@@ -113,43 +107,55 @@ class AppModel(object):
             module_path = FilesManager().get_file_path("sg_module.train.saver")
             module_path_load = os.path.join(module_path, module_name + "_module.ckpt")
             if os.path.exists(module_path_load + ".index"):
-                saver.restore(sess, module_path_load)
+                saver.restore(self.session, module_path_load)
             else:
                 raise Exception("Module not found")
 
-            # create one hot vector for predicate_neg
-            predicate_neg = np.zeros(self.rnn_belief_model.nof_predicates)
-            predicate_neg[self.rnn_belief_model.nof_predicates - 1] = 1
+    def predict_rnn_belief_module(self, entity, using_gt_object_boxes=False):
+        """
+        Load module and run over list of entities
+        :param entity: a single entity pre-processed by the Feature Extraction Module
+        :param using_gt_object_boxes: A flag if we want to predict with GT object boxes or not.
+        :return: an entity with updating predicates and objects probabilities
+        """
 
-            # get input place holders
-            belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph = self.rnn_belief_model.get_in_ph()
-            # get module output
-            out_predicate_probes, out_object_probes = self.rnn_belief_model.get_output()
+        # create one hot vector for predicate_neg
+        predicate_neg = np.zeros(self.rnn_belief_model.nof_predicates)
+        predicate_neg[self.rnn_belief_model.nof_predicates - 1] = 1
 
-            # set diagonal to be neg
-            indices = np.arange(entity.predicates_probes.shape[0])
-            entity.predicates_outputs_with_no_activation[indices, indices, :] = predicate_neg
-            entity.predicates_labels[indices, indices, :] = predicate_neg
+        # get input place holders
+        belief_predicate_ph, belief_object_ph, extended_belief_object_shape_ph, visual_features_predicate_ph, visual_features_object_ph = self.rnn_belief_model.get_in_ph()
+        # get module output
+        out_predicate_probes, out_object_probes = self.rnn_belief_model.get_output()
 
-            # get shape of extended object to be used by the module
-            extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
-            extended_belief_object_shape[2] = self.rnn_belief_model.nof_objects
+        # set diagonal to be neg
+        indices = np.arange(entity.predicates_probes.shape[0])
+        entity.predicates_outputs_with_no_activation[indices, indices, :] = predicate_neg
+        entity.predicates_labels[indices, indices, :] = predicate_neg
 
+        # get shape of extended object to be used by the module
+        extended_belief_object_shape = np.asarray(entity.predicates_probes.shape)
+        extended_belief_object_shape[2] = self.rnn_belief_model.nof_objects
+
+        # Prediction using GT object boxes
+        if using_gt_object_boxes:
+            in_object_belief = entity.objects_labels * 10
+        else:
             in_object_belief = entity.objects_outputs_with_no_activations
 
-            # create the feed dictionary
-            feed_dict = {belief_predicate_ph: entity.predicates_outputs_with_no_activation,
-                         belief_object_ph: in_object_belief,
-                         extended_belief_object_shape_ph: extended_belief_object_shape}
+        # create the feed dictionary
+        feed_dict = {belief_predicate_ph: entity.predicates_outputs_with_no_activation,
+                     belief_object_ph: in_object_belief,
+                     extended_belief_object_shape_ph: extended_belief_object_shape}
 
-            out_predicate_probes_val, out_object_probes_val = sess.run([out_predicate_probes, out_object_probes], feed_dict=feed_dict)
-            # set diag in order to take in statistic
-            out_predicate_probes_val[indices, indices, :] = predicate_neg
+        out_predicate_probes_val, out_object_probes_val = self.session.run([out_predicate_probes, out_object_probes], feed_dict=feed_dict)
+        # set diag in order to take in statistic
+        out_predicate_probes_val[indices, indices, :] = predicate_neg
 
-            entity.predicates_probes = np.copy(out_predicate_probes_val)
-            entity.objects_probs = np.copy(out_object_probes_val)
+        entity.predicates_probes = np.copy(out_predicate_probes_val)
+        entity.objects_probs = np.copy(out_object_probes_val)
 
-            return entity
+        return entity
 
     def get_model(self, number_of_classes, weight_path, activation="softmax", use_mask=False):
         """

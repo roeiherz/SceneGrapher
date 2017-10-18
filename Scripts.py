@@ -919,6 +919,25 @@ def split_extracted_data():
                 print("Finish to save {0}".format(entity.image.id))
 
 
+def load_h5py():
+    import h5py
+    filename = '/home/roeih/VisualGenome/full/VG-SGG.h5'
+    f = h5py.File(filename, 'r')
+    # List all groups
+    print("Keys: %s" % f.keys())
+    labels = f['labels']
+    split = f['split']
+    from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
+    import os
+    images = {img.id: img for img in GetAllImageData("/home/roeih/SceneGrapher/Data/VisualGenome/data/")}
+    tt = GetSceneGraph(108000, images="/home/roeih/SceneGrapher/Data/VisualGenome/data/",
+              imageDataDir=os.path.join("/home/roeih/SceneGrapher/Data/VisualGenome/data", 'by-id/'),
+              synsetFile=os.path.join("/home/roeih/SceneGrapher/Data/VisualGenome/data", 'synsets.json'))
+
+    # Get the data
+    data = list(labels)
+
+
 if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
