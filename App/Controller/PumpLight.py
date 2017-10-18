@@ -56,9 +56,9 @@ class PumpLight(object):
         print ("Enter the following details: \n")
 
         # Get the outputs path
-        # self.output_path = raw_input('Output directory path: ')
+        self.output_path = raw_input('Output directory path: ')
         # todo: debug
-        self.output_path = "/home/roeih/SceneGrapher/Outputs"
+        # self.output_path = "/home/roeih/SceneGrapher/Outputs"
         self.output_path = os.path.join(self.output_path, self.time_and_date)
         # Create folder for outputs path if its not exist
         create_folder(self.output_path)
