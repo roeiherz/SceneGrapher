@@ -393,10 +393,7 @@ class AppController(object):
         # A numpy 2D array of indices of the gt objects
         pred_gt_arr = numpy.argmax(entity.predicates_labels, axis=2)
 
-        if using_gt_object_boxes:
-            file_name = os.path.join(save_path, "{0}_predicted_scene_graph_using_gt_object_boxes".format(entity.image.id))
-        else:
-            file_name = os.path.join(save_path, "{0}_predicted_scene_graph_no_using_gt_object_boxes".format(entity.image.id))
+        file_name = os.path.join(save_path, "{0}_predicted_scene_graph".format(entity.image.id))
 
         draw_graph(only_gt=False, pred=pred_arr, pred_gt=pred_gt_arr, obj=obj_arr, obj_gt=obj_gt_arr,
                    predicate_ids=self.predicates_index_labels, object_ids=self.objects_index_labels,

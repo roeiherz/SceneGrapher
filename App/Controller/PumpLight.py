@@ -294,7 +294,7 @@ class PumpLight(object):
             option = raw_input('What can I do want to do? [draw objects [obj], draw relationships [rel], draw scene graph [sg] ,back]')
             start = self.handle_predict_input(option, entity, rnn_module_output, using_gt_object_boxes)
 
-    def handle_predict_input(self, option, entity, rnn_module_output, using_gt_object_boxes):
+    def handle_predict_input(self, option, entity, rnn_module_output, using_gt_object_boxes=False):
         """
         This function will handle the predict input from the user
         :param rnn_module_output: Used for saving the images per different folder (depends the choosing of rnn_module_output)
@@ -307,7 +307,7 @@ class PumpLight(object):
         """
 
         # Get the current output path per image id and module directory to output
-        save_path = self.get_curr_path(rnn_module_output)
+        save_path = self.get_curr_path(rnn_module_output, using_gt_object_boxes)
         # Create folder for outputs path if its not exist
         create_folder(save_path)
 
@@ -316,7 +316,7 @@ class PumpLight(object):
         elif option.lower() == 'draw relationships' or option.lower() == 'rel':
             self.controller.draw_relationships(entity, save_path)
         elif option.lower() == 'draw scene graph' or option.lower() == 'sg':
-            self.controller.draw_prediction_scene_graph(entity, save_path, using_gt_object_boxes)
+            self.controller.draw_prediction_scene_graph(entity, save_path)
         elif option.lower() == 'back':
             return False
         else:
@@ -324,22 +324,30 @@ class PumpLight(object):
 
         return True
 
-    def get_curr_path(self, rnn_module_output=None):
+    def get_curr_path(self, rnn_module_output=None, using_gt_object_boxes=False):
         """
-        This function set the current path per image_id and rnn_module_output
+        This function set the current path per image_id and rnn_module_output and use suffix for saving the plots
+        depends using_gt_object_boxes or not
         :param rnn_module_output: Used for saving the images per different folder (depends the choosing of rnn_module_output)
                                  True: the outputs that you will see is from the Belief RNN module.
                                  False: the outputs that you will see is from the Feature Extraction module.
+        :param using_gt_object_boxes: A flag if we want to predict with GT object boxes or not.
         :return: the output directory path
         """
+
+        if using_gt_object_boxes:
+            suffix = "Using_GT_Object_Boxes"
+        else:
+            suffix = "No_Using_GT_Object_Boxes"
+
         if rnn_module_output is None:
-            return os.path.join(self.output_path, str(self.img_id))
+            return os.path.join(self.output_path, str(self.img_id), suffix)
 
         if rnn_module_output:
-            return os.path.join(self.output_path, str(self.img_id), self.RNN_BELIEF_FOLDER)
+            return os.path.join(self.output_path, str(self.img_id), self.RNN_BELIEF_FOLDER, suffix)
 
         if not rnn_module_output:
-            return os.path.join(self.output_path, str(self.img_id), self.FEATURE_EXTRACTOR_FOLDER)
+            return os.path.join(self.output_path, str(self.img_id), self.FEATURE_EXTRACTOR_FOLDER, suffix)
 
     def get_img_id(self):
         """
@@ -389,4 +397,6 @@ class PumpLight(object):
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_num)
 
         return gpu_num
+
+
 
