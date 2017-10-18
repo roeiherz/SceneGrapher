@@ -371,11 +371,12 @@ class AppController(object):
         print("The Positive Relationships are: {0} \n".format(positive_relations))
         print("The Negative Relationships are: {0} \n".format(negative_relations))
 
-    def draw_prediction_scene_graph(self, entity, save_path=''):
+    def draw_prediction_scene_graph(self, entity, save_path='', using_gt_object_boxes=False):
         """
         This function draws the scene graph (without "neg" predicate per entity)
         :param entity: entity Visual Genome type
-        :param save_path: the path to save the original gt scene grap
+        :param save_path: the path to save the original gt scene graph
+        :param using_gt_object_boxes: A flag if we want to predict with GT object boxes or not.
         :return:
         """
 
@@ -392,7 +393,10 @@ class AppController(object):
         # A numpy 2D array of indices of the gt objects
         pred_gt_arr = numpy.argmax(entity.predicates_labels, axis=2)
 
-        file_name = os.path.join(save_path, "{0}_predicted_scene_graph".format(entity.image.id))
+        if using_gt_object_boxes:
+            file_name = os.path.join(save_path, "{0}_predicted_scene_graph_using_gt_object_boxes".format(entity.image.id))
+        else:
+            file_name = os.path.join(save_path, "{0}_predicted_scene_graph_no_using_gt_object_boxes".format(entity.image.id))
 
         draw_graph(only_gt=False, pred=pred_arr, pred_gt=pred_gt_arr, obj=obj_arr, obj_gt=obj_gt_arr,
                    predicate_ids=self.predicates_index_labels, object_ids=self.objects_index_labels,

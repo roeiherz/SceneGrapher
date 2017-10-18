@@ -2,7 +2,7 @@ from App.Controller.AppController import AppController
 from App.Model.AppModel import AppModel
 from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
 from FeaturesExtraction.Utils.Utils import TRAINING_OBJECTS_CNN_PATH, WEIGHTS_NAME, TRAINING_PREDICATE_MASK_CNN_PATH, \
-    PROJECT_ROOT, VG_DATA_PATH, get_time_and_date, get_img
+    PROJECT_ROOT, VG_DATA_PATH, get_time_and_date, get_img, OUTPUTS_PATH
 import getpass
 import os
 import cv2
@@ -56,9 +56,11 @@ class PumpLight(object):
         print ("Enter the following details: \n")
 
         # Get the outputs path
-        self.output_path = raw_input('Output directory path: ')
-        # todo: debug
-        # self.output_path = "/home/roeih/SceneGrapher/Outputs"
+        # Default Output path
+        self.output_path = os.path.join(PROJECT_ROOT, OUTPUTS_PATH)
+        output_usr = raw_input('Output directory path (default is Outputs folder): ')
+        if output_usr:
+            self.output_path = output_usr
         self.output_path = os.path.join(self.output_path, self.time_and_date)
         # Create folder for outputs path if its not exist
         create_folder(self.output_path)
@@ -201,10 +203,10 @@ class PumpLight(object):
         start = True
         # The different options
         while start:
-            option = raw_input('Do you want to use Ground-truth to object boxes (the default should be no): [yes, no] ')
-            if option.lower() == 'yes':
+            option = raw_input('Do you want to use Ground-truth to object boxes (for testing choose "yes"): [yes [y], no [n]] ')
+            if option.lower() == 'yes' or option.lower() == 'y':
                 return True
-            elif option.lower() == 'no':
+            elif option.lower() == 'no' or option.lower() == 'n':
                 return False
             else:
                 print('command not supported.')
@@ -290,9 +292,9 @@ class PumpLight(object):
         # The options
         while start:
             option = raw_input('What can I do want to do? [draw objects [obj], draw relationships [rel], draw scene graph [sg] ,back]')
-            start = self.handle_predict_input(option, entity, rnn_module_output)
+            start = self.handle_predict_input(option, entity, rnn_module_output, using_gt_object_boxes)
 
-    def handle_predict_input(self, option, entity, rnn_module_output):
+    def handle_predict_input(self, option, entity, rnn_module_output, using_gt_object_boxes):
         """
         This function will handle the predict input from the user
         :param rnn_module_output: Used for saving the images per different folder (depends the choosing of rnn_module_output)
@@ -300,6 +302,7 @@ class PumpLight(object):
                                  False: the outputs that you will see is from the Feature Extraction module.
         :param entity: entity Visual Genome type
         :param option: the option
+        :param using_gt_object_boxes: A flag if we want to predict with GT object boxes or not.
         :return: True or False
         """
 
@@ -313,7 +316,7 @@ class PumpLight(object):
         elif option.lower() == 'draw relationships' or option.lower() == 'rel':
             self.controller.draw_relationships(entity, save_path)
         elif option.lower() == 'draw scene graph' or option.lower() == 'sg':
-            self.controller.draw_prediction_scene_graph(entity, save_path)
+            self.controller.draw_prediction_scene_graph(entity, save_path, using_gt_object_boxes)
         elif option.lower() == 'back':
             return False
         else:
