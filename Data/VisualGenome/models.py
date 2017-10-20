@@ -287,3 +287,45 @@ class RelationshipMapping(object):
 
     def __repr__(self):
         return str(self)
+
+
+class ImageMapping(object):
+    """
+    Image.
+    ID         int
+    url        hyperlink string
+    width      int
+    height     int
+    """
+
+    def __init__(self, id, url, width, height, coco_id, flickr_id, width_org, height_org, img_ind):
+        """
+
+        :param id: ID         int
+        :param url: url        hyperlink string
+        :param width: width from images_1024      int 
+        :param height: height from images_1024     int
+        :param coco_id:
+        :param flickr_id:
+        """
+
+        self.img_ind = img_ind
+        self.height_org = height_org
+        self.width_org = width_org
+        self.id = id
+        self.url = url
+        self.width = width
+        self.height = height
+        self.coco_id = coco_id
+        self.flickr_id = flickr_id
+
+    def __str__(self):
+        return 'id: %d, coco_id: %d, flickr_id: %d, width: %d, url: %s' \
+               % (
+                   self.id, -1 if self.coco_id is None else self.coco_id,
+                   -1 if self.flickr_id is None else self.flickr_id,
+                   self.width, self.url)
+
+    def __repr__(self):
+        return str(self)
+

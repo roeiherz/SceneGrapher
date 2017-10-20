@@ -2,6 +2,9 @@ import traceback
 
 import matplotlib
 
+from Data.VisualGenome.models import Object, Graph, Image, Relationship, ObjectMapping, RelationshipMapping, \
+    ImageMapping
+
 matplotlib.use('agg')
 from matplotlib import pyplot as plt
 import time
@@ -14,7 +17,7 @@ from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE,
     HIERARCHY_MAPPING, plot_graph, POSITIVE_NEGATIVE_RATIO, DATA_PATH, CLASSES_COUNT_FILE, RELATIONS_COUNT_FILE, \
     VisualGenome_PICKLES_PATH, TRAINING_OBJECTS_CNN_PATH, WEIGHTS_NAME, TRAINING_PREDICATE_CNN_PATH, \
     PREDICATED_FEATURES_PATH, get_time_and_date, get_img, FILTERED_DATA_SPLIT_PATH, PROJECT_ROOT, \
-    EXTRACTED_DATA_SPLIT_PATH
+    EXTRACTED_DATA_SPLIT_PATH, DATA, VISUAL_GENOME, VG_DATA_PATH, PREPROCESSED_FILTERED_DATA_SPLIT_PATH
 from TrainCNN import preprocessing_objects
 from Utils.Utils import create_folder
 from FeaturesExtraction.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data, \
@@ -759,14 +762,16 @@ def detection_parser(dir_path="Temp"):
     predicates_acc.to_csv(os.path.join(dir_path, "predicting_predicates_accuracy.csv"))
 
     # Calc the accuracy of the Subjects
-    subjects_nof_eq = df[df.subject_classifications == df.predict_subject_classifications].groupby(df.subject_classifications).count()
+    subjects_nof_eq = df[df.subject_classifications == df.predict_subject_classifications].groupby(
+        df.subject_classifications).count()
     total_nof_subjects = df.groupby(df.subject_classifications).count()
     subjects_acc = (subjects_nof_eq / total_nof_subjects)["id"]
     # Save the accuracy of the Subjects
     subjects_acc.to_csv(os.path.join(dir_path, "predicting_subjects_accuracy.csv"))
 
     # Calc the accuracy of the Objects
-    objects_nof_eq = df[df.object_classifications == df.predict_object_classifications].groupby(df.object_classifications).count()
+    objects_nof_eq = df[df.object_classifications == df.predict_object_classifications].groupby(
+        df.object_classifications).count()
     total_nof_objects = df.groupby(df.object_classifications).count()
     objects_acc = (objects_nof_eq / total_nof_objects)["id"]
     # Save the accuracy of the Objects
@@ -862,7 +867,8 @@ def find_image_id_via_object(object=""):
             if obj.names[0] == object:
                 # Get image - the pair is from the same image
                 img = get_img(entity.image.url, download=True)
-                cv2.imwrite("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Temp/Elephant/{}.jpg".format(entity.image.id), img)
+                cv2.imwrite(
+                    "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Temp/Elephant/{}.jpg".format(entity.image.id), img)
                 break
 
 
@@ -931,11 +937,132 @@ def load_h5py():
     import os
     images = {img.id: img for img in GetAllImageData("/home/roeih/SceneGrapher/Data/VisualGenome/data/")}
     tt = GetSceneGraph(108000, images="/home/roeih/SceneGrapher/Data/VisualGenome/data/",
-              imageDataDir=os.path.join("/home/roeih/SceneGrapher/Data/VisualGenome/data", 'by-id/'),
-              synsetFile=os.path.join("/home/roeih/SceneGrapher/Data/VisualGenome/data", 'synsets.json'))
+                       imageDataDir=os.path.join("/home/roeih/SceneGrapher/Data/VisualGenome/data", 'by-id/'),
+                       synsetFile=os.path.join("/home/roeih/SceneGrapher/Data/VisualGenome/data", 'synsets.json'))
 
     # Get the data
     data = list(labels)
+
+
+def create_pre_proccessed_entities_by_xu():
+    """
+    This function creates entities from the pre-processed data made by Xu et al.
+    :return: 
+    """
+
+    # Load the pre-processed mapping
+    mapping = FilesManager().load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "VG_SGG_dicts"))
+    # Load the VG-SGG.h5
+    im_h5 = FilesManager().load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "meta_preproccesed_data"))
+    # Load  the imdb_1024.h5
+    imdb = FilesManager().load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "preproccesed_data"))
+
+    pre_ids_to_object_names = mapping["idx_to_label"]
+    pre_ids_to_predicates_names = mapping["idx_to_predicate"]
+
+    Logger().log("Start loading the while data. It will take a while.")
+
+    boxes = list(im_h5["boxes_1024"])
+    relationships = list(im_h5["relationships"])
+    active_objects = list(im_h5["active_object_mask"])
+    object_labels = list(im_h5["labels"])
+    predicates_labels = list(im_h5["predicates"])
+    image_to_first_rel = list(im_h5["img_to_first_rel"])
+    image_to_last_rel = list(im_h5["img_to_last_rel"])
+    image_to_first_object = list(im_h5["img_to_first_box"])
+    image_to_last_object = list(im_h5["img_to_last_box"])
+    split = list(im_h5["split"])
+    image_ids = list(imdb["image_ids"])
+    image_widths = list(imdb["image_widths"])
+    image_heights = list(imdb["image_heights"])
+    image_original_widths = list(imdb["original_widths"])
+    image_original_heights = list(imdb["original_heights"])
+
+    Logger().log("Start creating the pre-processing entities")
+    entities_lst = []
+
+    images = {img.id: img for img in GetAllImageData("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Data/VisualGenome/data/")}
+
+    for image_index in range(len(image_ids)):
+        print("Image Index {0}".format(image_index))
+        all_objects = {}
+        if split[image_index] == 2:
+
+            # image_info
+            img_index = image_index
+            img_id = image_ids[image_index]
+            img_url = images[img_id].url
+            img_width = image_widths[image_index]
+            img_height = image_heights[image_index]
+            img_orig_width = image_original_widths[image_index]
+            img_orig_height = image_original_heights[image_index]
+            image = ImageMapping(img_id, img_url, img_width, img_height, -1, -1, img_orig_width, img_orig_height,
+                                 img_index)
+
+            # objects
+            first_object_index = image_to_first_object[image_index]
+            last_object_index = image_to_last_object[image_index]
+
+            objects = []
+            if first_object_index != -1 or last_object_index != -1:
+                for object_index in range(first_object_index, last_object_index + 1):
+                    if active_objects[object_index] == False:
+                        raise Exception("active_object_mask")
+
+                    obj_x = boxes[object_index][0] - boxes[object_index][2] / 2
+                    obj_y = boxes[object_index][1] - boxes[object_index][3] / 2
+                    obj_width = boxes[object_index][2]
+                    obj_height = boxes[object_index][3]
+
+                    obj_id = object_index
+                    obj_names = [pre_ids_to_object_names[str(object_labels[object_index][0])]]
+                    obj = ObjectMapping(obj_id, obj_x, obj_y, obj_width, obj_height, obj_names, None, img_url)
+                    objects.append(obj)
+                    all_objects[object_index] = obj
+
+            # relationships
+            first_rel_index = image_to_first_rel[image_index]
+            last_rel_index = image_to_last_rel[image_index]
+            relationship_lst = []
+            if first_rel_index != -1 or last_rel_index != -1:
+                for rel_index in range(first_rel_index, last_rel_index + 1):
+                    rl_id = rel_index
+                    rl_filtered_id = rel_index
+                    rl_predicate = pre_ids_to_predicates_names[str(predicates_labels[rel_index][0])]
+                    rl_subject = all_objects[relationships[rel_index][0]]
+                    rl_object = all_objects[relationships[rel_index][1]]
+                    relationship = RelationshipMapping(rl_id, rl_subject, rl_predicate, rl_object, None, img_url,
+                                                       rl_filtered_id)
+                    relationship_lst.append(relationship)
+
+            entity = Graph(image, objects, relationship_lst, None)
+            entities_lst.append(entity)
+
+            path = os.path.join(PROJECT_ROOT, PREPROCESSED_FILTERED_DATA_SPLIT_PATH, "{0}.p".format(img_id))
+            f = open(path, "wb")
+            cPickle.dump(entity, f)
+            f.close()
+
+    FilesManager().save_file(
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "full_filtered_preprocessed_data_test"), entities_lst)
+
+
+def save_new_images():
+    """
+    This function load images and save them
+    :return: 
+    """
+    imdb = FilesManager().load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "preproccesed_data"))
+    length = len(imdb['images'])
+    images = {img.id: img for img in GetAllImageData("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Data/VisualGenome/data/")}
+    for img_ind in range(length):
+        print("Image index: {0}".format(img_ind))
+        img_id = imdb["image_ids"][img_ind]
+        path_lst = images[img_id].url.split('/')
+        img = imdb['images'][img_ind]
+        img = np.transpose(img, (1, 2, 0))
+        img_path = os.path.join(PROJECT_ROOT, VG_DATA_PATH, path_lst[-2], path_lst[-1])
+        cv2.imwrite(img_path, img)
 
 
 if __name__ == '__main__':
@@ -944,6 +1071,15 @@ if __name__ == '__main__':
 
     file_manager = FilesManager()
     logger = Logger()
+
+    # save_new_images()
+    # exit()
+
+    # ent = cPickle.load(open("entity_tmp2.p"))
+    # exit()
+    create_pre_proccessed_entities_by_xu()
+
+    exit()
 
     split_extracted_data()
 

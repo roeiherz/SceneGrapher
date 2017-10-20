@@ -10,9 +10,12 @@ from keras.engine import Model
 from keras.layers import Dense
 
 # todo: when moving to nova remove it
+from FilesManager.FilesManager import FilesManager
+
 PROJECT_ROOT = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/"
 # PROJECT_ROOT = "/home/roeih/SceneGrapher/"
-VG_DATA_PATH = "Data/VisualGenome/data"
+VG_DATA_PATH_OLD = "Data/VisualGenome/data"
+VG_DATA_PATH = "Data/VisualGenome/preprocessed_data"
 VG_PATCH_PATH = "Data/VisualGenome/Patches"
 VG_PICKLES_FOLDER_PATH = "Data/VisualGenome/pickles"
 VAL_IMGS_P = "val_imgs.p"
@@ -33,7 +36,8 @@ OBJECTS_ALIAS = "object_alias.txt"
 OBJECTS_LIST = "object_list.txt"
 PREDICATES_ALIAS = "predicate_alias.txt"
 PREDICATES_LIST = "predicate_list.txt"
-DATA_PATH = "Data/VisualGenome/data/"
+DATA_PATH_OLD = "Data/VisualGenome/data/"
+DATA_PATH = "Data/VisualGenome/preprocessed_data/"
 TRAIN_DATA_SET = "train_set.p"
 TEST_DATA_SET = "test_set.p"
 VALIDATION_DATA_SET = "validation_set.p"
@@ -44,6 +48,7 @@ TRAINING_PREDICATE_MASK_CNN_PATH = "FilesManager/FeaturesExtraction/PredicatesMa
 PREDICATED_FEATURES_PATH = "FilesManager/FeaturesExtraction/PredicatedFeatures"
 OUTPUTS_PATH = "Outputs"
 FILTERED_DATA_SPLIT_PATH = "FilesManager/Data/VisualGenome/FilteredData"
+PREPROCESSED_FILTERED_DATA_SPLIT_PATH = "FilesManager/Data/VisualGenome/PreProcessedFilteredData"
 EXTRACTED_DATA_SPLIT_PATH = "FilesManager/Data/VisualGenome/ExtractedData"
 WEIGHTS_NAME = 'model_vg_resnet50.hdf5'
 DATA = "data"

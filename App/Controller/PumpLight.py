@@ -114,8 +114,8 @@ class PumpLight(object):
         """
 
         if option.lower() == 'start':
-            # self.start()
-            self.handle_prediction(use_full_predict=False)
+            self.start()
+            # self.handle_prediction(use_full_predict=False)
         elif option.lower() == 'gt_sg' or option.lower() == 'draw gt scene graph':
             self.draw_original_gt_scene_graph()
         elif option.lower() == 'img_id' or option.lower() == 'choose different image id':
@@ -203,7 +203,7 @@ class PumpLight(object):
         start = True
         # The different options
         while start:
-            option = raw_input('Do you want to use Ground-truth to object boxes (for testing choose "yes"): [yes [y], no [n]] ')
+            option = raw_input('Do you want to use Ground-truth to object boxes (for PredCls choose "yes"): [yes [y], no [n]] ')
             if option.lower() == 'yes' or option.lower() == 'y':
                 return True
             elif option.lower() == 'no' or option.lower() == 'n':
@@ -270,7 +270,7 @@ class PumpLight(object):
                                                      use_mask=True)
         else:
             # Load pickled entity after earlier prediction
-            entity = self.controller.load_preprocessed_entity(self.img_id)
+            entity = self.controller.load_extracted_entity(self.img_id)
 
             if entity is None:
                 print("No pre-processed Entity has been found. Choose another Image ID.")

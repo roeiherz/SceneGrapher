@@ -20,6 +20,23 @@ data:
             type: "pickle"
             doc: "dictionary mapping supported object labels to predicate ids old data"
 
+        # The Data after pre-processing by Xu, et al.
+        VG_SGG_dicts:
+            name: "Data/VisualGenome/VG-SGG-dicts.json"
+            type: "json"
+            doc: "dictionary mapping including: object_count, idx_to_label, predicate_to_idx, predicate_count, idx_to_predicate, label_to_idx"
+
+        meta_preproccesed_data:
+            name: "Data/VisualGenome/VG-SGG.h5"
+            type: "h5py"
+            doc:  "meta pre-proccesed visual genome data including: active_object_mask, boxes_1024, boxes_512, img_to_first_box, img_to_first_rel, img_to_last_box, img_to_last_rel, labels, predicates, relationships, split]"
+
+        preproccesed_data:
+            name: "Data/VisualGenome/imdb_1024.h5"
+            type: "h5py"
+            doc:  "pre-proccesed visual genome data including: [image_heights, image_ids, image_widths, images, original_heights, original_widths, valid_idx]"
+
+
         # Don't know what is it..1000 entities/50000 entities?
         filtered_data:
             name: "Data/VisualGenome/filtered_data.p"
@@ -63,6 +80,14 @@ data:
             name: "Data/VisualGenome/full_filtered_data.p"
             type: "pickle"
             doc:  "visual genome data (108000 entities) filtered according to the most popular objects and predicates and includes negative predicates 1X3"
+        full_filtered_preprocessed_data_train:
+            name: "Data/VisualGenome/full_filtered_preprocessed_data_train.p"
+            type: "pickle"
+            doc:  "pre-processed visual genome data by Xu et al. 108000 entities filtered according to the most popular objects and predicates and includes negative predicates 1X3"
+        full_filtered_preprocessed_data_test:
+            name: "Data/VisualGenome/full_filtered_preprocessed_data_test.p"
+            type: "pickle"
+            doc:  "For test pre-processed visual genome data by Xu et al. 108000 entities filtered according to the most popular objects and predicates and includes negative predicates 1X3"
         temp_filtered_data:
             name: "Data/VisualGenome/temp_filtered_data.p"
             type: "pickle"

@@ -7,6 +7,8 @@ from DesignPatterns.Singleton import Singleton
 import cPickle
 import yaml
 import copy
+import json
+import h5py
 
 FILE_MANAGER_PATH = os.path.abspath(os.path.dirname(__file__))
 FILE_MANAGER_FILENAME = "files.yaml"
@@ -77,6 +79,15 @@ class FilesManager(object):
             self.log("FilesManager: Load yaml file: %s=%s" % (tokens, filename))
             stream = open(filename, 'r')
             data = yaml.load(stream)
+            return data
+        elif filetype == "json":
+            self.log("FilesManager: Load json file: %s=%s" % (tokens, filename))
+            f = open(filename, 'r')
+            data = json.load(f)
+            return data
+        elif filetype == "h5py":
+            self.log("FilesManager: Load h5py file: %s=%s" % (tokens, filename))
+            data = h5py.File(filename, 'r')
             return data
         elif filetype == "text":
             self.log("FilesManager: Load text file: %s=%s" % (tokens, filename))
