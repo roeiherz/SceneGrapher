@@ -82,7 +82,7 @@ class AppModel(object):
                                                                [self.objects_no_activation_model.layers[-1].output])
 
     def load_belief_rnn_model(self, number_of_classes_objects, number_of_classes_predicates,
-                              module_name="dual_predcl_sum2_best"):
+                              module_name="dual_sum3_best", module_name_predcl="dual_predcl_sum2_best"):
         """
         This function load Feature Extraction model
         :param number_of_classes_objects: number of labels of objects

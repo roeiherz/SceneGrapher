@@ -8,15 +8,15 @@ import random
 import numpy as np
 import operator
 from Data.VisualGenome.local import GetSceneGraph
-from Data.VisualGenome.models import Relationship
+from Data.VisualGenome.models import Relationship, RelationshipMapping
 from FeaturesExtraction.Lib.PascalVoc import PascalVoc
 from FeaturesExtraction.Utils.Boxes import find_union_box
 from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, DATA_PATH, CLASSES_MAPPING_FILE, CLASSES_COUNT_FILE, \
     TRAIN_IMGS_P, VAL_IMGS_P, VisualGenome_PICKLES_PATH, ENTITIES_FILE, HIERARCHY_MAPPING, PascalVoc_PICKLES_PATH, \
     VALIDATION_DATA_SET, TEST_DATA_SET, TRAIN_DATA_SET, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
     MINI_VG_DATASET_PATH, MINI_IMDB, get_time_and_date, VG_PICKLES_FOLDER_PATH, VisualGenome_DATASETS_PICKLES_PATH, \
-    get_img, get_sorting_url, POSITIVE_NEGATIVE_RATIO, OBJECTS_ALIAS, PREDICATES_ALIAS, PREDICATES_LIST, OBJECTS_LIST, \
-    DATA, VISUAL_GENOME, OUTPUTS_PATH
+    get_img, POSITIVE_NEGATIVE_RATIO, OBJECTS_ALIAS, PREDICATES_ALIAS, PREDICATES_LIST, OBJECTS_LIST, \
+    DATA, VISUAL_GENOME, OUTPUTS_PATH, get_bad_urls
 from DesignPatterns.Detections import Detections
 from FeaturesExtraction.Utils.Visualizer import VisualizerDrawer, CvColor
 import cv2
@@ -342,11 +342,6 @@ def splitting_to_datasets(entities, training_percent, testing_percent, num_epoch
     #                                                      num_of_samples_per_test_updated,
     #                                                      num_of_samples_per_val_updated))
 
-    print("Debug printing- the number of train samples: {0}, the number of test samples: {1}, "
-          "the number of validation samples: {2}".format(train_size,
-                                                         test_size,
-                                                         validation_size))
-
     # Save train-set and test-set and validation-set
     pickle_dataset(train_imgs, test_imgs, val_imgs, path)
     return train_imgs, test_imgs, val_imgs
@@ -378,6 +373,9 @@ def pickle_dataset(train_set, test_set, validation_set, path):
     cPickle.dump(validation_set, validation_set_filename, protocol=cPickle.HIGHEST_PROTOCOL)
     # Close the file
     validation_set_filename.close()
+
+    print("Debug printing- the number of train samples: {0}, the number of test samples: {1}, "
+          "the number of validation samples: {2}".format(len(train_set), len(test_set), len(validation_set)))
 
 
 def generate_new_hierarchy_mapping(hierarchy_mapping):
@@ -471,7 +469,7 @@ def process_to_detections(relations, detections_file_name="detections.p", debug=
         detections = filemanager.load_file(detections_path_token)
         return detections
 
-    bad_urls = get_sorting_url()
+    bad_urls = get_bad_urls()
     detections = Detections(len(relations))
     id = 0
     for relation in relations:
@@ -589,17 +587,17 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
 
     # Load Predicates alias
     predicates_alias_filename = filemanager.get_file_path(
-       "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(PREDICATES_ALIAS)))
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(PREDICATES_ALIAS)))
     predicates_alias_mapping, predicates_alias_words_target = make_alias_dict(predicates_alias_filename)
 
     # Load Objects list
     objects_list_filename = filemanager.get_file_path(
-         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(OBJECTS_LIST)))
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(OBJECTS_LIST)))
     objects_to_be_used = make_list(objects_list_filename)
 
     # Load Predicates list
     predicates_list_filename = filemanager.get_file_path(
-         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(PREDICATES_LIST)))
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(PREDICATES_LIST)))
     predicates_to_be_used = make_list(predicates_list_filename)
 
     # Load entities
@@ -813,8 +811,8 @@ def create_negative_relations(entity, relation_id, filtered_id, positive_negativ
 
             # Update for a new negative relation
             if update:
-                neg_relation = Relationship(id=relation_id, subject=subject, predicate="neg", object=object,
-                                            synset=[])
+                neg_relation = RelationshipMapping(id=relation_id, subject=subject, predicate="neg", object=object,
+                                                   synset=[], url=entity.image.url, filtered_id=filtered_id)
                 # New filtered Id
                 neg_relation.filtered_id = filtered_id
                 negative_relations.append(neg_relation)
@@ -1036,7 +1034,8 @@ def visualize_detections(detections=None, relations=None, path_to_save=OUTPUTS_P
                                               scale=500)
             # Draw Predicate box with their labels
             VisualizerDrawer.draw_labeled_box(img_relations_triplets, draw_predicate_box,
-                                              label="<{0}, {1}, {2}>/".format(subject_predict, predicate_predict, object_predict),
+                                              label="<{0}, {1}, {2}>/".format(subject_predict, predicate_predict,
+                                                                              object_predict),
                                               label2="<{0}, {1}, {2}>".format(subject_gt, predicate_gt, object_gt),
                                               rect_color=predicate_color, scale=500)
 

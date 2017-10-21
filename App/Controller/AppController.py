@@ -4,8 +4,8 @@ import math
 import cPickle
 from Data.VisualGenome.models import ObjectMapping
 from FeaturesExtraction.Utils.Boxes import find_union_box
-from FeaturesExtraction.Utils.Utils import get_img, get_mask_from_object, PROJECT_ROOT, FILTERED_DATA_SPLIT_PATH, \
-    EXTRACTED_DATA_SPLIT_PATH
+from FeaturesExtraction.Utils.Utils import get_img, get_mask_from_object, PROJECT_ROOT, EXTRACTED_DATA_SPLIT_PATH, \
+    PREPROCESSED_FILTERED_DATA_SPLIT_PATH
 from FeaturesExtraction.Utils.Visualizer import VisualizerDrawer, CvColor
 from FeaturesExtraction.Utils.data import get_filtered_data, draw_graph
 import numpy
@@ -42,7 +42,7 @@ class AppController(object):
         :type img_id: int of image id
         """
         print('Start Loading Entity.')
-        path = os.path.join(PROJECT_ROOT, FILTERED_DATA_SPLIT_PATH, "{0}.p".format(img_id))
+        path = os.path.join(PROJECT_ROOT, PREPROCESSED_FILTERED_DATA_SPLIT_PATH, "{0}.p".format(img_id))
 
         # If img_id pickle is not exist return False
         if not os.path.exists(path):
@@ -55,7 +55,7 @@ class AppController(object):
         print('Finished Loading Entity. \n')
         return entity
 
-    def load_preprocessed_entity(self, img_id):
+    def load_extracted_entity(self, img_id):
         """"
         This function load pre-processed entity - after Feature Extraction Module
         :type img_id: int of image id

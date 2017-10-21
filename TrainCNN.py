@@ -15,9 +15,10 @@ from keras import backend as K
 from keras.models import Model
 import sys
 import matplotlib.pyplot as plt
-from FeaturesExtraction.Utils.Utils import get_time_and_date, TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, CLASSES_MAPPING_FILE, replace_top_layer, get_sorting_url
+from FeaturesExtraction.Utils.Utils import get_time_and_date, TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, \
+    CLASSES_MAPPING_FILE, replace_top_layer, get_bad_urls
 from Utils.Utils import create_folder
-from FeaturesExtraction.Utils.data import splitting_to_datasets, get_filtered_data, get_name_from_file
+from FeaturesExtraction.Utils.data import splitting_to_datasets, get_filtered_data, get_name_from_file, pickle_dataset
 from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
 from FilesManager.FilesManager import FilesManager
 from Utils.Logger import Logger
@@ -61,7 +62,7 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
         return objects
 
     # Bad urls which should be sorted out
-    bad_urls = get_sorting_url()
+    bad_urls = get_bad_urls()
 
     # Get the whole objects from entities
     objects_lst = []
@@ -115,8 +116,9 @@ def get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path, config=N
     if config is not None and config.use_cache_dir:
         classes_count_path = os.path.join(config.loading_model_folder, CLASSES_COUNT_FILE)
         hierarchy_mapping_path = os.path.join(config.loading_model_folder, CLASSES_MAPPING_FILE)
-        logger.log("Loading from cached hierarchy mapping from {0} and class counting {1}".format(hierarchy_mapping_path,
-                                                                                             classes_count_path))
+        logger.log(
+            "Loading from cached hierarchy mapping from {0} and class counting {1}".format(hierarchy_mapping_path,
+                                                                                           classes_count_path))
         classes_count_per_objects = cPickle.load(open(classes_count_path, 'rb'))
         hierarchy_mapping_per_objects = cPickle.load(open(hierarchy_mapping_path, 'rb'))
         return classes_count_per_objects, hierarchy_mapping_per_objects
@@ -166,7 +168,7 @@ def sorting_urls(train_imgs, test_imgs, val_imgs):
     """
 
     # Get the bad urls
-    bad_urls = get_sorting_url()
+    bad_urls = get_bad_urls()
 
     real_train_imgs = []
     real_test_imgs = []
@@ -189,10 +191,23 @@ def sorting_urls(train_imgs, test_imgs, val_imgs):
         real_val_imgs.append(img)
 
     logger.log("Debug printing after sorting- the number of train samples: {0}, the number of test samples: {1}, "
-          "the number of validation samples: {2}".format(len(real_train_imgs),
-                                                         len(real_test_imgs),
-                                                         len(real_val_imgs)))
+               "the number of validation samples: {2}".format(len(real_train_imgs),
+                                                              len(real_test_imgs),
+                                                              len(real_val_imgs)))
     return real_train_imgs, real_test_imgs, real_val_imgs
+
+
+def get_testset_by_size(detections_test, size_of_test):
+    """
+    This function returns detections test set according to a specific size
+    :param detections_test: the detections test
+    :param size_of_test: the wanted test-set size
+    :return: 
+    """
+    np.random.shuffle(detections_test)
+    detections_test = detections_test[:size_of_test]
+    return detections_test
+
 
 if __name__ == '__main__':
 
@@ -240,28 +255,45 @@ if __name__ == '__main__':
     net_weights_path = os.path.join(path, config.model_weights_name)
     logger.log("The new Model Weights will be Saved: {}".format(net_weights_path))
 
-    # classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="mini_classes_count.p",
-    #                                                              hierarchy_mapping_file_name="mini_class_mapping.p",
-    #                                                              entities_file_name="final_entities.p",
-    #                                                              nof_labels=NOF_LABELS)
+    # entities, hierarchy_mapping_objects, _ = get_filtered_data(filtered_data_file_name="mini_filtered_data",
+    #                                                            category='entities',
+    #                                                            load_entities=False)
 
-    entities, hierarchy_mapping_objects, _ = get_filtered_data(filtered_data_file_name="full_filtered_data",
-                                                               category='entities',
-                                                               load_entities=False)
+    hierarchy_mapping_objects = file_manager.load_file("data.visual_genome.hierarchy_mapping_objects")
+    hierarchy_mapping_predicates = file_manager.load_file("data.visual_genome.hierarchy_mapping_predicates")
+    entities_train = file_manager.load_file("data.visual_genome.full_filtered_preprocessed_data_train")
+    entities_test = file_manager.load_file("data.visual_genome.full_filtered_preprocessed_data_test")
 
     # Get Visual Genome Data objects
-    objects = preprocessing_objects(entities, hierarchy_mapping_objects, object_file_name="full_objects_all")
+    # Get Train
+    objects_train = preprocessing_objects(entities_train, hierarchy_mapping_objects,
+                                          object_file_name="full_objects_train")
+    # Get Test
+    objects_test = preprocessing_objects(entities_test, hierarchy_mapping_objects, object_file_name="full_objects_test")
+    np.random.shuffle(objects_test)
+    objects_test = objects_test[:len(objects_train) / 3]
+    # Get Validation
+    objects_val = []
 
-    # If there is too much data take only part pf the data
-    if len(objects) > MAX_NOF_SAMPLES_THR and not config.use_all_objects_data:
-        objects = objects[:MAX_NOF_SAMPLES]
+    logger.log("Debug printing before sorting- the number of train objects: {0}, the number of test objects: {1}, "
+               "the number of validation objects: {2}".format(len(objects_train), len(objects_test), len(objects_val)))
 
-    train_imgs, test_imgs, val_imgs = splitting_to_datasets(objects, training_percent=TRAINING_PERCENT,
-                                                            testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
-                                                            path=path, config=config)
+    # # If there is too much data take only part pf the data
+    # if len(objects) > MAX_NOF_SAMPLES_THR and not config.use_all_objects_data:
+    #     objects = objects[:MAX_NOF_SAMPLES]
+    #
+    # train_imgs, test_imgs, val_imgs = splitting_to_datasets(objects, training_percent=TRAINING_PERCENT,
+    #                                                         testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
+    #                                                         path=path, config=config)
 
     # Sorting bad urls - should be delete sometime
-    train_imgs, test_imgs, val_imgs = sorting_urls(train_imgs, test_imgs, val_imgs)
+    train_imgs, test_imgs, val_imgs = sorting_urls(objects_train, objects_test, objects_val)
+
+    logger.log("Debug printing after sorting- the number of train objects: {0}, the number of test objects: {1}, "
+               "the number of validation objects: {2}".format(len(train_imgs), len(test_imgs), len(val_imgs)))
+
+    # Save train-set and test-set and validation-set
+    pickle_dataset(train_imgs, test_imgs, val_imgs, path)
 
     # Set the number of classes
     if config.replace_top:
@@ -334,12 +366,13 @@ if __name__ == '__main__':
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False)]
 
     logger.log('Starting training')
-    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs)/NUM_BATCHES, epochs=NUM_EPOCHS,
-                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs)/NUM_BATCHES,
+    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
+                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_BATCHES,
                                   callbacks=callbacks, max_q_size=1, workers=1)
 
     # Validating the model
-    test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(val_imgs)/NUM_BATCHES, max_q_size=1, workers=1)
+    test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(val_imgs) / NUM_BATCHES, max_q_size=1,
+                                          workers=1)
     # Plot the Score
     logger.log("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
 

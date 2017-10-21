@@ -21,7 +21,7 @@ import math
 from FeaturesExtraction.Utils.Boxes import BOX, find_union_box
 from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH, get_img_resize, TRAINING_OBJECTS_CNN_PATH, \
     TRAINING_PREDICATE_CNN_PATH, WEIGHTS_NAME, get_img, get_mask_from_object, get_time_and_date, \
-    PREDICATED_FEATURES_PATH, get_bad_urls, get_sorting_url, TRAINING_PREDICATE_MASK_CNN_PATH
+    PREDICATED_FEATURES_PATH, get_bad_urls, TRAINING_PREDICATE_MASK_CNN_PATH, get_mini_entities_img_ids
 from FeaturesExtraction.Utils.data import get_filtered_data, get_name_from_file
 from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
 from FilesManager.FilesManager import FilesManager
@@ -588,17 +588,15 @@ if __name__ == '__main__':
     # Create a new folder for training
     create_folder(path)
 
+    # entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name= 'full_filtered_data',
+    #                                                                                       category='entities_visual_module')
+
     # Load detections dtype numpy array and hierarchy mappings
-    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                          # 'temp_filtered_data',
-                                                                                          # 'temp2_filtered_data',
-                                                                                          # 'temp3_filtered_data',
-                                                                                          # 'temp5_filtered_data',
-                                                                                          # 'temp6_filtered_data',
-                                                                                          'full_filtered_data',
-                                                                                          # "mini_filtered_data",
-                                                                                          category='entities_visual_module')
-                                                                                          # category='entities')
+    hierarchy_mapping_objects = filemanager.load_file("data.visual_genome.hierarchy_mapping_objects")
+    hierarchy_mapping_predicates = filemanager.load_file("data.visual_genome.hierarchy_mapping_predicates")
+    # entities = filemanager.load_file("data.visual_genome.full_filtered_preprocessed_data_train")
+    # entities = filemanager.load_file("data.visual_genome.full_filtered_preprocessed_data_test")
+    entities = filemanager.load_file("data.visual_genome.pre_processed_train_split0")
 
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
@@ -652,13 +650,11 @@ if __name__ == '__main__':
     logger.log('Starting Prediction')
     ind = 0
 
-    # total_entities = entities[:20000]
-    total_entities = entities[50000:]
-    # total_entities = entities[18013:36026]
-    # total_entities = entities[36026:54039]
+    total_entities = entities[:]
     SPLIT_ENT = 1000
-    # bad_urls = get_bad_urls()
-    bad_urls = get_sorting_url()
+    bad_urls = get_bad_urls()
+    # mini_ids = get_mini_entities_img_ids()
+    # bad_urls = get_sorting_url()
 
     if len(bad_urls) < 100:
         logger.log("WARNING: number of bad urls is lower than 100")
@@ -692,12 +688,15 @@ if __name__ == '__main__':
                     # if entity.image.id != 2366365:
                     #     continue
 
-                    # Increment index
-                    ind += 1
-
                     # Make sure
                     if entity.image.url in bad_urls:
                         continue
+
+                    # if entity.image.id not in mini_ids:
+                    #     continue
+
+                    # Increment index
+                    ind += 1
 
                     logger.log('Predicting image id {0} in iteration {1} \n'.format(entity.image.id, ind))
                     # Get the url image

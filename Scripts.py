@@ -647,7 +647,8 @@ def logger_parser(dir_path="Temp"):
     # files = ["PredictFeaturesModule_mini_entities.log"]
     files = ["PredictFeaturesModule_mini_entities_module_mask.log"]
     files = ["PredictFeaturesModule_mini_entities_mask_dual_260917.log"]
-    files = ["PredictFeaturesModule_mini_entities_mask_dual_031017.log"]
+    files = ["/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatedFeatures/"
+             "Fri_Oct_20_22:23:07_2017/PredictFeaturesModule_mini_entities_updated_201017.log"]
 
     # Get the data frame from logger
     df = create_dataframe_from_logger(files)
@@ -658,8 +659,8 @@ def logger_parser(dir_path="Temp"):
     create_folder(dir_path)
 
     # Save DataFrame
-    df.to_csv(os.path.join(dir_path, "logger_data_entities_mask_Tue_Oct_3_22:13:00_2017.csv"))
-    fl = open(os.path.join(dir_path, "logger_data_entities_mask_Sun_Tue_Oct_3_22:13:00_2017_df.p"), "wb")
+    df.to_csv(os.path.join(dir_path, "logger_preprocessed_data_entities_mask_201017.csv"))
+    fl = open(os.path.join(dir_path, "logger_preprocessed_data_entities_mask_201017_df.p"), "wb")
     cPickle.dump(df, fl)
     fl.close()
 
@@ -1035,6 +1036,8 @@ def create_pre_proccessed_entities_by_xu():
                                                        rl_filtered_id)
                     relationship_lst.append(relationship)
 
+                # Create Negatives
+
             entity = Graph(image, objects, relationship_lst, None)
             entities_lst.append(entity)
 
@@ -1077,23 +1080,23 @@ if __name__ == '__main__':
 
     # ent = cPickle.load(open("entity_tmp2.p"))
     # exit()
-    create_pre_proccessed_entities_by_xu()
 
-    exit()
+    # create_pre_proccessed_entities_by_xu()
+    # exit()
 
-    split_extracted_data()
+    # split_extracted_data()
 
-    exit()
+    # exit()
+    #
+    # split_filter_data()
 
-    split_filter_data()
-
-    exit()
-
-    visualize_detections(img_id=2415186)
-    exit()
-
-    find_image_id_via_object("elephant")
-    exit()
+    # exit()
+    #
+    # visualize_detections(img_id=2415186)
+    # exit()
+    #
+    # find_image_id_via_object("elephant")
+    # exit()
 
     # detection_parser(dir_path="Temp")
     #

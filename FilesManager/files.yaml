@@ -24,17 +24,17 @@ data:
         VG_SGG_dicts:
             name: "Data/VisualGenome/VG-SGG-dicts.json"
             type: "json"
-            doc: "dictionary mapping including: object_count, idx_to_label, predicate_to_idx, predicate_count, idx_to_predicate, label_to_idx"
+            doc: "dictionary mapping including- object_count, idx_to_label, predicate_to_idx, predicate_count, idx_to_predicate, label_to_idx"
 
         meta_preproccesed_data:
             name: "Data/VisualGenome/VG-SGG.h5"
             type: "h5py"
-            doc:  "meta pre-proccesed visual genome data including: active_object_mask, boxes_1024, boxes_512, img_to_first_box, img_to_first_rel, img_to_last_box, img_to_last_rel, labels, predicates, relationships, split]"
+            doc:  "meta pre-proccesed visual genome data including- active_object_mask, boxes_1024, boxes_512, img_to_first_box, img_to_first_rel, img_to_last_box, img_to_last_rel, labels, predicates, relationships, split]"
 
         preproccesed_data:
             name: "Data/VisualGenome/imdb_1024.h5"
             type: "h5py"
-            doc:  "pre-proccesed visual genome data including: [image_heights, image_ids, image_widths, images, original_heights, original_widths, valid_idx]"
+            doc:  "pre-proccesed visual genome data including- [image_heights, image_ids, image_widths, images, original_heights, original_widths, valid_idx]"
 
 
         # Don't know what is it..1000 entities/50000 entities?
@@ -116,6 +116,46 @@ data:
             type: "pickle"
             doc:  "visual genome data (40000:54000 of 108000 entities from all entities) filtered according to the most popular objects and predicates and includes negative predicates 1X3"
 
+        # Split PreProcessed Data
+        # Train Pre-Processed
+        pre_processed_train_split0:
+            name: "Data/VisualGenome/pre_processed_train_split0.p"
+            type: "pickle"
+            doc:  "visual genome data - split of pre processed entities 0:15000"
+        pre_processed_train_split1:
+            name: "Data/VisualGenome/pre_processed_train_split1.p"
+            type: "pickle"
+            doc:  "visual genome data - split of pre processed entities 15000:30000"
+        pre_processed_train_split2:
+            name: "Data/VisualGenome/pre_processed_train_split2.p"
+            type: "pickle"
+            doc:  "visual genome data - split of pre processed entities 30000:45000"
+        pre_processed_train_split3:
+            name: "Data/VisualGenome/pre_processed_train_split3.p"
+            type: "pickle"
+            doc:  "visual genome data - split of pre processed entities 45000:60000"
+        pre_processed_train_split4:
+            name: "Data/VisualGenome/pre_processed_train_split4.p"
+            type: "pickle"
+            doc:  "visual genome data - split of pre processed entities 60000:75000"
+        pre_processed_train_split5:
+            name: "Data/VisualGenome/pre_processed_train_split5.p"
+            type: "pickle"
+            doc:  "visual genome data - split of pre processed entities 75000:"
+
+        # Test Pre-Processed
+        pre_processed_test_split0:
+            name: "Data/VisualGenome/pre_processed_test_split0.p"
+            type: "pickle"
+            doc:  "visual genome data - split of pre processed entities 0:15000"
+        pre_processed_test_split1:
+            name: "Data/VisualGenome/pre_processed_test_split1.p"
+            type: "pickle"
+            doc:  "visual genome data - split of pre processed 15000:30000"
+        pre_processed_test_split2:
+            name: "Data/VisualGenome/pre_processed_test_split2.p"
+            type: "pickle"
+            doc:  "visual genome data - split of pre processed entities 30000:"
 
         # Relations (for TrainPredicateCNN)
         mini_relations:
@@ -143,6 +183,16 @@ data:
             name: "Data/VisualGenome/full_entities_filtered_relations_all.p"
             type: "pickle"
             doc:  "Relations (ALL 108000 ENTITIES) includes positive and negative predicates 1X3"
+
+        full_relations_train:
+            name: "Data/VisualGenome/full_filtered_preprocessed_relations_train.p"
+            type: "pickle"
+            doc:  "Pre-Processed Relations (ALL 75000 ENTITIES) includes positive and negative predicates 1X3"
+
+        full_relations_test:
+            name: "Data/VisualGenome/full_filtered_preprocessed_relations_test.p"
+            type: "pickle"
+            doc:  "Pre-Processed Relations (ALL 32000 ENTITIES) includes positive and negative predicates 1X3"
 
         2415186_relation:
             name: "Data/VisualGenome/2415186_relation.p"
@@ -176,6 +226,16 @@ data:
             type: "pickle"
             doc:  "Detections (ALL 108000 ENTITIES) includes positive and negative predicates 1X3"
 
+        full_detections_train:
+            name: "Data/VisualGenome/full_filtered_preprocessed_detections_train.p"
+            type: "pickle"
+            doc:  "Pre-Processed Detections (ALL 75000 ENTITIES) includes positive and negative predicates 1X3"
+
+        full_detections_test:
+            name: "Data/VisualGenome/full_filtered_preprocessed_detections_test.p"
+            type: "pickle"
+            doc:  "Pre-Processed Detections (ALL 32000 ENTITIES) includes positive and negative predicates 1X3"
+
         2415186_detection:
             name: "Data/VisualGenome/2415186_detection.p"
             type: "pickle"
@@ -194,7 +254,14 @@ data:
             name: "Data/VisualGenome/full_entities_filtered_objects_all.p"
             type: "pickle"
             doc:  "Objects (ALL 108000 ENTITIES) only positive"
-
+        full_objects_train:
+            name: "Data/VisualGenome/full_preprocessed_train_objects_all.p"
+            type: "pickle"
+            doc:  "Pre-processed *train* Objects (ALL 75000 ENTITIES) only positive"
+        full_objects_test:
+            name: "Data/VisualGenome/full_preprocessed_test_objects_all.p"
+            type: "pickle"
+            doc:  "Pre-processed *test* Objects (ALL 32000 ENTITIES) only positive"
         # Objects with Probabilities (for PredictVisualModel)
         mini_objects_with_probs:
             name: "Data/VisualGenome/mini_objects_with_probs.p"
@@ -279,7 +346,7 @@ scene_graph_base_module:
             doc: "detections of mini data with neg"
 
         object_cnn:
-            name: "FeaturesExtraction/ObjectsCNN/Mon_Jul_24_19:58:35_2017/model_vg_resnet50.hdf5"
+            name: "FeaturesExtraction/ObjectsCNN/Sat_Sep_16_18:36:19_2017/model_vg_resnet50.hdf5"
             type: "dir"
             doc: "path to object cnn"
             versions:
@@ -290,6 +357,10 @@ scene_graph_base_module:
                 1:
                     date: "xx:xx:xx"
                     name: "FeaturesExtraction/ObjectCNN/Thu_Jul_13_13:37:54_2017/model_vg_resnet50.hdf5"
+                    doc: "trained 650000 positives without negative examples"
+                1:
+                    date: "xx:xx:xx"
+                    name: "FeaturesExtraction/ObjectsCNN/Mon_Jul_24_19:58:35_2017/model_vg_resnet50.hdf5"
                     doc: "trained 650000 positives without negative examples"
 
         predicate_cnn_no_neg:
@@ -316,6 +387,11 @@ scene_graph_base_module:
             name: "FeaturesExtraction/PredicatesMaskCNN/Mon_Sep_25_17:47:17_2017/model_vg_resnet50.hdf5"
             type: "dir"
             doc: "path to predicate mask cnn. A network which trained on the best 50 most probable predicats in the data (with neg) with the NEW DATA"
+            versions:
+                1:
+                    date: "25/09/17"
+                    name: "FeaturesExtraction/PredicatesMaskCNN/Mon_Sep_25_17:47:17_2017/model_vg_resnet50.hdf5"
+                    doc: "path to predicate mask cnn. A network which trained on the best 50 most probable predicats in the data (with neg) with the NEW DATA"
 
 
         image_net_tf:
