@@ -2,7 +2,7 @@ import matplotlib as mpl
 from FilesManager.FilesManager import FilesManager
 
 mpl.use('Agg')
-from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger
+from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger, ReduceLROnPlateau
 from keras.optimizers import Adam
 from Data.VisualGenome.models import ObjectMapping, RelationshipMapping
 from DesignPatterns.Detections import Detections
@@ -467,13 +467,14 @@ if __name__ == '__main__':
         # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
         model.summary()
 
-    optimizer = Adam(1e-6)
+    optimizer = Adam(1e-7)
     model.compile(optimizer=optimizer,
                   loss='categorical_crossentropy', metrics=['accuracy'])
 
     callbacks = [ModelCheckpoint(net_weights_path, monitor='val_loss', save_best_only=True, verbose=0),
                  TensorBoard(log_dir="logs", write_graph=True, write_images=True),
-                 CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False)]
+                 CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False),
+                 ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, min_lr=0.00000001)]
 
     logger.log('Starting training')
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
