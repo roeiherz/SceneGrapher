@@ -234,6 +234,8 @@ def pick_different_negative_sample_ratio(detections, ratio=1):
     """
     # Get positive indices
     pos_indices = np.where(detections[Detections.Predicate] != u'neg')[0]
+    # Shuffle randomly positive indices
+    np.random.shuffle(pos_indices)
     # Get negative indices
     neg_indices = np.where(detections[Detections.Predicate] == u'neg')[0]
     # Shuffle randomly negative indices
