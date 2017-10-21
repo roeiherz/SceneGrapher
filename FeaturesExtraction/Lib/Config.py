@@ -13,14 +13,14 @@ class Config:
     def __init__(self, gpu_num):
 
         # Do we continuing to train or start from fresh
-        self.loading_model = True
+        self.loading_model = False
         self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Mon_Sep_25_17:47:17_2017"
         self.loading_model_token = "scene_graph_base_module.visual_module.predicate_mask_dual_cnn"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
         self.use_cache_dir = False
         # Load weights
-        self.load_weights = True
+        self.load_weights = False
         # Replace the Dense layer
         self.replace_top = False
         # If we replace top, what is the old top number of classes
