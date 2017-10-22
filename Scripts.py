@@ -1,7 +1,7 @@
 import traceback
 
 import matplotlib
-
+from shutil import copyfile
 from Data.VisualGenome.models import Object, Graph, Image, Relationship, ObjectMapping, RelationshipMapping, \
     ImageMapping
 
@@ -1068,12 +1068,38 @@ def save_new_images():
         cv2.imwrite(img_path, img)
 
 
+def copy_files_from_server():
+    """
+    This function copies the VG images to another path fo be used
+    :return:
+    """
+    # The path
+    from_path = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Data/VisualGenome/preprocessed_data"
+    to_path = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Temp"
+
+    # The dataset from which the urls will be taken
+    train_imgs = cPickle.load(open("/home/roeih/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sat_Oct_21_18:13:58_2017/train_set.p"))
+    train_imgs = train_imgs[:500]
+    test_imgs = cPickle.load(open("/home/roeih/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sat_Oct_21_18:13:58_2017/test_set.p"))
+    test_imgs = test_imgs[:len(train_imgs) / 3]
+    urls_lst = list(set(train_imgs[Detections.Url]))
+    for url in urls_lst:
+        suffix = url.split('/')
+        create_folder(os.path.join(to_path, suffix[-2]))
+        from_path_curr = os.path.join(from_path, suffix[-2], suffix[-1])
+        to_path_curr = os.path.join(to_path, suffix[-2], suffix[-1])
+        copyfile(from_path_curr, to_path_curr)
+
+
 if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
 
     file_manager = FilesManager()
     logger = Logger()
+
+    copy_files_from_server()
+    exit()
 
     # save_new_images()
     # exit()
