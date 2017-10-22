@@ -382,7 +382,6 @@ if __name__ == '__main__':
 
     # Get new negative - positive ratio and shuffle the data
     detections_train = pick_different_negative_sample_ratio(detections_train, ratio=RATIO)
-    detections_train = detections_train[:100000]
     detections_test = pick_different_negative_sample_ratio(detections_test, ratio=RATIO)
     size_of_test = len(detections_train) / 3
     # detections_test = get_size_of_detections_testset(detections_test, size_of_test)

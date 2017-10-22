@@ -371,27 +371,31 @@ scene_graph_base_module:
                 1:
                     date: "02:06:17"
                     name: "FeaturesExtraction/PredicatesCNN/Fri_Jun__2_20:00:24_2017/model_vg_resnet50.hdf5"
-                    doc: "path to predicate cnn. A network which trained on the best 50 most probable predicats in the data (without neg)"
+                    doc: "path to predicate cnn. A network which trained on the best 50 most probable predicates in the data (without neg)"
 
         predicate_cnn:
             name: "FeaturesExtraction/PredicatesCNN/Wed_Aug__2_21:55:12_2017/model_vg_resnet50.hdf5"
             type: "dir"
-            doc: "path to predicate cnn. A network which trained on the best 50 most probable predicats in the data (with neg) wiht the NEW DATA"
+            doc: "path to predicate cnn. A network which trained on the best 50 most probable predicates in the data (with neg) wiht the NEW DATA"
 
         predicate_mask_cnn:
             name: "FeaturesExtraction/PredicatesMaskCNN/Sat_Sep_16_14:36:13_2017/model_vg_resnet50.hdf5"
             type: "dir"
-            doc: "path to predicate mask cnn. A network which trained on the best 50 most probable predicats in the data (with neg) with the NEW DATA"
+            doc: "path to predicate mask cnn. A network which trained on the best 50 most probable predicates in the data (with neg) with the NEW DATA"
 
         predicate_mask_dual_cnn:
             name: "FeaturesExtraction/PredicatesMaskCNN/Mon_Sep_25_17:47:17_2017/model_vg_resnet50.hdf5"
             type: "dir"
-            doc: "path to predicate mask cnn. A network which trained on the best 50 most probable predicats in the data (with neg) with the NEW DATA"
+            doc: "path to predicate mask cnn. A network which trained on the best 50 most probable predicates in the data (with neg) with the NEW DATA"
             versions:
                 1:
                     date: "25/09/17"
                     name: "FeaturesExtraction/PredicatesMaskCNN/Mon_Sep_25_17:47:17_2017/model_vg_resnet50.hdf5"
-                    doc: "path to predicate mask cnn. A network which trained on the best 50 most probable predicats in the data (with neg) with the NEW DATA"
+                    doc: "path to predicate mask cnn. A network which trained on the best 50 most probable predicates in the data (with neg) with the NEW DATA"
+        predicate_mask_dual_cnn2:
+            name: "FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_21:53:12_2017/model_vg_resnet50.hdf5"
+            type: "dir"
+            doc: "path to predicate mask cnn. A network which trained on the best 50 most probable predicates in the data (with neg) with the NEW DATA"
 
 
         image_net_tf:
