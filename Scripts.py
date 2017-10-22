@@ -1089,6 +1089,7 @@ def copy_files_from_server():
         from_path_curr = os.path.join(from_path, suffix[-2], suffix[-1])
         to_path_curr = os.path.join(to_path, suffix[-2], suffix[-1])
         copyfile(from_path_curr, to_path_curr)
+        Logger().log("The file from {0} copy to {1}".format(from_path_curr, to_path_curr))
 
 
 if __name__ == '__main__':
