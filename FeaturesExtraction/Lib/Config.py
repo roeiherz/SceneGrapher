@@ -22,13 +22,13 @@ class Config:
         # Load weights
         self.load_weights = True
         # Replace the Dense layer
-        self.replace_top = True
+        self.replace_top = False
         # If we replace top, what is the old top number of classes
         if self.replace_top:
             self.nof_classes = 51
 
         # The Training is only with positive samples
-        self.only_pos = True
+        self.only_pos = False
 
         # Train or not Only ResNet50 Body
         self.resnet_body_trainable = True
