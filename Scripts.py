@@ -1073,16 +1073,18 @@ def copy_files_from_server():
     This function copies the VG images to another path fo be used
     :return:
     """
+    Logger().log("Welcome to copy files")
     # The path
     from_path = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Data/VisualGenome/preprocessed_data"
     to_path = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Temp"
 
     # The dataset from which the urls will be taken
-    train_imgs = cPickle.load(open("/home/roeih/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sat_Oct_21_18:13:58_2017/train_set.p"))
+    train_imgs = cPickle.load(open("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sat_Oct_21_18:13:58_2017/train_set.p"))
     train_imgs = train_imgs[:500]
-    test_imgs = cPickle.load(open("/home/roeih/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sat_Oct_21_18:13:58_2017/test_set.p"))
+    test_imgs = cPickle.load(open("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sat_Oct_21_18:13:58_2017/test_set.p"))
     test_imgs = test_imgs[:len(train_imgs) / 3]
     urls_lst = list(set(train_imgs[Detections.Url]))
+    Logger().log("Start copying")
     for url in urls_lst:
         suffix = url.split('/')
         create_folder(os.path.join(to_path, suffix[-2]))
