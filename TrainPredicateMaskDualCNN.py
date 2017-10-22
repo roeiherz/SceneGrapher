@@ -99,7 +99,7 @@ def preprocessing_objects(img_data, hierarchy_mapping, object_file_name='objects
 
 
 def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                            relation_file_name='full_relations.p', add_negatives=False):
+                            relation_file_name='full_relations.p', add_negatives=False, relation_id=None):
     """
     This function takes the img_data and create a full object list that contains ObjectMapping class
     :param relation_file_name: relation pickle file name
@@ -107,6 +107,7 @@ def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mappi
     :param hierarchy_mapping_objects: dict of objects hierarchy_mapping
     :param hierarchy_mapping_predicates: dict of predicates hierarchy_mapping
     :param add_negatives: Do we want to add negatives to the data
+    :param relation_id: The new negative relations ID
     :return: list of RelationshipMapping
     """
 
@@ -127,8 +128,6 @@ def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mappi
     bad_urls = get_bad_urls()
     # Index for loop
     idx = 0
-    # The new negative relations ID
-    relation_id = 10000000
     # Counter for negatives
     total_negatives = 0
     # Counter for positives
@@ -166,7 +165,7 @@ def preprocessing_relations(img_data, hierarchy_mapping_objects, hierarchy_mappi
         total_positives += len(relations)
 
         # Check the relationship_filtered list is not empty
-        if add_negatives and relations_lst:
+        if add_negatives and relations:
             # Create Negatives
             negative_relations, _, relation_id = create_negative_relations(img, relation_id, relation_id,
                                                                            positive_negative_ratio=RATIO)
@@ -356,7 +355,7 @@ if __name__ == '__main__':
     # Get the predicate hierarchy mapping and the number of the predicated classes
     hierarchy_mapping_objects = filemanager.load_file("data.visual_genome.hierarchy_mapping_objects")
     hierarchy_mapping_predicates = filemanager.load_file("data.visual_genome.hierarchy_mapping_predicates")
-    # # Load filtered data
+    # Load filtered data
     # entities_train = filemanager.load_file("data.visual_genome.full_filtered_preprocessed_data_train")
     # entities_test = filemanager.load_file("data.visual_genome.full_filtered_preprocessed_data_test")
 
@@ -368,10 +367,10 @@ if __name__ == '__main__':
     # # Get Visual Genome Data relations
     # relations_train = preprocessing_relations(entities_train, hierarchy_mapping_objects, hierarchy_mapping_predicates,
     #                                           relation_file_name="full_relations_train",
-    #                                           add_negatives=not config.only_pos)
+    #                                           add_negatives=not config.only_pos, relation_id=10000000)
     # relations_test = preprocessing_relations(entities_test, hierarchy_mapping_objects, hierarchy_mapping_predicates,
     #                                          relation_file_name="full_relations_test",
-    #                                          add_negatives=not config.only_pos)
+    #                                          add_negatives=not config.only_pos, relation_id=100000000)
 
     # Process relations to numpy Detections dtype
     detections_train = process_to_detections(None, detections_file_name="full_detections_train")
@@ -384,7 +383,8 @@ if __name__ == '__main__':
     detections_train = pick_different_negative_sample_ratio(detections_train, ratio=RATIO)
     detections_test = pick_different_negative_sample_ratio(detections_test, ratio=RATIO)
     size_of_test = len(detections_train) / 3
-    detections_test = get_size_of_detections_testset(detections_test, size_of_test)
+    # detections_test = get_size_of_detections_testset(detections_test, size_of_test)
+    detections_test = detections_test[:size_of_test]
     # No validation test
     detections_val = []
 

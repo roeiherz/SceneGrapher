@@ -1352,7 +1352,8 @@ def get_bad_urls():
             "https://cs.stanford.edu/people/rak248/VG_100K/498239.jpg",
             "https://cs.stanford.edu/people/rak248/VG_100K_2/2417558.jpg",
             "https://cs.stanford.edu/people/rak248/VG_100K_2/2385742.jpg",
-            "https://cs.stanford.edu/people/rak248/VG_100K/2338230.jpg"]
+            "https://cs.stanford.edu/people/rak248/VG_100K/2338230.jpg",
+            "https://cs.stanford.edu/people/rak248/VG_100K_2/2412.jpg"]
 
 
 def get_mini_entities_img_ids():

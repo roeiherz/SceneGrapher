@@ -187,12 +187,12 @@ data:
         full_relations_train:
             name: "Data/VisualGenome/full_filtered_preprocessed_relations_train.p"
             type: "pickle"
-            doc:  "Pre-Processed Relations (ALL 75000 ENTITIES) includes positive and negative predicates 1X3"
+            doc:  "Pre-Processed Relations (ALL 75000 ENTITIES) includes positive and negative predicates 3:10"
 
         full_relations_test:
             name: "Data/VisualGenome/full_filtered_preprocessed_relations_test.p"
             type: "pickle"
-            doc:  "Pre-Processed Relations (ALL 32000 ENTITIES) includes positive and negative predicates 1X3"
+            doc:  "Pre-Processed Relations (ALL 32000 ENTITIES) includes positive and negative predicates 3:10"
 
         2415186_relation:
             name: "Data/VisualGenome/2415186_relation.p"
@@ -229,12 +229,12 @@ data:
         full_detections_train:
             name: "Data/VisualGenome/full_filtered_preprocessed_detections_train.p"
             type: "pickle"
-            doc:  "Pre-Processed Detections (ALL 75000 ENTITIES) includes positive and negative predicates 1X3"
+            doc:  "Pre-Processed Detections (ALL 75000 ENTITIES) includes positive and negative predicates 3:10"
 
         full_detections_test:
             name: "Data/VisualGenome/full_filtered_preprocessed_detections_test.p"
             type: "pickle"
-            doc:  "Pre-Processed Detections (ALL 32000 ENTITIES) includes positive and negative predicates 1X3"
+            doc:  "Pre-Processed Detections (ALL 32000 ENTITIES) includes positive and negative predicates 3:10"
 
         2415186_detection:
             name: "Data/VisualGenome/2415186_detection.p"
