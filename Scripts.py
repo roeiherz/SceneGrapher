@@ -1079,9 +1079,9 @@ def copy_files_from_server():
     to_path = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Temp"
 
     # The dataset from which the urls will be taken
-    train_imgs = cPickle.load(open("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sat_Oct_21_18:13:58_2017/train_set.p"))
+    train_imgs = cPickle.load(open("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_14:15:25_2017/train_set.p"))
     train_imgs = train_imgs[:500]
-    test_imgs = cPickle.load(open("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sat_Oct_21_18:13:58_2017/test_set.p"))
+    test_imgs = cPickle.load(open("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_14:15:25_2017/test_set.p"))
     test_imgs = test_imgs[:len(train_imgs) / 3]
     urls_lst = list(set(test_imgs[Detections.Url]))
     Logger().log("Start copying")
