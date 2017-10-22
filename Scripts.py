@@ -1083,7 +1083,7 @@ def copy_files_from_server():
     train_imgs = train_imgs[:500]
     test_imgs = cPickle.load(open("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sat_Oct_21_18:13:58_2017/test_set.p"))
     test_imgs = test_imgs[:len(train_imgs) / 3]
-    urls_lst = list(set(train_imgs[Detections.Url]))
+    urls_lst = list(set(test_imgs[Detections.Url]))
     Logger().log("Start copying")
     for url in urls_lst:
         suffix = url.split('/')
