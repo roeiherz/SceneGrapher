@@ -32,8 +32,7 @@ VALIDATION_PERCENT = 0.05
 TESTING_PERCENT = 0.2
 NUM_EPOCHS = 90
 NUM_BATCHES = 128
-# RATIO = 3.0 / 10
-RATIO = 0
+RATIO = 3.0 / 10
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -245,6 +244,7 @@ def pick_different_negative_sample_ratio(detections, ratio=1):
     chosen_indices = neg_indices[:int(nof_positive * ratio)]
     # Append the positive and the negative indices
     all_indice = np.append(pos_indices, chosen_indices)
+    np.random.shuffle(all_indice)
     return detections[all_indice]
 
 
@@ -382,6 +382,7 @@ if __name__ == '__main__':
 
     # Get new negative - positive ratio and shuffle the data
     detections_train = pick_different_negative_sample_ratio(detections_train, ratio=RATIO)
+    detections_train = detections_train[:100000]
     detections_test = pick_different_negative_sample_ratio(detections_test, ratio=RATIO)
     size_of_test = len(detections_train) / 3
     # detections_test = get_size_of_detections_testset(detections_test, size_of_test)
@@ -396,6 +397,15 @@ if __name__ == '__main__':
 
     # Sorting bad urls - should be delete sometime
     train_imgs, test_imgs, val_imgs = sorting_urls(detections_train, detections_test, detections_val)
+
+    logger.log('Number of train detections, total:{0}, positive:{1} and negative: {2}'.format(len(train_imgs),
+                len(np.where(train_imgs[Detections.Predicate] == "neg")[0]),
+                len(np.where(train_imgs[Detections.Predicate] == "neg")[0])))
+
+    logger.log('Number of test detections, total:{0}, positive:{1} and negative: {2}'.format(len(test_imgs),
+            len(np.where(test_imgs[Detections.Predicate] == "neg")[0]),
+            len(np.where(test_imgs[Detections.Predicate] == "neg")[0])))
+
     # Save train-set and test-set and validation-set
     pickle_dataset(train_imgs, test_imgs, val_imgs, path)
 
