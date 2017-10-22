@@ -32,7 +32,8 @@ VALIDATION_PERCENT = 0.05
 TESTING_PERCENT = 0.2
 NUM_EPOCHS = 90
 NUM_BATCHES = 128
-RATIO = 3.0 / 10
+# RATIO = 3.0 / 10
+RATIO = 0
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -382,7 +383,7 @@ if __name__ == '__main__':
     # Get new negative - positive ratio and shuffle the data
     detections_train = pick_different_negative_sample_ratio(detections_train, ratio=RATIO)
     detections_test = pick_different_negative_sample_ratio(detections_test, ratio=RATIO)
-    size_of_test = len(detections_train) / 3
+    size_of_test = len(detections_train) / 15
     # detections_test = get_size_of_detections_testset(detections_test, size_of_test)
     detections_test = detections_test[:size_of_test]
     # No validation test
@@ -437,7 +438,7 @@ if __name__ == '__main__':
 
     # Define ResNet50 model Without Top
     net = ModelZoo()
-    model_resnet50 = net.resnet50_with_masking_dual(img_input, trainable=True)
+    model_resnet50 = net.resnet50_with_masking_dual(img_input, trainable=config.resnet_body_trainable)
     model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
     output_resnet50 = Dense(number_of_classes, kernel_initializer="he_normal", activation='softmax', name='fc')(
         model_resnet50)
