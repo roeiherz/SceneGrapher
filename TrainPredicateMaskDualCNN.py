@@ -399,11 +399,11 @@ if __name__ == '__main__':
 
     logger.log('Number of train detections, total:{0}, positive:{1} and negative: {2}'.format(len(train_imgs),
                 len(np.where(train_imgs[Detections.Predicate] == "neg")[0]),
-                len(np.where(train_imgs[Detections.Predicate] == "neg")[0])))
+                len(np.where(train_imgs[Detections.Predicate] != "neg")[0])))
 
     logger.log('Number of test detections, total:{0}, positive:{1} and negative: {2}'.format(len(test_imgs),
             len(np.where(test_imgs[Detections.Predicate] == "neg")[0]),
-            len(np.where(test_imgs[Detections.Predicate] == "neg")[0])))
+            len(np.where(test_imgs[Detections.Predicate] != "neg")[0])))
 
     # Save train-set and test-set and validation-set
     pickle_dataset(train_imgs, test_imgs, val_imgs, path)
