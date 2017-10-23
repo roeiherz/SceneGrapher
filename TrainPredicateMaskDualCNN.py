@@ -486,7 +486,7 @@ if __name__ == '__main__':
     callbacks = [ModelCheckpoint(net_weights_path, monitor='val_loss', save_best_only=True, verbose=0),
                  TensorBoard(log_dir="logs", write_graph=True, write_images=True),
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False),
-                 ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, min_lr=0.0000001)]
+                 ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=0.0000001)]
 
     logger.log('Starting training')
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
