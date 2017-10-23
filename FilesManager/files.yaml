@@ -392,8 +392,8 @@ scene_graph_base_module:
                     date: "25/09/17"
                     name: "FeaturesExtraction/PredicatesMaskCNN/Mon_Sep_25_17:47:17_2017/model_vg_resnet50.hdf5"
                     doc: "path to predicate mask cnn. A network which trained on the best 50 most probable predicates in the data (with neg) with the NEW DATA"
-        predicate_mask_dual_cnn2:
-            name: "FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_21:53:12_2017/model_vg_resnet50.hdf5"
+        predicate_preprocessed_mask_dual_cnn:
+            name: "FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_23:34:02_2017/model_vg_resnet50.hdf5"
             type: "dir"
             doc: "path to predicate mask cnn. A network which trained on the best 50 most probable predicates in the data (with neg) with the NEW DATA"
 
