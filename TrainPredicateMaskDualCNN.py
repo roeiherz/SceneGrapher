@@ -33,6 +33,8 @@ TESTING_PERCENT = 0.2
 NUM_EPOCHS = 90
 NUM_BATCHES = 128
 RATIO = 3.0 / 10
+LR = 1e-7
+
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -479,7 +481,7 @@ if __name__ == '__main__':
         # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
         model.summary()
 
-    optimizer = Adam(1e-7)
+    optimizer = Adam(LR)
     model.compile(optimizer=optimizer,
                   loss='categorical_crossentropy', metrics=['accuracy'])
 
@@ -488,7 +490,7 @@ if __name__ == '__main__':
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False),
                  ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-9)]
 
-    logger.log('Starting training')
+    logger.log('Starting training with learning rate: {0}'.format(LR))
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
                                   validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_BATCHES,
                                   callbacks=callbacks, max_q_size=1, workers=1)
