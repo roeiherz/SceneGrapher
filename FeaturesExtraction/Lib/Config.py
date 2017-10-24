@@ -15,18 +15,19 @@ class Config:
         # Do we continuing to train or start from fresh
         self.loading_model = True
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Mon_Sep_25_17:47:17_2017"
-        self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_23:34:02_2017"
-        self.loading_model_token = "scene_graph_base_module.visual_module.predicate_preprocessed_mask_dual_cnn"
+        # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Mon_Oct_23_17:49:04_2017"
+        self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_20:08:54_2017"
+        self.loading_model_token = "scene_graph_base_module.visual_module.predicate_preprocessed_mask_dual_cnn_only_pos"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
         self.use_cache_dir = False
         # Load weights
         self.load_weights = True
         # Replace the Dense layer
-        self.replace_top = False
+        self.replace_top = True
         # If we replace top, what is the old top number of classes
         if self.replace_top:
-            self.nof_classes = 51
+            self.nof_classes = 50
 
         # The Training is only with positive samples
         self.only_pos = False

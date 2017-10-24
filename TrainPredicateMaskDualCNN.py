@@ -288,19 +288,6 @@ def sorting_urls(train_imgs, test_imgs, val_imgs):
     return real_train_imgs, real_test_imgs, real_val_imgs
 
 
-def get_size_of_detections_testset(detections_test, size_of_test):
-    """
-    This function returns detections test set according to a specific size
-    :param detections_test: the detections test
-    :param size_of_test: the wanted test-set size
-    :return: 
-    """
-    detections_test_id = list(detections_test[Detections.Id])
-    np.random.shuffle(detections_test_id)
-    detections_test = detections_test[np.in1d(detections_test[Detections.Id], detections_test_id[:size_of_test])]
-    return detections_test
-
-
 if __name__ == '__main__':
 
     # Define FileManager
@@ -376,8 +363,8 @@ if __name__ == '__main__':
     #                                          add_negatives=not config.only_pos, relation_id=100000000)
 
     # Process relations to numpy Detections dtype
-    detections_train = process_to_detections(None, detections_file_name="full_detections_train")
-    detections_test = process_to_detections(None, detections_file_name="full_detections_test")
+    detections_train = process_to_detections(None, detections_file_name="mini_detections")
+    detections_test = process_to_detections(None, detections_file_name="mini_detections")
 
     logger.log('Number of train detections before sorting negatives: {0} '
                'and test detections after sorting negatives {1}'.format(len(detections_train), len(detections_test)))
@@ -386,7 +373,6 @@ if __name__ == '__main__':
     detections_train = pick_different_negative_sample_ratio(detections_train, ratio=RATIO)
     detections_test = pick_different_negative_sample_ratio(detections_test, ratio=RATIO)
     size_of_test = len(detections_train) / 3
-    # detections_test = get_size_of_detections_testset(detections_test, size_of_test)
     detections_test = detections_test[:size_of_test]
     # No validation test
     detections_val = []
