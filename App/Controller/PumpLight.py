@@ -363,7 +363,7 @@ class PumpLight(object):
         print("The image ID that was seleted is {0} in url: {1} \n".format(img_id, self.images[img_id].url))
 
         # Save original image in Output path
-        img = get_img(self.images[img_id].url, download=True)
+        img = get_img(self.images[img_id].url, download=True, original=True)
         save_path = os.path.join(self.output_path, str(img_id))
         create_folder(save_path)
         cv2.imwrite(os.path.join(save_path, "{0}.jpg".format(img_id)), img)

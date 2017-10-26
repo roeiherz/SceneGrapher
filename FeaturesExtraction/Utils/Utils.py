@@ -293,9 +293,10 @@ def replace_top_layer(model, num_of_classes):
     return model
 
 
-def get_img(url, download=False):
+def get_img(url, download=False, original=False):
     """
     This function read image from VisualGenome dataset as url and returns the image from local hard-driver
+    :param original: Do you want to use original images (not pre-processed)
     :param download: A flag if we want to download the image
     :param url: url of the image
     :return: the image
@@ -303,6 +304,8 @@ def get_img(url, download=False):
     try:
         path_lst = url.split('/')
         img_path = os.path.join(PROJECT_ROOT, VG_DATA_PATH, path_lst[-2], path_lst[-1])
+        if original:
+            img_path = os.path.join(PROJECT_ROOT, VG_DATA_PATH_OLD, path_lst[-2], path_lst[-1])
 
         if not os.path.isfile(img_path):
             print("Error. Image path was not found")
