@@ -9,8 +9,8 @@ import cPickle
 import numpy as np
 from FeaturesExtraction.Lib.Config import Config
 from keras.optimizers import Adam
-from keras.layers import Input, AveragePooling2D, Flatten, Dense, GlobalAveragePooling2D, Activation
-from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger
+from keras.layers import Input, AveragePooling2D, Flatten, Dense, GlobalAveragePooling2D, Activation, regularizers
+from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger, ReduceLROnPlateau
 from keras import backend as K
 from keras.models import Model
 import sys
@@ -31,6 +31,8 @@ NUM_EPOCHS = 90
 NUM_BATCHES = 128
 MAX_NOF_SAMPLES_THR = 1000000
 MAX_NOF_SAMPLES = 900000
+LR = 1e-3
+
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -325,6 +327,9 @@ if __name__ == '__main__':
     # Define ResNet50 model With Top
     net = ModelZoo()
     model_resnet50 = net.resnet50_base(img_input, trainable=True)
+    # model_resnet50 = net.resnet50_base_reg_and_init(img_input, trainable=config.resnet_body_trainable,
+    #                                                 kernel_regularizer=regularizers.l2(0.005),
+    #                                                 kernel_initializer="he_normal")
     model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
     output_resnet50 = Dense(number_of_classes, kernel_initializer="he_normal", activation='softmax', name='fc')(
         model_resnet50)
@@ -360,15 +365,16 @@ if __name__ == '__main__':
         # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
         # model.summary()
 
-    optimizer = Adam(1e-6)
+    optimizer = Adam(LR)
     model.compile(optimizer=optimizer,
                   loss='categorical_crossentropy', metrics=['accuracy'])
 
     callbacks = [ModelCheckpoint(net_weights_path, monitor='val_loss', save_best_only=True, verbose=0),
                  TensorBoard(log_dir="logs", write_graph=True, write_images=True),
-                 CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False)]
+                 CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False),
+                 ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, min_lr=1e-7)]
 
-    logger.log('Starting training')
+    logger.log('Starting training with learning rate: {0}'.format(LR))
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
                                   validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_BATCHES,
                                   callbacks=callbacks, max_q_size=1, workers=1)

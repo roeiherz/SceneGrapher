@@ -13,7 +13,7 @@ import os
 import cPickle
 import numpy as np
 from FeaturesExtraction.Lib.Config import Config
-from keras.layers import Input, Dense, GlobalAveragePooling2D, Lambda
+from keras.layers import Input, Dense, GlobalAveragePooling2D, Lambda, regularizers
 from keras import backend as K
 from keras.models import Model
 import sys
@@ -33,7 +33,7 @@ TESTING_PERCENT = 0.2
 NUM_EPOCHS = 90
 NUM_BATCHES = 128
 RATIO = 3.0 / 10
-LR = 1e-7
+LR = 1e-6
 
 
 # If the allocation of training, validation and testing does not adds up to one
@@ -436,6 +436,9 @@ if __name__ == '__main__':
     # Define ResNet50 model Without Top
     net = ModelZoo()
     model_resnet50 = net.resnet50_with_masking_dual(img_input, trainable=config.resnet_body_trainable)
+    # model_resnet50 = net.resnet50_base_reg_and_init(img_input, trainable=config.resnet_body_trainable,
+    #                                                 kernel_regularizer=regularizers.l2(0.005),
+    #                                                 kernel_initializer="he_normal")
     model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
     output_resnet50 = Dense(number_of_classes, kernel_initializer="he_normal", activation='softmax', name='fc')(
         model_resnet50)
