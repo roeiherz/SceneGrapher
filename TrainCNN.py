@@ -270,7 +270,7 @@ if __name__ == '__main__':
     # Get Train
     objects_train = preprocessing_objects(None, hierarchy_mapping_objects,
                                           object_file_name="full_objects_train")
-    objects_train = objects_train[:100000]
+    # objects_train = objects_train[:100000]
     # Shuffle Objects for test-set
     np.random.shuffle(objects_train)
     # Get Test
