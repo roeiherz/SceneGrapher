@@ -385,7 +385,7 @@ if __name__ == '__main__':
     #                                          add_negatives=not config.only_pos, relation_id=100000000)
 
     # Process relations to numpy Detections dtype
-    detections_train = process_to_detections(None, detections_file_name="full_detections_test")
+    detections_train = process_to_detections(None, detections_file_name="full_detections_train")
     detections_test = process_to_detections(None, detections_file_name="full_detections_test")
 
     logger.log('Number of train detections before sorting negatives: {0} '
