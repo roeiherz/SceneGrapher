@@ -31,7 +31,7 @@ NUM_EPOCHS = 90
 NUM_BATCHES = 128
 MAX_NOF_SAMPLES_THR = 1000000
 MAX_NOF_SAMPLES = 900000
-LR = 1e-5
+LR = 1e-6
 
 
 # If the allocation of training, validation and testing does not adds up to one
@@ -277,7 +277,7 @@ if __name__ == '__main__':
     objects_test = preprocessing_objects(None, hierarchy_mapping_objects, object_file_name="full_objects_test")
     # Shuffle Objects for test-set
     np.random.shuffle(objects_test)
-    objects_test = objects_test[:len(objects_train) / 3]
+    objects_test = objects_test[:len(objects_train) / 15]
     # Get Validation
     objects_val = []
 

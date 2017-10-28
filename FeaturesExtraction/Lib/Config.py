@@ -13,7 +13,7 @@ class Config:
     def __init__(self, gpu_num):
 
         # Do we continuing to train or start from fresh
-        self.loading_model = True
+        self.loading_model = False
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Mon_Sep_25_17:47:17_2017"
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Mon_Oct_23_17:49:04_2017"
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_20:08:54_2017"
