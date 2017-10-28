@@ -19,7 +19,7 @@ class Config:
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_20:08:54_2017"
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Mon_Jul_24_19:58:35_2017"
         self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Fri_Oct_27_20:19:09_2017"
-        self.loading_model_token = "scene_graph_base_module.visual_module.object_cnn_july"
+        self.loading_model_token = "scene_graph_base_module.visual_module.object_cnn_fresh"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
         self.use_cache_dir = False
