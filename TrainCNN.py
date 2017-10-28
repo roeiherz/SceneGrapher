@@ -31,7 +31,7 @@ NUM_EPOCHS = 90
 NUM_BATCHES = 128
 MAX_NOF_SAMPLES_THR = 1000000
 MAX_NOF_SAMPLES = 900000
-LR = 1e-3
+LR = 1e-6
 
 
 # If the allocation of training, validation and testing does not adds up to one
@@ -263,17 +263,17 @@ if __name__ == '__main__':
 
     hierarchy_mapping_objects = file_manager.load_file("data.visual_genome.hierarchy_mapping_objects")
     hierarchy_mapping_predicates = file_manager.load_file("data.visual_genome.hierarchy_mapping_predicates")
-    entities_train = file_manager.load_file("data.visual_genome.full_filtered_preprocessed_data_train")
-    entities_test = file_manager.load_file("data.visual_genome.full_filtered_preprocessed_data_test")
+    # entities_train = file_manager.load_file("data.visual_genome.full_filtered_preprocessed_data_train")
+    # entities_test = file_manager.load_file("data.visual_genome.full_filtered_preprocessed_data_test")
 
     # Get Visual Genome Data objects
     # Get Train
-    objects_train = preprocessing_objects(entities_train, hierarchy_mapping_objects,
+    objects_train = preprocessing_objects(None, hierarchy_mapping_objects,
                                           object_file_name="full_objects_train")
     # Shuffle Objects for test-set
     np.random.shuffle(objects_train)
     # Get Test
-    objects_test = preprocessing_objects(entities_test, hierarchy_mapping_objects, object_file_name="full_objects_test")
+    objects_test = preprocessing_objects(None, hierarchy_mapping_objects, object_file_name="full_objects_test")
     # Shuffle Objects for test-set
     np.random.shuffle(objects_test)
     objects_test = objects_test[:len(objects_train) / 3]

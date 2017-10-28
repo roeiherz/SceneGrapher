@@ -363,6 +363,11 @@ scene_graph_base_module:
                     name: "FeaturesExtraction/ObjectsCNN/Mon_Jul_24_19:58:35_2017/model_vg_resnet50.hdf5"
                     doc: "trained 650000 positives without negative examples"
 
+        object_cnn_july:
+            name: "FeaturesExtraction/ObjectsCNN/Mon_Jul_24_19:58:35_2017/model_vg_resnet50.hdf5"
+            type: "dir"
+            doc: "path to object cnn from july"
+
         predicate_cnn_no_neg:
             name: "FeaturesExtraction/PredicatesCNN/Wed_Aug__2_21:38:55_2017/model_vg_resnet50.hdf5"
             type: "dir"
