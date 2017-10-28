@@ -31,7 +31,7 @@ NUM_EPOCHS = 90
 NUM_BATCHES = 128
 MAX_NOF_SAMPLES_THR = 1000000
 MAX_NOF_SAMPLES = 900000
-LR = 1e-6
+LR = 1e-5
 
 
 # If the allocation of training, validation and testing does not adds up to one
@@ -373,7 +373,7 @@ if __name__ == '__main__':
     callbacks = [ModelCheckpoint(net_weights_path, monitor='val_loss', save_best_only=True, verbose=0),
                  TensorBoard(log_dir="logs", write_graph=True, write_images=True),
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False),
-                 ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, min_lr=1e-7)]
+                 ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=2, min_lr=1e-7)]
 
     logger.log('Starting training with learning rate: {0}'.format(LR))
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
