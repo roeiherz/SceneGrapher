@@ -1,7 +1,7 @@
 import matplotlib as mpl
 from FilesManager.FilesManager import FilesManager
 mpl.use('Agg')
-from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger
+from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger, ReduceLROnPlateau
 from keras.optimizers import Adam
 from Data.VisualGenome.models import ObjectMapping, RelationshipMapping
 from DesignPatterns.Detections import Detections
@@ -16,10 +16,12 @@ from keras import backend as K
 from keras.models import Model
 import sys
 import matplotlib.pyplot as plt
-from FeaturesExtraction.Utils.Utils import get_time_and_date, TRAINING_PREDICATE_CNN_PATH, get_sorting_url, replace_top_layer, DATA, \
-    VISUAL_GENOME
+from FeaturesExtraction.Utils.Utils import get_time_and_date, TRAINING_PREDICATE_CNN_PATH, get_sorting_url, \
+    replace_top_layer, DATA, \
+    VISUAL_GENOME, get_bad_urls
 from Utils.Utils import create_folder
-from FeaturesExtraction.Utils.data import splitting_to_datasets, process_to_detections, get_filtered_data, get_name_from_file
+from FeaturesExtraction.Utils.data import splitting_to_datasets, process_to_detections, get_filtered_data, \
+    get_name_from_file, pickle_dataset
 from Utils.Logger import Logger
 
 NOF_LABELS = 150
@@ -29,6 +31,7 @@ TESTING_PERCENT = 0.2
 NUM_EPOCHS = 90
 NUM_BATCHES = 128
 RATIO = 3.0 / 10
+LR = 1e-6
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -192,7 +195,7 @@ def get_classes_mapping_and_hierarchy_mapping_by_objects(objects, path):
     return classes_count_per_objects, hierarchy_mapping_per_objects
 
 
-def pick_different_negative_sample_ratio(detections, ratio=1):
+def pick_different_negative_sample_ratio_old(detections, ratio=1):
     """
     This function take the detection and decides on a different negative ratio
     :param ratio: the ratio between positive to negative
@@ -213,7 +216,31 @@ def pick_different_negative_sample_ratio(detections, ratio=1):
     return detections[all_indice]
 
 
-def sorting_urls(train_imgs, test_imgs, val_imgs):
+def pick_different_negative_sample_ratio(detections, ratio=1):
+    """
+    This function take the detection and decides on a different negative ratio
+    :param ratio: the ratio between positive to negative
+    :param detections: a Detections dtype array
+    :return:
+    """
+    # Get positive indices
+    pos_indices = np.where(detections[Detections.Predicate] != u'neg')[0]
+    # Shuffle randomly positive indices
+    np.random.shuffle(pos_indices)
+    # Get negative indices
+    neg_indices = np.where(detections[Detections.Predicate] == u'neg')[0]
+    # Shuffle randomly negative indices
+    np.random.shuffle(neg_indices)
+    # Take only the wanted negative ratio
+    nof_positive = len(detections) - len(neg_indices)
+    chosen_indices = neg_indices[:int(nof_positive * ratio)]
+    # Append the positive and the negative indices
+    all_indice = np.append(pos_indices, chosen_indices)
+    np.random.shuffle(all_indice)
+    return detections[all_indice]
+
+
+def sorting_urls_old(train_imgs, test_imgs, val_imgs):
     """
     This function sorting bad urls from the objects data-sets
     :param train_imgs: train data
@@ -237,6 +264,44 @@ def sorting_urls(train_imgs, test_imgs, val_imgs):
     # Get indices that are not bad urls
     val_indices = np.where(np.in1d(val_imgs[Detections.Url], bad_urls) == False)[0]
     real_val_imgs = val_imgs[val_indices]
+
+    logger.log("Debug printing after sorting- the number of train samples: {0}, the number of test samples: {1}, "
+               "the number of validation samples: {2}".format(len(real_train_imgs),
+                                                              len(real_test_imgs),
+                                                              len(real_val_imgs)))
+    return real_train_imgs, real_test_imgs, real_val_imgs
+
+
+def sorting_urls(train_imgs, test_imgs, val_imgs):
+    """
+    This function sorting bad urls from the objects data-sets
+    :param train_imgs: train data
+    :param test_imgs: test data
+    :param val_imgs: validation data
+    :return: train, test and validation object list after sorting
+    """
+
+    # Get the bad urls
+    bad_urls = get_bad_urls()
+
+    if len(bad_urls) < 100:
+        logger.log("WARNING: number of bad urls is lower than 100")
+
+    # Remove bad urls
+    # Get indices that are not bad urls
+    train_indices = np.where(np.in1d(train_imgs[Detections.Url], bad_urls) == False)[0]
+    real_train_imgs = train_imgs[train_indices]
+
+    # Get indices that are not bad urls
+    test_indices = np.where(np.in1d(test_imgs[Detections.Url], bad_urls) == False)[0]
+    real_test_imgs = test_imgs[test_indices]
+
+    # Get indices that are not bad urls
+    if len(val_imgs) != 0:
+        val_indices = np.where(np.in1d(val_imgs[Detections.Url], bad_urls) == False)[0]
+        real_val_imgs = val_imgs[val_indices]
+    else:
+        real_val_imgs = []
 
     logger.log("Debug printing after sorting- the number of train samples: {0}, the number of test samples: {1}, "
                "the number of validation samples: {2}".format(len(real_train_imgs),
@@ -292,47 +357,61 @@ if __name__ == '__main__':
     net_weights_path = os.path.join(path, config.model_weights_name)
     logger.log("The new Model Weights will be Saved: {}".format(net_weights_path))
 
-    # classes_count, hierarchy_mapping, entities = get_sorted_data(classes_count_file_name="final_classes_count.p",
-    #                                                              hierarchy_mapping_file_name="final_class_mapping.p",
-    #                                                              entities_file_name="final_entities.p",
-    #                                                              nof_labels=NOF_LABELS)
+    # # Load filtered data
+    # entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(
+    #                                                     filtered_data_file_name="full_filtered_data",
+    #                                                     # "mini_filtered_data",
+    #                                                     category='entities_visual_module',
+    #                                                     load_entities=False)
 
+    # Get the predicate hierarchy mapping and the number of the predicated classes
+    hierarchy_mapping_objects = filemanager.load_file("data.visual_genome.hierarchy_mapping_objects")
+    hierarchy_mapping_predicates = filemanager.load_file("data.visual_genome.hierarchy_mapping_predicates")
     # Load filtered data
-    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(
-                                                        filtered_data_file_name="full_filtered_data",
-                                                        # "mini_filtered_data",
-                                                        category='entities_visual_module',
-                                                        load_entities=False)
+    # entities_train = filemanager.load_file("data.visual_genome.full_filtered_preprocessed_data_train")
+    # entities_test = filemanager.load_file("data.visual_genome.full_filtered_preprocessed_data_test")
 
     if config.only_pos and "neg" in hierarchy_mapping_predicates:
         # Remove negative label from hierarchy_mapping_predicates because we want to train only positive
         hierarchy_mapping_predicates.pop("neg")
         RATIO = 0
 
-    # Get Visual Genome Data relations
-    relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                                        relation_file_name="full_relations_all")
+    # # Get Visual Genome Data relations
+    # relations_train = preprocessing_relations(entities_train, hierarchy_mapping_objects, hierarchy_mapping_predicates,
+    #                                           relation_file_name="full_relations_train",
+    #                                           add_negatives=not config.only_pos, relation_id=10000000)
+    # relations_test = preprocessing_relations(entities_test, hierarchy_mapping_objects, hierarchy_mapping_predicates,
+    #                                          relation_file_name="full_relations_test",
+    #                                          add_negatives=not config.only_pos, relation_id=100000000)
 
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="full_detections_all")
+    detections_train = process_to_detections(None, detections_file_name="full_detections_test")
+    detections_test = process_to_detections(None, detections_file_name="full_detections_test")
 
-    # Get new negative - positive ratio
-    detections = pick_different_negative_sample_ratio(detections, ratio=RATIO)
+    logger.log('Number of train detections before sorting negatives: {0} '
+               'and test detections after sorting negatives {1}'.format(len(detections_train), len(detections_test)))
 
-    logger.log('Number of detections after sorting negatives: {0} with RATIO: {1}'.format(len(detections), RATIO))
-
-    # Split the data to train, test and validate
-    train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
-                                                            testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
-                                                            path=path, config=config)
+    # Get new negative - positive ratio and shuffle the data
+    detections_train = pick_different_negative_sample_ratio(detections_train, ratio=RATIO)
+    detections_test = pick_different_negative_sample_ratio(detections_test, ratio=RATIO)
+    size_of_test = len(detections_train) / 3
+    detections_test = detections_test[:size_of_test]
+    # No validation test
+    detections_val = []
 
     # Sorting bad urls - should be delete sometime
-    train_imgs, test_imgs, val_imgs = sorting_urls(train_imgs, test_imgs, val_imgs)
+    train_imgs, test_imgs, val_imgs = sorting_urls(detections_train, detections_test, detections_val)
 
-    # Get the predicate hierarchy mapping and the number of the predicated classes
-    # predicate_classes_count, predicate_hierarchy_mapping = get_predicate_hierarchy_mapping_from_detections(detections,
-    #                                                                                                        path,
-    #                                                                                                        config=config)
+    logger.log('Number of train detections, total:{0}, positive:{1} and negative: {2}'.format(len(train_imgs),
+                len(np.where(train_imgs[Detections.Predicate] != "neg")[0]),
+                len(np.where(train_imgs[Detections.Predicate] == "neg")[0])))
+
+    logger.log('Number of test detections, total:{0}, positive:{1} and negative: {2}'.format(len(test_imgs),
+            len(np.where(test_imgs[Detections.Predicate] != "neg")[0]),
+            len(np.where(test_imgs[Detections.Predicate] == "neg")[0])))
+
+    # Save train-set and test-set and validation-set
+    pickle_dataset(train_imgs, test_imgs, val_imgs, path)
 
     # Create a data generator for VisualGenome with batch size
     data_gen_train_vg = visual_genome_data_predicate_generator_with_batch(data=train_imgs,
@@ -373,7 +452,10 @@ if __name__ == '__main__':
 
     # Define ResNet50 model Without Top
     net = ModelZoo()
-    model_resnet50 = net.resnet50_base(img_input, trainable=True)
+    model_resnet50 = net.resnet50_base(img_input, trainable=config.resnet_body_trainable)
+    # model_resnet50 = net.resnet50_base_reg_and_init(img_input, trainable=config.resnet_body_trainable,
+    #                                                 kernel_regularizer=regularizers.l2(0.005),
+    #                                                 kernel_initializer="he_normal")
     model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
     output_resnet50 = Dense(number_of_classes, kernel_initializer="he_normal", activation='softmax', name='fc')(
         model_resnet50)
@@ -405,15 +487,16 @@ if __name__ == '__main__':
         # In the summary, weights and layers from ResNet50 part will be hidden, but they will be fit during the training
         model.summary()
 
-    optimizer = Adam(1e-6)
+    optimizer = Adam(LR)
     model.compile(optimizer=optimizer,
                   loss='categorical_crossentropy', metrics=['accuracy'])
 
     callbacks = [ModelCheckpoint(net_weights_path, monitor='val_loss', save_best_only=True, verbose=0),
                  TensorBoard(log_dir="logs", write_graph=True, write_images=True),
-                 CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False)]
+                 CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False),
+                 ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-9)]
 
-    logger.log('Starting training')
+    logger.log('Starting training with learning rate: {0}'.format(LR))
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
                                   validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_BATCHES,
                                   callbacks=callbacks, max_q_size=1, workers=1)
