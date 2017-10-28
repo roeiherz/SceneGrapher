@@ -349,6 +349,8 @@ if __name__ == '__main__':
         if config.load_weights:
             logger.log('loading weights from {}'.format(net_weights))
             model.load_weights(net_weights, by_name=True)
+        else:
+            logger.log('No weights have been loaded')
     except Exception as e:
         logger.log('Could not load pretrained model weights. Weights can be found at {} and {}'.format(
             'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_th_dim_ordering_th_kernels_notop.h5',
