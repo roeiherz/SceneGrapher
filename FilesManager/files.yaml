@@ -369,9 +369,9 @@ scene_graph_base_module:
             doc: "path to object cnn from july"
 
         object_cnn_fresh:
-            name: "FeaturesExtraction/ObjectsCNN/Fri_Oct_27_20:19:09_2017/model_vg_resnet50.hdf5"
+            name: "FeaturesExtraction/ObjectsCNN/Sat_Oct_28_16:39:57_2017/model_vg_resnet50.hdf5"
             type: "dir"
-            doc: "path to object cnn from july"
+            doc: "path to object cnn from image-net"
 
         predicate_cnn_no_neg:
             name: "FeaturesExtraction/PredicatesCNN/Wed_Aug__2_21:38:55_2017/model_vg_resnet50.hdf5"
