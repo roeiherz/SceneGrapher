@@ -277,7 +277,7 @@ if __name__ == '__main__':
     objects_test = preprocessing_objects(None, hierarchy_mapping_objects, object_file_name="full_objects_test")
     # Shuffle Objects for test-set
     np.random.shuffle(objects_test)
-    objects_test = objects_test[:len(objects_train) / 15]
+    objects_test = objects_test[:len(objects_train) / 5]
     # Get Validation
     objects_val = []
 
