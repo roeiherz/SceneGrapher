@@ -277,7 +277,7 @@ if __name__ == '__main__':
     objects_test = preprocessing_objects(None, hierarchy_mapping_objects, object_file_name="full_objects_test")
     # Shuffle Objects for test-set
     np.random.shuffle(objects_test)
-    objects_test = objects_test[:len(objects_train) / 5]
+    # objects_test = objects_test[:len(objects_train) / 5]
     # Get Validation
     objects_val = []
 
@@ -385,7 +385,7 @@ if __name__ == '__main__':
     #                               callbacks=callbacks, max_q_size=1, workers=1)
 
     # Validating the model
-    test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(val_imgs) / NUM_BATCHES, max_q_size=1,
+    test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(test_imgs) / NUM_BATCHES, max_q_size=1,
                                           workers=1)
     # Plot the Score
     logger.log("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
