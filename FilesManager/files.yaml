@@ -374,7 +374,7 @@ scene_graph_base_module:
             doc: "path to object cnn from july"
 
         object_cnn_fresh:
-            name: "FeaturesExtraction/Objec`tsCNN/Sat_Oct_28_16:39:57_2017/model_vg_resnet50.hdf5"
+            name: "FeaturesExtraction/ObjectsCNN/Sat_Oct_28_16:39:57_2017/model_vg_resnet50.hdf5"
             type: "dir"
             doc: "path to object cnn from image-net"
 
