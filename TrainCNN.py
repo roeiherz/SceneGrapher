@@ -295,6 +295,8 @@ if __name__ == '__main__':
     # Sorting bad urls - should be delete sometime
     train_imgs, test_imgs, val_imgs = sorting_urls(objects_train, objects_test, objects_val)
 
+    test_imgs = test_imgs[:1000]
+
     logger.log("Debug printing after sorting- the number of train objects: {0}, the number of test objects: {1}, "
                "the number of validation objects: {2}".format(len(train_imgs), len(test_imgs), len(val_imgs)))
 
