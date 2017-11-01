@@ -33,7 +33,7 @@ NUM_EPOCHS = 1
 NUM_BATCHES = 128
 RATIO = 3.0 / 10
 USE_PREDICATES_MASK = True
-FILE_NAME = "mini_predicated_mask_predicates_240917.p"
+FILE_NAME = "test_predicts_011117.p"
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -238,22 +238,25 @@ if __name__ == '__main__':
     # Define GPU training
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)
 
-    # BOTH MODULE + VISUAL
-    # detections = load_full_detections(detections_file_name="mini_detections")
-    # detections = sort_detections_by_url(detections)
+    # # Load detections dtype numpy array and hierarchy mappings
+    # entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
+    #                                                                                       "mini_filtered_data",
+    #                                                                                       category='entities')
 
-    # Load detections dtype numpy array and hierarchy mappings
-    entities, hierarchy_mapping_objects, hierarchy_mapping_predicates = get_filtered_data(filtered_data_file_name=
-                                                                                          "mini_filtered_data",
-                                                                                          category='entities')
+    # Get the predicate hierarchy mapping and the number of the predicated classes
+    hierarchy_mapping_objects = filemanager.load_file("data.visual_genome.hierarchy_mapping_objects")
+    hierarchy_mapping_predicates = filemanager.load_file("data.visual_genome.hierarchy_mapping_predicates")
+    # Load filtered data
+    # entities_train = filemanager.load_file("data.visual_genome.full_filtered_preprocessed_data_train")
+    # entities_test = filemanager.load_file("data.visual_genome.full_filtered_preprocessed_data_test")
 
-    # Get Visual Genome Data relations
-    relations = preprocessing_relations(entities, hierarchy_mapping_objects, hierarchy_mapping_predicates,
-                                        relation_file_name="mini_relations_all")
+    # # Get Visual Genome Data relations
+    # relations = preprocessing_relations(entities_train, hierarchy_mapping_objects, hierarchy_mapping_predicates,
+    #                                           relation_file_name="full_relations_train",
+    #                                           add_negatives=not config.only_pos, relation_id=10000000)
 
     # Process relations to numpy Detections dtype
-    detections = process_to_detections(relations, detections_file_name="mini_detections_all")
-
+    detections = process_to_detections(None, detections_file_name="full_detections_test")
     detections = sort_detections_by_url(detections)
 
     # Check the training folders from which we take the weights aren't empty
@@ -281,8 +284,8 @@ if __name__ == '__main__':
         detections = detections[detections[Detections.Predicate] != "neg"]
         RATIO = 0.0
 
-    # Get new negative - positive ratio
-    detections = pick_different_negative_sample_ratio(detections, ratio=RATIO)
+    # # Get new negative - positive ratio
+    # detections = pick_different_negative_sample_ratio(detections, ratio=RATIO)
 
     logger.log('Number of detections after sorting negatives: {0} with RATIO: {1}'.format(len(detections), RATIO))
 
@@ -317,14 +320,7 @@ if __name__ == '__main__':
     predicate_model = get_model(number_of_classes_predicates, weight_path=predicates_model_weight_path, config=config,
                                 use_mask=True)
 
-    # Save Weights
-    # save_weights(predict_model, file_name="last_layer_ratio3_weights.p")
-
     logger.log('Starting Prediction')
-
-    # region
-    # Load Predicates
-    # load_predicts(file_name="mini_predicated_predicates_with_neg_ratio1_Wed_Jun_14_20:25:16_2017.p")
 
     # Predict Predicates for some statistics
     logger.log('Predicting Probabilities - Predicates')
@@ -357,9 +353,6 @@ if __name__ == '__main__':
                                                     max_q_size=1, workers=1)
     logger.log("Saving Objects Probabilities")
     save_files(detections, name=FILE_NAME)
-    # objects_probes_path = filemanager.get_file_path(
-    #     "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "mini_objects_with_probs"))
-    # filemanager.save_file(objects_probes_path, objects_probes)
     logger.log("Finished successfully saving Objects Probabilities")
 
     # Slice the Subject prob (even index)
@@ -384,9 +377,6 @@ if __name__ == '__main__':
     # Save detections
     logger.log("Saving predicated_detections")
     save_files(detections, name=FILE_NAME)
-    # detections_probes_path = filemanager.get_file_path(
-    #     "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "mini_detections_with_probs"))
-    # filemanager.save_file(detections_probes_path, detections)
     logger.log("Finished successfully saving predicated_detections")
 
     # Get the Union-Box Features
