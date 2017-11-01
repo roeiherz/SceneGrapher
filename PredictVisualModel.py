@@ -33,7 +33,7 @@ NUM_EPOCHS = 1
 NUM_BATCHES = 128
 RATIO = 3.0 / 10
 USE_PREDICATES_MASK = True
-FILE_NAME = "test_predicts_011117.p"
+FILE_NAME = "test_predicts_objs_from_imgnt_011117.p"
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
