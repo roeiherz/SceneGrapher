@@ -596,7 +596,7 @@ if __name__ == '__main__':
     hierarchy_mapping_predicates = filemanager.load_file("data.visual_genome.hierarchy_mapping_predicates")
     # entities = filemanager.load_file("data.visual_genome.full_filtered_preprocessed_data_train")
     # entities = filemanager.load_file("data.visual_genome.full_filtered_preprocessed_data_test")
-    entities = filemanager.load_file("data.visual_genome.pre_processed_test_split1")
+    entities = filemanager.load_file("data.visual_genome.pre_processed_train_split0")
 
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
