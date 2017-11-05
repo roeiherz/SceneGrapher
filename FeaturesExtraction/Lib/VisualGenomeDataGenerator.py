@@ -1192,10 +1192,10 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
                         Logger().log("Coulden't get the image")
                         continue
 
-                    # In-case we want to normalize
-                    if config.use_jitter:
-                        img = config.jitter.random_transform(img.astype("float32"))
-                        img = config.jitter.standardize(img)
+                    # # In-case we want to normalize
+                    # if config.use_jitter:
+                    #     img = config.jitter.random_transform(img.astype("float32"))
+                    #     img = config.jitter.standardize(img)
 
                     # Get the lable of object
                     label = object.names[0]
@@ -1224,8 +1224,8 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
 
                     if mode == 'train' and config.use_jitter:
                         # Augment only in training
-                        # todo: create a regular jitter for each patch increase the number of patches by some constant
-                        resized_img = augment_visual_genome(resized_img, object, config, mask)
+                        resized_img = config.jitter.random_transform(resized_img)
+                        resized_img = config.jitter.standardize(resized_img)
 
                     # Expand dimensions - add batch dimension for the numpy
                     resized_img = np.expand_dims(resized_img, axis=0)

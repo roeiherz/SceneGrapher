@@ -1,3 +1,4 @@
+from keras.preprocessing.image import ImageDataGenerator
 from FeaturesExtraction.Lib.DataAugmentation import Jitter
 
 __author__ = 'roeih'
@@ -18,9 +19,9 @@ class Config:
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Mon_Oct_23_17:49:04_2017"
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_20:08:54_2017"
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Mon_Jul_24_19:58:35_2017"
-        # self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Sat_Oct_28_16:39:57_2017"
-        self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Sat_Oct_28_14:36:42_2017"
-        self.loading_model_token = "scene_graph_base_module.visual_module.object_cnn_fine_from_july"
+        self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Sat_Oct_28_16:39:57_2017"
+        # self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Sat_Oct_28_14:36:42_2017"
+        self.loading_model_token = "scene_graph_base_module.visual_module.object_cnn_fresh"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
         self.use_cache_dir = False
@@ -41,13 +42,8 @@ class Config:
         # Use all objects data
         self.use_all_objects_data = True
 
-        # # Use masking for predicates CNN network
-        # self.use_mask_predicate = True
-        #
-        # if self.use_mask_predicate:
-        #     self.num_of_channels = 4
-        # else:
-        #     self.num_of_channels = 3
+        # Use of Jitter
+        self.use_jitter = False
 
         # location of pre-trained weights for the base network
         # weight files can be found at:
@@ -58,20 +54,25 @@ class Config:
         else:
             self.base_net_weights = "scene_graph_base_module.visual_module.image_net_tf"
 
-        # Use of Jitter
-        self.use_jitter = False
-        self.use_translation_jitter = False
-        self.use_rotation_jitter = False
-        self.use_flip_jitter = False
-        # Set each sample mean to 0.
-        self.use_samplewise_center = False
-        # Divide each sample by its std.
-        self.use_samplewise_std_normalization = False
-        # Global Contrast Normalization
-        self.use_gcn =False
+        # Options for Jitter
+        self.width_shift_range = 0.1
+        self.height_shift_range = 0.1
+        self.horizontal_flip = True
 
         # Set Jitter
-        self.Set_Jitter()
+        self.set_jitter()
+
+        # Old
+        # self.use_translation_jitter = False
+        # self.use_rotation_jitter = False
+        # self.use_flip_jitter = False
+        # # Set each sample mean to 0.
+        # self.use_samplewise_center = False
+        # # Divide each sample by its std.
+        # self.use_samplewise_std_normalization = False
+        # # Global Contrast Normalization
+        # self.use_gcn = False
+
 
         # Define the GPU number
         self.gpu_num = gpu_num
@@ -114,45 +115,53 @@ class Config:
         self.classifier_min_overlap = 0.1
         self.classifier_max_overlap = 0.5
 
-    def Set_Jitter(self):
+    def set_jitter(self):
         """
         This function set the jitter
         """
-        # Setting for Data augmentation
-        if self.use_jitter and self.use_rotation_jitter:
-            rotation_range = 90.
-        else:
-            rotation_range = 0.
-        if self.use_jitter and self.use_translation_jitter:
-            width_shift_range = 0.2
-            height_shift_range = 0.2
-        else:
-            width_shift_range = 0.
-            height_shift_range = 0.
-        if self.use_jitter and self.use_samplewise_center:
-            samplewise_center = True
-        else:
-            samplewise_center = False
-        if self.use_jitter and self.use_samplewise_std_normalization:
-            samplewise_std_normalization = True
-        else:
-            samplewise_std_normalization = False
 
-        if self.use_gcn:
-            gcn = True
-        else:
-            gcn = False
+        if self.use_jitter:
+            self.jitter = ImageDataGenerator(width_shift_range=self.width_shift_range,
+                                             height_shift_range=self.height_shift_range,
+                                             horizontal_flip=self.horizontal_flip)
+            return
 
-        self.jitter = Jitter(samplewise_center=samplewise_center,
-                             samplewise_std_normalization=samplewise_std_normalization,
-                             global_contrast_normalization=False,
-                             width_shift_range=width_shift_range,
-                             height_shift_range=height_shift_range,
-                             zca_whitening=False,
-                             rotation_range=rotation_range,
-                             rescale=None,
-                             horizontal_flip=False,
-                             vertical_flip=False,
-                             preprocessing_function=None,
-                             fill_mode='nearest',
-                             cval=0.)
+        # # Ignore this section
+        # # Setting for Data augmentation
+        # if self.use_jitter and self.use_rotation_jitter:
+        #     rotation_range = 90.
+        # else:
+        #     rotation_range = 0.
+        # if self.use_jitter and self.use_translation_jitter:
+        #     width_shift_range = 0.2
+        #     height_shift_range = 0.2
+        # else:
+        #     width_shift_range = 0.
+        #     height_shift_range = 0.
+        # if self.use_jitter and self.use_samplewise_center:
+        #     samplewise_center = True
+        # else:
+        #     samplewise_center = False
+        # if self.use_jitter and self.use_samplewise_std_normalization:
+        #     samplewise_std_normalization = True
+        # else:
+        #     samplewise_std_normalization = False
+        #
+        # if self.use_gcn:
+        #     gcn = True
+        # else:
+        #     gcn = False
+        #
+        # self.jitter = Jitter(samplewise_center=samplewise_center,
+        #                      samplewise_std_normalization=samplewise_std_normalization,
+        #                      global_contrast_normalization=False,
+        #                      width_shift_range=width_shift_range,
+        #                      height_shift_range=height_shift_range,
+        #                      zca_whitening=False,
+        #                      rotation_range=rotation_range,
+        #                      rescale=None,
+        #                      horizontal_flip=False,
+        #                      vertical_flip=False,
+        #                      preprocessing_function=None,
+        #                      fill_mode='nearest',
+        #                      cval=0.)

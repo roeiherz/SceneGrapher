@@ -78,6 +78,7 @@ class PumpLight(object):
         # objects_dir = raw_input('Objects networks directory name: ')
         objects_dir = "Sat_Sep_16_18:36:19_2017"
         objects_dir = "Fri_Oct_20_18:43:30_2017"
+        objects_dir = "Sat_Oct_28_16:39:57_2017"
         objects_model_weight_path = os.path.join(PROJECT_ROOT, TRAINING_OBJECTS_CNN_PATH, objects_dir, WEIGHTS_NAME)
         if not os.path.exists(objects_model_weight_path):
             print("Error: No objects weights exists in {0}".format(objects_model_weight_path))
@@ -88,6 +89,7 @@ class PumpLight(object):
         # predicates_dir = raw_input('Predicates networks directory name: ')
         predicates_dir = "Mon_Sep_25_17:47:17_2017"
         predicates_dir = "Mon_Oct_23_23:36:37_2017"
+        predicates_dir = "Fri_Oct_27_22:41:05_2017"
         predicates_model_weight_path = os.path.join(PROJECT_ROOT, TRAINING_PREDICATE_MASK_CNN_PATH, predicates_dir,
                                                     WEIGHTS_NAME)
         if not os.path.exists(predicates_model_weight_path):

@@ -28,7 +28,7 @@ TRAINING_PERCENT = 0.75
 VALIDATION_PERCENT = 0.05
 TESTING_PERCENT = 0.2
 NUM_EPOCHS = 90
-NUM_BATCHES = 128
+NUM_BATCHES = 64
 MAX_NOF_SAMPLES_THR = 1000000
 MAX_NOF_SAMPLES = 900000
 LR = 1e-6
@@ -277,7 +277,7 @@ if __name__ == '__main__':
     objects_test = preprocessing_objects(None, hierarchy_mapping_objects, object_file_name="full_objects_test")
     # Shuffle Objects for test-set
     np.random.shuffle(objects_test)
-    objects_test = objects_test[:len(objects_train) / 5]
+    # objects_test = objects_test[:len(objects_train) / 5]
     # Get Validation
     objects_val = []
 
@@ -375,7 +375,7 @@ if __name__ == '__main__':
     callbacks = [ModelCheckpoint(net_weights_path, monitor='val_loss', save_best_only=True, verbose=0),
                  TensorBoard(log_dir="logs", write_graph=True, write_images=True),
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False),
-                 ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=2, min_lr=1e-7)]
+                 ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=2, min_lr=1e-12)]
 
     logger.log('Starting training with learning rate: {0}'.format(LR))
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
