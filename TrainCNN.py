@@ -277,7 +277,7 @@ if __name__ == '__main__':
     objects_test = preprocessing_objects(None, hierarchy_mapping_objects, object_file_name="full_objects_test")
     # Shuffle Objects for test-set
     np.random.shuffle(objects_test)
-    # objects_test = objects_test[:len(objects_train) / 5]
+    objects_test = objects_test[:len(objects_train) / 5]
     # Get Validation
     objects_val = []
 
@@ -377,10 +377,10 @@ if __name__ == '__main__':
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False),
                  ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=2, min_lr=1e-7)]
 
-    # logger.log('Starting training with learning rate: {0}'.format(LR))
-    # history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
-    #                               validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_BATCHES,
-    #                               callbacks=callbacks, max_q_size=1, workers=1)
+    logger.log('Starting training with learning rate: {0}'.format(LR))
+    history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
+                                  validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_BATCHES,
+                                  callbacks=callbacks, max_q_size=1, workers=1)
 
     # Validating the model
     test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(test_imgs) / NUM_BATCHES, max_q_size=1,
@@ -388,23 +388,23 @@ if __name__ == '__main__':
     # Plot the Score
     logger.log("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
 
-    # # Summarize history for accuracy
-    # plt.figure()
-    # plt.plot(history.history['acc'])
-    # plt.plot(history.history['val_acc'])
-    # plt.title('model accuracy')
-    # plt.ylabel('accuracy')
-    # plt.xlabel('epoch')
-    # plt.legend(['train', 'test'], loc='upper left')
-    # plt.savefig(os.path.join(path, "model_accuracy.jpg"))
-    # plt.close()
-    # # summarize history for loss
-    # plt.figure()
-    # plt.plot(history.history['loss'])
-    # plt.plot(history.history['val_loss'])
-    # plt.title('model loss')
-    # plt.ylabel('loss')
-    # plt.xlabel('epoch')
-    # plt.legend(['train', 'test'], loc='upper left')
-    # plt.savefig(os.path.join(path, "model_loss.jpg"))
-    # plt.close()
+    # Summarize history for accuracy
+    plt.figure()
+    plt.plot(history.history['acc'])
+    plt.plot(history.history['val_acc'])
+    plt.title('model accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.savefig(os.path.join(path, "model_accuracy.jpg"))
+    plt.close()
+    # summarize history for loss
+    plt.figure()
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.savefig(os.path.join(path, "model_loss.jpg"))
+    plt.close()
