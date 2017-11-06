@@ -46,7 +46,7 @@ class Config:
         # Use of Jitter
         self.use_jitter = True
         self.use_keras_jitter = True
-        self.use_mixup_jitter = False
+        self.use_mixup_jitter = True
 
         # location of pre-trained weights for the base network
         # weight files can be found at:

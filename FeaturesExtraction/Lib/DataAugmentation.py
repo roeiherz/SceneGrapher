@@ -216,8 +216,8 @@ class Jitter(object):
         """
 
         # Use mixup augmentation
-        if self.use_mixup:
-            resized_img = self.mixup(batchsize=batchsize, x1=resized_img, x2=new_resized_img)
+        # if self.use_mixup:
+        #     resized_img = self.mixup(batchsize=batchsize, x1=resized_img, x2=new_resized_img)
 
         # Use Keras Jitter: Random Transformation and Standardization
         if self.use_keras_jitter:
