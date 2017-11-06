@@ -1165,6 +1165,7 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
 
     correct_labels = hierarchy_mapping.keys()
     size = len(data)
+    indices = set(range(size))
 
     # The number of batches per epoch depends if size % batch_size == 0
     if size % batch_size == 0:
@@ -1235,9 +1236,9 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
 
                         # For mixup Jitter we need to create a new resize_img from another sample
                         if config.jitter.use_mixup:
-                            all_indice_without_ind = list(set(range(size)) - set([ind]))
+                            all_indice_without_ind = list(indices - set([ind]))
                             # Pick index from the data with no repetition
-                            new_ind = np.random.choice(all_indice_without_ind, 1, replace=False)[0]
+                            new_ind = np.random.choice(all_indice_without_ind)
                             new_object = data[new_ind]
 
                             new_img = get_img(new_object.url, download=True)
