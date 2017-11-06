@@ -380,11 +380,11 @@ if __name__ == '__main__':
     logger.log('Starting training with learning rate: {0}'.format(LR))
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
                                   validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_BATCHES,
-                                  callbacks=callbacks, max_q_size=100, workers=5, pickle_safe=True)
+                                  callbacks=callbacks, max_q_size=100, workers=4, pickle_safe=True)
 
     # Validating the model
     test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(test_imgs) / NUM_BATCHES, max_q_size=100,
-                                          workers=5, pickle_safe=True)
+                                          workers=4, pickle_safe=True)
     # Plot the Score
     logger.log("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
 
