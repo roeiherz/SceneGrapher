@@ -378,7 +378,7 @@ def visual_genome_data_predicate_pairs_generator_with_batch(data, relations_dict
 
 
 def visual_genome_data_predicate_mask_pairs_generator_with_batch(data, relations_dict, hierarchy_mapping, config, mode,
-                                                            batch_size=128, evaluate=False):
+                                                                 batch_size=128, evaluate=False):
     """
     This function is a generator for Predicate  with pair of objects with batch-size
     :param evaluate:  A flag which indicates if we evaluate in PredictFeaturesModule
@@ -493,7 +493,7 @@ def visual_genome_data_predicate_mask_pairs_generator_with_batch(data, relations
                     resized_img = get_img_resize(patch_union, config.crop_width, config.crop_height,
                                                  type=config.padding_method)
                     resized_heatmap = get_img_resize(patch_heatmap, config.crop_width, config.crop_height,
-                                                    type=config.padding_method)
+                                                     type=config.padding_method)
 
                     # Concatenate the heat-map to the image in the kernel axis
                     resized_img = np.concatenate((resized_img, resized_heatmap[:, :, :1]), axis=2)
@@ -524,8 +524,9 @@ def visual_genome_data_predicate_mask_pairs_generator_with_batch(data, relations
                 Logger().log(str(e))
 
 
-def visual_genome_data_predicate_mask_dual_pairs_generator_with_batch(data, relations_dict, hierarchy_mapping, config, mode,
-                                                            batch_size=128, evaluate=False):
+def visual_genome_data_predicate_mask_dual_pairs_generator_with_batch(data, relations_dict, hierarchy_mapping, config,
+                                                                      mode,
+                                                                      batch_size=128, evaluate=False):
     """
     This function is a generator for Predicate  with pair of objects with batch-size
     :param evaluate:  A flag which indicates if we evaluate in PredictFeaturesModule
@@ -628,15 +629,18 @@ def visual_genome_data_predicate_mask_dual_pairs_generator_with_batch(data, rela
                     heat_map_subject[subject_box[BOX.Y1]: subject_box[BOX.Y2], subject_box[BOX.X1]: subject_box[BOX.X2],
                     :] = 255
                     heat_map_object = np.zeros(img.shape)
-                    heat_map_object[object_box[BOX.Y1]: object_box[BOX.Y2], object_box[BOX.X1]: object_box[BOX.X2], :] = 255
+                    heat_map_object[object_box[BOX.Y1]: object_box[BOX.Y2], object_box[BOX.X1]: object_box[BOX.X2],
+                    :] = 255
 
                     # Get the UNION box: a BOX (numpy array) with [x1,x2,y1,y2]
                     box = find_union_box(subject_box, object_box)
 
                     # Cropping the patch from the image.
                     patch_union = img[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
-                    patch_heatmap_heat_map_subject = heat_map_subject[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
-                    patch_heatmap_heat_map_object = heat_map_object[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
+                    patch_heatmap_heat_map_subject = heat_map_subject[box[BOX.Y1]: box[BOX.Y2],
+                                                     box[BOX.X1]: box[BOX.X2], :]
+                    patch_heatmap_heat_map_object = heat_map_object[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2],
+                                                    :]
 
                     # Resize the image according the padding method
                     resized_img = get_img_resize(patch_union, config.crop_width, config.crop_height,
@@ -930,7 +934,7 @@ def visual_genome_data_predicate_mask_generator_with_batch(data, hierarchy_mappi
 
 
 def visual_genome_data_predicate_mask_dual_generator_with_batch(data, hierarchy_mapping, config, mode, classification,
-                                                               type_box, batch_size=128, evaluate=False):
+                                                                type_box, batch_size=128, evaluate=False):
     """
     This function is a generator for Predicate with Detections with batch-size
     :param evaluate: A flag which indicates if we evaluate in PredictVisualModule
@@ -1020,15 +1024,18 @@ def visual_genome_data_predicate_mask_dual_generator_with_batch(data, hierarchy_
                     heat_map_subject[subject_box[BOX.Y1]: subject_box[BOX.Y2], subject_box[BOX.X1]: subject_box[BOX.X2],
                     :] = 255
                     heat_map_object = np.zeros(img.shape)
-                    heat_map_object[object_box[BOX.Y1]: object_box[BOX.Y2], object_box[BOX.X1]: object_box[BOX.X2], :] = 255
+                    heat_map_object[object_box[BOX.Y1]: object_box[BOX.Y2], object_box[BOX.X1]: object_box[BOX.X2],
+                    :] = 255
 
                     # Get the box: a BOX (numpy array) with [x1,x2,y1,y2]
                     box = detection[type_box]
 
                     # Cropping the patch from the image.
                     patch_predicate = img[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
-                    patch_heatmap_heat_map_subject = heat_map_subject[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
-                    patch_heatmap_heat_map_object = heat_map_object[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
+                    patch_heatmap_heat_map_subject = heat_map_subject[box[BOX.Y1]: box[BOX.Y2],
+                                                     box[BOX.X1]: box[BOX.X2], :]
+                    patch_heatmap_heat_map_object = heat_map_object[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2],
+                                                    :]
 
                     # Resize the image according the padding method
                     resized_img = get_img_resize(patch_predicate, config.crop_width, config.crop_height,
@@ -1222,10 +1229,31 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
                     resized_img = get_img_resize(patch, config.crop_width, config.crop_height,
                                                  type=config.padding_method)
 
+                    # Augment only in training
                     if mode == 'train' and config.use_jitter:
-                        # Augment only in training
-                        resized_img = config.jitter.random_transform(resized_img)
-                        resized_img = config.jitter.standardize(resized_img)
+                        new_resized_img = None
+
+                        # For mixup Jitter we need to create a new resize_img from another sample
+                        if config.jitter.use_mixup:
+                            all_indice_without_ind = list(set(range(size)) - set([ind]))
+                            # Pick index from the data with no repetition
+                            new_ind = np.random.choice(all_indice_without_ind, 1, replace=False)[0]
+                            new_object = data[new_ind]
+
+                            new_img = get_img(new_object.url, download=True)
+                            if new_img is None:
+                                Logger().log("Coulden't get the image")
+                                continue
+                            # Get the mask: a dict with {x1,x2,y1,y2}
+                            new_mask = get_mask_from_object(new_object)
+                            # Cropping the patch from the image.
+                            new_patch = new_img[new_mask['y1']: new_mask['y2'], new_mask['x1']: new_mask['x2'], :]
+                            # Resize the image according the padding method
+                            new_resized_img = get_img_resize(new_patch, config.crop_width, config.crop_height,
+                                                             type=config.padding_method)
+
+                        resized_img = config.jitter.apply_jitter(resized_img=resized_img, batchsize=size,
+                                                                 new_resized_img=new_resized_img)
 
                     # Expand dimensions - add batch dimension for the numpy
                     resized_img = np.expand_dims(resized_img, axis=0)

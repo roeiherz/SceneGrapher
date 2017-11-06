@@ -1,5 +1,5 @@
 from keras.preprocessing.image import ImageDataGenerator
-from FeaturesExtraction.Lib.DataAugmentation import Jitter
+from FeaturesExtraction.Lib.DataAugmentation import Jitter, get_random_eraser
 
 __author__ = 'roeih'
 
@@ -43,7 +43,9 @@ class Config:
         self.use_all_objects_data = True
 
         # Use of Jitter
-        self.use_jitter = False
+        self.use_jitter = True
+        self.use_keras_jitter = True
+        self.use_mixup_jitter = True
 
         # location of pre-trained weights for the base network
         # weight files can be found at:
@@ -54,13 +56,14 @@ class Config:
         else:
             self.base_net_weights = "scene_graph_base_module.visual_module.image_net_tf"
 
-        # Options for Jitter
+        # Default setup for Jitter
+        self.jitter = None
         self.width_shift_range = 0.1
         self.height_shift_range = 0.1
         self.horizontal_flip = True
-
-        # Set Jitter
-        self.set_jitter()
+        self.mixup_alpha = 0.5
+        # self.preprocessing_function = get_random_eraser(v_l=0, v_h=255)
+        self.preprocessing_function = None
 
         # Old
         # self.use_translation_jitter = False
@@ -72,7 +75,6 @@ class Config:
         # self.use_samplewise_std_normalization = False
         # # Global Contrast Normalization
         # self.use_gcn = False
-
 
         # Define the GPU number
         self.gpu_num = gpu_num
@@ -95,6 +97,9 @@ class Config:
         self.crop_width = 224
         self.crop_height = 224
         self.padding_method = "zero_pad"
+
+        # Set Jitter
+        self.set_jitter()
 
         # number of ROIs at once
         self.num_rois = 2
@@ -120,11 +125,18 @@ class Config:
         This function set the jitter
         """
 
-        if self.use_jitter:
-            self.jitter = ImageDataGenerator(width_shift_range=self.width_shift_range,
-                                             height_shift_range=self.height_shift_range,
-                                             horizontal_flip=self.horizontal_flip)
-            return
+        if self.jitter is None:
+            self.jitter = Jitter(crop_width=self.crop_width, crop_height=self.crop_height,
+                                 padding_method=self.padding_method)
+
+        if self.use_jitter and self.use_keras_jitter:
+            self.jitter.set_keras_jitter(width_shift_range=self.width_shift_range,
+                                         height_shift_range=self.height_shift_range,
+                                         horizontal_flip=self.horizontal_flip,
+                                         preprocessing_function=self.preprocessing_function)
+
+        if self.use_jitter and self.use_mixup_jitter:
+            self.jitter.set_mixup_jitter(mixup_alpha=self.mixup_alpha)
 
         # # Ignore this section
         # # Setting for Data augmentation
