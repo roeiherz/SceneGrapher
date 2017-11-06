@@ -380,7 +380,7 @@ if __name__ == '__main__':
     logger.log('Starting training with learning rate: {0}'.format(LR))
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
                                   validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_BATCHES,
-                                  callbacks=callbacks, max_q_size=10, workers=1)
+                                  callbacks=callbacks, max_q_size=100, workers=1)
 
     # Validating the model
     test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(test_imgs) / NUM_BATCHES, max_q_size=10,
