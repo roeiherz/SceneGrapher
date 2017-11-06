@@ -97,7 +97,7 @@ class Config:
         # todo: need to be decided
         self.crop_width = 224
         self.crop_height = 224
-        self.padding_method = "zero_pad"
+        self.padding_method = "regular"
 
         # Set Jitter
         self.set_jitter()
