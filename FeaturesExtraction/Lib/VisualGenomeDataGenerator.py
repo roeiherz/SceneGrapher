@@ -1237,7 +1237,7 @@ def visual_genome_data_cnn_generator_with_batch(data, hierarchy_mapping, config,
                         # For mixup Jitter we need to create a new resize_img from another sample
                         if config.jitter.use_mixup:
                             all_indice_without_ind = list(indices - set([ind]))
-                            # Pick index from the data with no repetition
+                            # Pick different index from the data with no repetition
                             new_ind = np.random.choice(all_indice_without_ind)
                             new_object = data[new_ind]
 
