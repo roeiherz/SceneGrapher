@@ -45,7 +45,7 @@ class AppModel(object):
         self.session = None
         self.config = Config(gpu_num)
         # Set Jitter to False no matters
-        self.config.jitter = False
+        self.config.use_jitter = False
 
     def load_feature_extractions_model(self, number_of_classes_objects, number_of_classes_predicates):
         """
