@@ -33,7 +33,7 @@ NUM_EPOCHS = 1
 NUM_BATCHES = 128
 RATIO = 3.0 / 10
 USE_PREDICATES_MASK = True
-FILE_NAME = "test_predicts_objs_from_imgnt_011117.p"
+FILE_NAME = "test_predicts_playing_081117.p"
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -258,6 +258,7 @@ if __name__ == '__main__':
     # Process relations to numpy Detections dtype
     detections = process_to_detections(None, detections_file_name="full_detections_test")
     detections = sort_detections_by_url(detections)
+    detections = detections[np.where(detections[Detections.Predicate] == "playing")]
 
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:

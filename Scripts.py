@@ -4,6 +4,8 @@ import matplotlib
 from shutil import copyfile
 from Data.VisualGenome.models import Object, Graph, Image, Relationship, ObjectMapping, RelationshipMapping, \
     ImageMapping
+from FeaturesExtraction.Utils.Boxes import find_union_box
+from FeaturesExtraction.Utils.Visualizer import VisualizerDrawer, CvColor
 
 matplotlib.use('agg')
 from matplotlib import pyplot as plt
@@ -21,7 +23,7 @@ from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE,
 from TrainCNN import preprocessing_objects
 from Utils.Utils import create_folder
 from FeaturesExtraction.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data, \
-    visualize_detections
+    visualize_detections, process_to_detections
 from PredictVisualModel import get_resize_images_array, load_full_detections, get_model
 from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH
 from FeaturesExtraction.Lib.Config import Config
@@ -647,8 +649,13 @@ def logger_parser(dir_path="Temp"):
     # files = ["PredictFeaturesModule_mini_entities.log"]
     files = ["PredictFeaturesModule_mini_entities_module_mask.log"]
     files = ["PredictFeaturesModule_mini_entities_mask_dual_260917.log"]
-    files = ["/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatedFeatures/"
-             "Fri_Oct_20_22:23:07_2017/PredictFeaturesModule_mini_entities_updated_201017.log"]
+    files = ["PredictFeaturesModule_mini_entities_updated_231017.log"]
+    files = ["PredictFeaturesModule_train_split0_old_211017.log"]
+    files = ["PredictFeaturesModule_test_split0_251017.log"]
+    files = ["PredictFeaturesModule_test_mini_objects_july_011117.log"]
+    files = ["PredictFeaturesModule_test_mini_objects_imgnet_011117.log"]
+    files = ["PredictFeaturesModule_test_split0_011117.log"]
+    files = ["PredictFeaturesModule_test_split0_july_031117.log"]
 
     # Get the data frame from logger
     df = create_dataframe_from_logger(files)
@@ -659,8 +666,8 @@ def logger_parser(dir_path="Temp"):
     create_folder(dir_path)
 
     # Save DataFrame
-    df.to_csv(os.path.join(dir_path, "logger_preprocessed_data_entities_mask_201017.csv"))
-    fl = open(os.path.join(dir_path, "logger_preprocessed_data_entities_mask_201017_df.p"), "wb")
+    df.to_csv(os.path.join(dir_path, "test_split0_july_031117.csv"))
+    fl = open(os.path.join(dir_path, "test_split0_july_031117_df.p"), "wb")
     cPickle.dump(df, fl)
     fl.close()
 
@@ -1094,6 +1101,45 @@ def copy_files_from_server():
         Logger().log("The file from {0} copy to {1}".format(from_path_curr, to_path_curr))
 
 
+def save_predicate(predicate='', path=""):
+    detections_test = process_to_detections(None, detections_file_name="full_detections_test")
+    detections = detections_test[np.where(detections_test[Detections.Predicate] == predicate)]
+    for detection in detections:
+        url = detection[Detections.Url]
+        img_id = int(url.split('/')[-1].split('.')[0])
+        img = get_img(url)
+        img2 = get_img(url)
+        if img is None:
+            Logger().log("Image {0} was not found".format(url))
+            continue
+        # Get object box
+        object_box = detection[Detections.ObjectBox]
+        subject_box = detection[Detections.SubjectBox]
+        subject_label = detection[Detections.SubjectClassifications]
+        object_label = detection[Detections.ObjectClassifications]
+
+        # Predicate
+        predicate_box = find_union_box(subject_box, object_box)
+        predicate_gt_label = detection[Detections.Predicate]
+        # Draw Predicate box with their labels
+        VisualizerDrawer.draw_labeled_box(img, predicate_box,
+                                          label="<{0}, {1}, {2}>/".format(subject_label,
+                                                                          predicate_gt_label,
+                                                                          object_label),
+                                          rect_color=CvColor.BLUE, scale=500)
+        # Draw Object box with their labels
+        VisualizerDrawer.draw_labeled_box(img2, object_box,
+                                          label=object_label,
+                                          rect_color=CvColor.RED, scale=500)
+        # Draw Subject box with their labels
+        VisualizerDrawer.draw_labeled_box(img2, subject_box,
+                                          label=subject_label,
+                                          rect_color=CvColor.RED, scale=500)
+        file_path = os.path.join(path, "{}_predicates.jpg".format(img_id))
+        file_path2 = os.path.join(path, "{}_objects.jpg".format(img_id))
+        cv2.imwrite(file_path, img)
+        cv2.imwrite(file_path2, img2)
+
 if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
@@ -1101,8 +1147,11 @@ if __name__ == '__main__':
     file_manager = FilesManager()
     logger = Logger()
 
-    copy_files_from_server()
+    save_predicate(predicate="playing", path="/home/roeih/SceneGrapher/Outputs/Playing")
     exit()
+
+    # copy_files_from_server()
+    # exit()
 
     # save_new_images()
     # exit()
