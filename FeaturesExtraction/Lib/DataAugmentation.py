@@ -16,13 +16,13 @@ def get_random_eraser(p=0.5, s_l=0.02, s_h=0.4, r_1=0.3, r_2=1/0.3, v_l=0, v_h=2
     It tries to regularize models using training images that are randomly masked with random values.
     Please refer to this repository https://github.com/yu4u/cutout-random-erasing
     for the details of algorithm and its implementation.
-    :param p:
-    :param s_l:
-    :param s_h:
-    :param r_1:
-    :param r_2:
-    :param v_l:
-    :param v_h:
+    :param p: The probability that random erasing is performed
+    :param s_l: minimum proportion of erased area against input image
+    :param s_h: maximum proportion of erased area against input image
+    :param r_1: minimum aspect ratio of erased area
+    :param r_2: maximum aspect ratio of erased area
+    :param v_l: minimum value for erased area
+    :param v_h: maximum value for erased area
     :return:
     """
     def eraser(input_img):
