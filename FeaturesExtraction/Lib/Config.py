@@ -45,7 +45,7 @@ class Config:
         self.use_all_objects_data = True
 
         # Use of Jitter
-        self.use_jitter = True
+        self.use_jitter = False
         self.use_keras_jitter = True
         self.use_mixup_jitter = True
 
