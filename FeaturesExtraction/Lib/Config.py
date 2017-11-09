@@ -45,9 +45,9 @@ class Config:
         self.use_all_objects_data = True
 
         # Use of Jitter
-        self.use_jitter = False
+        self.use_jitter = True
         self.use_keras_jitter = True
-        self.use_mixup_jitter = True
+        self.use_mixup_jitter = False
 
         # location of pre-trained weights for the base network
         # weight files can be found at:
@@ -64,8 +64,8 @@ class Config:
         self.height_shift_range = 0.1
         self.horizontal_flip = True
         self.mixup_alpha = 0.5
-        # self.preprocessing_function = get_random_eraser(v_l=0, v_h=255)
-        self.preprocessing_function = None
+        self.preprocessing_function = get_random_eraser(v_l=0, v_h=255)
+        # self.preprocessing_function = None
 
         # Old
         # self.use_translation_jitter = False

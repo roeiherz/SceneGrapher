@@ -744,14 +744,15 @@ def create_dataframe_from_logger(files):
     return df
 
 
-def detection_parser(dir_path="Temp"):
+def detection_parser(dir_path="Temp", files=[]):
     """
     This function returns csv file from detection pickle file (Detections numpy array)
     :return:
     """
 
     # Define from each files we are gonna to parse
-    files = ["mini_predicated_mask_predicates_Mon_Sep_25_17:47:17_2017_260917.p"]
+    if len(files) == 0:
+        files = ["mini_predicated_mask_predicates_Mon_Sep_25_17:47:17_2017_260917.p"]
 
     # Get the data frame from logger
     df = create_dataframe_from_detection(files)
@@ -989,7 +990,8 @@ def create_pre_proccessed_entities_by_xu():
     Logger().log("Start creating the pre-processing entities")
     entities_lst = []
 
-    images = {img.id: img for img in GetAllImageData("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Data/VisualGenome/data/")}
+    images = {img.id: img for img in
+              GetAllImageData("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Data/VisualGenome/data/")}
 
     for image_index in range(len(image_ids)):
         print("Image Index {0}".format(image_index))
@@ -1043,7 +1045,7 @@ def create_pre_proccessed_entities_by_xu():
                                                        rl_filtered_id)
                     relationship_lst.append(relationship)
 
-                # Create Negatives
+                    # Create Negatives
 
             entity = Graph(image, objects, relationship_lst, None)
             entities_lst.append(entity)
@@ -1064,7 +1066,8 @@ def save_new_images():
     """
     imdb = FilesManager().load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "preproccesed_data"))
     length = len(imdb['images'])
-    images = {img.id: img for img in GetAllImageData("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Data/VisualGenome/data/")}
+    images = {img.id: img for img in
+              GetAllImageData("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Data/VisualGenome/data/")}
     for img_ind in range(length):
         print("Image index: {0}".format(img_ind))
         img_id = imdb["image_ids"][img_ind]
@@ -1086,9 +1089,11 @@ def copy_files_from_server():
     to_path = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Temp"
 
     # The dataset from which the urls will be taken
-    train_imgs = cPickle.load(open("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_14:15:25_2017/train_set.p"))
+    train_imgs = cPickle.load(open(
+        "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_14:15:25_2017/train_set.p"))
     train_imgs = train_imgs[:500]
-    test_imgs = cPickle.load(open("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_14:15:25_2017/test_set.p"))
+    test_imgs = cPickle.load(open(
+        "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_14:15:25_2017/test_set.p"))
     test_imgs = test_imgs[:len(train_imgs) / 3]
     urls_lst = list(set(test_imgs[Detections.Url]))
     Logger().log("Start copying")
@@ -1101,8 +1106,16 @@ def copy_files_from_server():
         Logger().log("The file from {0} copy to {1}".format(from_path_curr, to_path_curr))
 
 
-def save_predicate(predicate='', path=""):
-    detections_test = process_to_detections(None, detections_file_name="full_detections_test")
+def debug_per_predicate(predicate='', path=""):
+    """
+
+    :param predicate:
+    :param path:
+    :return:
+    """
+    detections_test = process_to_detections(None, detections_file_name="full_detections_train")
+    # detections_test = cPickle.load(open("/home/roeih/SceneGrapher/test_predicts_playing_081117.p"))
+    # detection_parser(dir_path=path, files=["/home/roeih/SceneGrapher/test_predicts_playing_081117.p"])
     detections = detections_test[np.where(detections_test[Detections.Predicate] == predicate)]
     for detection in detections:
         url = detection[Detections.Url]
@@ -1121,11 +1134,14 @@ def save_predicate(predicate='', path=""):
         # Predicate
         predicate_box = find_union_box(subject_box, object_box)
         predicate_gt_label = detection[Detections.Predicate]
+        predicate_predict_label = detection[Detections.UnionFeature]
+
         # Draw Predicate box with their labels
         VisualizerDrawer.draw_labeled_box(img, predicate_box,
-                                          label="<{0}, {1}, {2}>/".format(subject_label,
-                                                                          predicate_gt_label,
-                                                                          object_label),
+                                          label="<{0}, {1}/{2}, {3}>".format(subject_label,
+                                                                             predicate_predict_label,
+                                                                             predicate_gt_label,
+                                                                             object_label),
                                           rect_color=CvColor.BLUE, scale=500)
         # Draw Object box with their labels
         VisualizerDrawer.draw_labeled_box(img2, object_box,
@@ -1140,6 +1156,7 @@ def save_predicate(predicate='', path=""):
         cv2.imwrite(file_path, img)
         cv2.imwrite(file_path2, img2)
 
+
 if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
@@ -1147,7 +1164,7 @@ if __name__ == '__main__':
     file_manager = FilesManager()
     logger = Logger()
 
-    save_predicate(predicate="playing", path="/home/roeih/SceneGrapher/Outputs/Playing")
+    debug_per_predicate(predicate="playing", path="/home/roeih/SceneGrapher/Outputs/Playing")
     exit()
 
     # copy_files_from_server()
