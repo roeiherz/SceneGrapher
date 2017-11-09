@@ -383,8 +383,7 @@ if __name__ == '__main__':
                                   callbacks=callbacks, max_q_size=100, workers=4, pickle_safe=True)
 
     # Validating the model
-    test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(test_imgs) / NUM_BATCHES, max_q_size=100,
-                                          workers=4, pickle_safe=True)
+    test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(test_imgs) / NUM_BATCHES)
     # Plot the Score
     logger.log("The Validation loss is: {0} and the Validation Accuracy is: {1}".format(test_score[0], test_score[1]))
 
