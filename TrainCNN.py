@@ -33,7 +33,6 @@ MAX_NOF_SAMPLES_THR = 1000000
 MAX_NOF_SAMPLES = 900000
 LR = 1e-6
 
-
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
 if not used_percent == 1:
@@ -380,7 +379,7 @@ if __name__ == '__main__':
     logger.log('Starting training with learning rate: {0}'.format(LR))
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
                                   validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_BATCHES,
-                                  callbacks=callbacks)
+                                  callbacks=callbacks, max_q_size=100, workers=4, pickle_safe=True)
 
     # Validating the model
     test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(test_imgs) / NUM_BATCHES, max_q_size=100,

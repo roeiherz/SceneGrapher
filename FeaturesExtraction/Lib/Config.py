@@ -63,9 +63,9 @@ class Config:
         self.width_shift_range = 0.1
         self.height_shift_range = 0.1
         self.horizontal_flip = True
-        self.mixup_alpha = 0.5
-        self.preprocessing_function = get_random_eraser(v_l=0, v_h=255)
-        # self.preprocessing_function = None
+        self.mixup_alpha = 0.2
+        # self.preprocessing_function = get_random_eraser(v_l=0, v_h=255)
+        self.preprocessing_function = None
 
         # Old
         # self.use_translation_jitter = False
