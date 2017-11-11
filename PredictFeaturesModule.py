@@ -596,7 +596,7 @@ if __name__ == '__main__':
     hierarchy_mapping_predicates = filemanager.load_file("data.visual_genome.hierarchy_mapping_predicates")
     # entities = filemanager.load_file("data.visual_genome.full_filtered_preprocessed_data_train")
     # entities = filemanager.load_file("data.visual_genome.full_filtered_preprocessed_data_test")
-    entities = filemanager.load_file("data.visual_genome.pre_processed_train_split4")
+    entities = filemanager.load_file("data.visual_genome.pre_processed_test_split0")
 
     # Check the training folders from which we take the weights aren't empty
     if not objects_training_dir_name or not predicates_training_dir_name:
@@ -651,10 +651,10 @@ if __name__ == '__main__':
     ind = 0
 
     total_entities = entities[:]
-    SPLIT_ENT = 1000
-    # SPLIT_ENT = len(total_entities)
+    # SPLIT_ENT = 1000
+    SPLIT_ENT = len(total_entities)
     bad_urls = get_bad_urls()
-    # mini_ids = get_mini_entities_img_ids()
+    mini_ids = get_mini_entities_img_ids()
     # bad_urls = get_sorting_url()
 
     if len(bad_urls) < 100:
@@ -693,8 +693,8 @@ if __name__ == '__main__':
                     if entity.image.url in bad_urls:
                         continue
 
-                    # if entity.image.id not in mini_ids:
-                    #     continue
+                    if entity.image.id not in mini_ids:
+                        continue
 
                     # Increment index
                     ind += 1
