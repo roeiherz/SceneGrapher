@@ -227,6 +227,7 @@ def graph_plot():
     """
     path_to_folder = "/home/roeih/SceneGrapher/Training/TrainingObjectsCNN/Sun_May_28_21:21:47_2017"
     path_to_folder = "/home/roeih/SceneGrapher/Training/TrainingPredicatesCNN/Sun_May_28_21:28:52_2017/"
+    path_to_folder = "/home/roeih/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Best_so_far_121117/Fri_Oct_27_22:41:05_2017"
     plot_graph(folder_path=path_to_folder)
 
 
@@ -656,6 +657,7 @@ def logger_parser(dir_path="Temp"):
     files = ["PredictFeaturesModule_test_mini_objects_imgnet_011117.log"]
     files = ["PredictFeaturesModule_test_split0_011117.log"]
     files = ["PredictFeaturesModule_test_split0_july_031117.log"]
+    files = ["PredictFeaturesModule_minientities_imgnet_workers_cutoff.log"]
 
     # Get the data frame from logger
     df = create_dataframe_from_logger(files)
@@ -666,8 +668,8 @@ def logger_parser(dir_path="Temp"):
     create_folder(dir_path)
 
     # Save DataFrame
-    df.to_csv(os.path.join(dir_path, "test_split0_july_031117.csv"))
-    fl = open(os.path.join(dir_path, "test_split0_july_031117_df.p"), "wb")
+    df.to_csv(os.path.join(dir_path, "test_minientities_imgnet_workers_cutoff_111117.csv"))
+    fl = open(os.path.join(dir_path, "test_minientities_imgnet_workers_cutoff_111117_df.p"), "wb")
     cPickle.dump(df, fl)
     fl.close()
 
@@ -1164,8 +1166,11 @@ if __name__ == '__main__':
     file_manager = FilesManager()
     logger = Logger()
 
-    debug_per_predicate(predicate="playing", path="/home/roeih/SceneGrapher/Outputs/Playing")
+    graph_plot()
     exit()
+
+    # debug_per_predicate(predicate="playing", path="/home/roeih/SceneGrapher/Outputs/Playing")
+    # exit()
 
     # copy_files_from_server()
     # exit()

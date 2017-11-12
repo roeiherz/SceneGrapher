@@ -951,6 +951,7 @@ def visual_genome_data_predicate_mask_dual_generator_with_batch(data, hierarchy_
 
     correct_labels = hierarchy_mapping.keys()
     size = len(data)
+    indices = set(range(size))
 
     # The number of batches per epoch depends if size % batch_size == 0
     if size % batch_size == 0:
@@ -987,19 +988,6 @@ def visual_genome_data_predicate_mask_dual_generator_with_batch(data, hierarchy_
                     if img is None:
                         Logger().log("Coulden't get the image in url {}".format(detection[Detections.Url]))
                         continue
-
-                    # In-case we want to normalize
-                    if config.use_jitter:
-                        # Subtract mean and normalize
-                        mean_image = np.mean(img, axis=0)
-                        img -= mean_image
-                        img /= 128.
-
-                        # Zero-center by mean pixel
-                        # norm_img = img.astype(np.float32)
-                        # norm_img[:, :, 0] -= 103.939
-                        # norm_img[:, :, 1] -= 116.779
-                        # norm_img[:, :, 2] -= 123.68
 
                     # Get the label of object
                     label = detection[classification]
@@ -1045,15 +1033,34 @@ def visual_genome_data_predicate_mask_dual_generator_with_batch(data, hierarchy_
                     resized_heatmap_object = get_img_resize(patch_heatmap_heat_map_object, config.crop_width,
                                                             config.crop_height, type=config.padding_method)
 
+                    # Augment only in training
+                    if mode == 'train' and config.use_jitter:
+                        new_resized_img = None
+
+                        # For mixup Jitter we need to create a new resize_img from another sample
+                        if config.jitter.use_mixup:
+                            all_indice_without_ind = list(indices - set([ind]))
+                            # Pick different index from the data with no repetition
+                            new_ind = np.random.choice(all_indice_without_ind)
+                            new_object = data[new_ind]
+
+                            new_img = get_img(new_object.url, download=True)
+                            if new_img is None:
+                                Logger().log("Coulden't get the image")
+                                continue
+                            # Get the mask: a dict with {x1,x2,y1,y2}
+                            new_mask = get_mask_from_object(new_object)
+                            # Cropping the patch from the image.
+                            new_patch = new_img[new_mask['y1']: new_mask['y2'], new_mask['x1']: new_mask['x2'], :]
+                            # Resize the image according the padding method
+                            new_resized_img = get_img_resize(new_patch, config.crop_width, config.crop_height,
+                                                             type=config.padding_method)
+
+                        resized_img = config.jitter.apply_jitter(resized_img=resized_img, batchsize=size,
+                                                                 new_resized_img=new_resized_img)
                     # Concatenate the heat-map to the image in the kernel axis
                     resized_img = np.concatenate((resized_img, resized_heatmap_subject[:, :, :1]), axis=2)
                     resized_img = np.concatenate((resized_img, resized_heatmap_object[:, :, :1]), axis=2)
-
-                    if mode == 'train' and config.use_jitter:
-                        # Augment only in training
-                        # todo: create a regular jitter for each patch increase the number of patches by some constant
-                        # resized_img = augment_visual_genome(resized_img, detection, config, mask)
-                        Logger().log("No data augmentation")
 
                     # Expand dimensions - add batch dimension for the numpy
                     resized_img = np.expand_dims(resized_img, axis=0)

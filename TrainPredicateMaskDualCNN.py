@@ -31,7 +31,7 @@ TRAINING_PERCENT = 0.75
 VALIDATION_PERCENT = 0.05
 TESTING_PERCENT = 0.2
 NUM_EPOCHS = 90
-NUM_BATCHES = 128
+NUM_BATCHES = 64
 RATIO = 3.0 / 10
 LR = 1e-6
 
@@ -372,8 +372,8 @@ if __name__ == '__main__':
     # Get new negative - positive ratio and shuffle the data
     detections_train = pick_different_negative_sample_ratio(detections_train, ratio=RATIO)
     detections_test = pick_different_negative_sample_ratio(detections_test, ratio=RATIO)
-    size_of_test = len(detections_train) / 3
-    detections_test = detections_test[:size_of_test]
+    # size_of_test = len(detections_train) / 3
+    # detections_test = detections_test[:size_of_test]
     # No validation test
     detections_val = []
 
@@ -477,12 +477,12 @@ if __name__ == '__main__':
     callbacks = [ModelCheckpoint(net_weights_path, monitor='val_loss', save_best_only=True, verbose=0),
                  TensorBoard(log_dir="logs", write_graph=True, write_images=True),
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False),
-                 ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=3, min_lr=1e-9)]
+                 ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=2, min_lr=1e-12)]
 
     logger.log('Starting training with learning rate: {0}'.format(LR))
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
                                   validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_BATCHES,
-                                  callbacks=callbacks, max_q_size=1, workers=1)
+                                  callbacks=callbacks, max_q_size=100, workers=4, pickle_safe=True)
 
     # Validating the model
     test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(val_imgs) / NUM_BATCHES, max_q_size=1,
