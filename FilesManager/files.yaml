@@ -383,6 +383,11 @@ scene_graph_base_module:
             type: "dir"
             doc: "path to object cnn from image-net"
 
+        object_cnn_aug_cutoff:
+            name: "FeaturesExtraction/ObjectsCNN/Thu_Nov__9_17:35:03_2017/model_vg_resnet50.hdf5"
+            type: "dir"
+            doc: "path to object cnn from image-net"
+
         object_cnn_from2810:
             name: "FeaturesExtraction/ObjectsCNN/Mon_Oct_30_00:23:41_2017/model_vg_resnet50.hdf5"
             type: "dir"
