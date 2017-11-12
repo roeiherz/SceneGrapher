@@ -62,10 +62,12 @@ class Config:
         self.jitter = None
         self.width_shift_range = 0.1
         self.height_shift_range = 0.1
+        self.zoom_range = 0.2
+        self.shear_range = 0.2
         self.horizontal_flip = True
         self.mixup_alpha = 0.2
-        # self.preprocessing_function = get_random_eraser(v_l=0, v_h=255)
-        self.preprocessing_function = None
+        self.preprocessing_function = get_random_eraser(v_l=0, v_h=255)
+        # self.preprocessing_function = None
 
         # Old
         # self.use_translation_jitter = False
@@ -136,6 +138,8 @@ class Config:
             self.jitter.set_keras_jitter(width_shift_range=self.width_shift_range,
                                          height_shift_range=self.height_shift_range,
                                          horizontal_flip=self.horizontal_flip,
+                                         shear_range=self.shear_range,
+                                         zoom_range=self.zoom_range,
                                          preprocessing_function=self.preprocessing_function)
 
         if self.use_jitter and self.use_mixup_jitter:

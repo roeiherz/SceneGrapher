@@ -164,10 +164,17 @@ class Jitter(object):
         self.use_keras_jitter = False
         self.use_mixup = False
 
-    def set_keras_jitter(self, width_shift_range=0.1, height_shift_range=0.1, horizontal_flip=False,
-                         preprocessing_function=None):
+    def set_keras_jitter(self, width_shift_range=0., height_shift_range=0., horizontal_flip=False, shear_range=0.,
+                         zoom_range=0., rescale=None, preprocessing_function=None):
         """
         This function set the Keras Jitter: ImageDataGenerator
+        :param shear_range: shear intensity (shear angle in radians).
+        :param zoom_range: amount of zoom. if scalar z, zoom will be randomly picked
+            in the range [1-z, 1+z]. A sequence of two can be passed instead
+            to select this range.
+        :param rescale: rescaling factor. If None or 0, no rescaling is applied,
+            otherwise we multiply the data by the value provided
+            (before applying any other transformation).
         :param width_shift_range: fraction of total width.
         :param height_shift_range: fraction of total height.
         :param horizontal_flip: whether to randomly flip images horizontally.
@@ -182,6 +189,9 @@ class Jitter(object):
             self.keras_jitter = ImageDataGenerator(width_shift_range=width_shift_range,
                                                    height_shift_range=height_shift_range,
                                                    horizontal_flip=horizontal_flip,
+                                                   shear_range=shear_range,
+                                                   zoom_range=zoom_range,
+                                                   rescale=rescale,
                                                    preprocessing_function=preprocessing_function)
             # Change the flag
             self.use_keras_jitter = True
