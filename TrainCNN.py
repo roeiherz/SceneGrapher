@@ -10,7 +10,7 @@ import numpy as np
 from FeaturesExtraction.Lib.Config import Config
 from keras.optimizers import Adam
 from keras.layers import Input, AveragePooling2D, Flatten, Dense, GlobalAveragePooling2D, Activation, regularizers
-from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger, ReduceLROnPlateau
+from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger, ReduceLROnPlateau, LearningRateScheduler
 from keras import backend as K
 from keras.models import Model
 import sys
@@ -376,13 +376,13 @@ if __name__ == '__main__':
     callbacks = [ModelCheckpoint(net_weights_path, monitor='val_loss', save_best_only=True, verbose=0),
                  TensorBoard(log_dir="logs", write_graph=True, write_images=True),
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False),
-                 ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=2, min_lr=1e-12),
-                 LearningRateScheduler(schedule=lambda epoch: LR * (DECAY_DROP ** math.floor((1 + epoch) / EPOCHS_DROP)))]
+                 ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=2, min_lr=1e-12)]
+                 # LearningRateScheduler(schedule=lambda epoch: LR * (DECAY_DROP ** math.floor((1 + epoch) / EPOCHS_DROP)))]
 
     logger.log('Starting training with learning rate: {0}'.format(LR))
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
                                   validation_data=data_gen_test_vg, validation_steps=len(test_imgs) / NUM_BATCHES,
-                                  callbacks=callbacks, max_q_size=100, workers=4, pickle_safe=True)
+                                  callbacks=callbacks, max_q_size=100, workers=3, pickle_safe=True)
 
     # Validating the model
     test_score = model.evaluate_generator(data_gen_validation_vg, steps=len(test_imgs) / NUM_BATCHES, max_q_size=100,
