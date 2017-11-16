@@ -232,6 +232,8 @@ if __name__ == '__main__':
 
     # Load class config
     config = Config(gpu_num)
+    # Print to the logger the config params
+    config.config_logger()
 
     # Define GPU training
     os.environ["CUDA_VISIBLE_DEVICES"] = str(config.gpu_num)

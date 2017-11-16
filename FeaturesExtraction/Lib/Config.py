@@ -1,5 +1,6 @@
 from keras.preprocessing.image import ImageDataGenerator
 from FeaturesExtraction.Lib.DataAugmentation import Jitter, get_random_eraser
+from Utils.Logger import Logger
 
 __author__ = 'roeih'
 
@@ -47,7 +48,7 @@ class Config:
         self.use_all_objects_data = True
 
         # Use of Jitter
-        self.use_jitter = False
+        self.use_jitter = True
         self.use_keras_jitter = True
         self.use_mixup_jitter = False
 
@@ -186,3 +187,22 @@ class Config:
         #                      preprocessing_function=None,
         #                      fill_mode='nearest',
         #                      cval=0.)
+
+    def config_logger(self):
+        """
+        This function logs the config params
+        :return:
+        """
+        Logger().log("Config - loading_model: {0}".format(self.loading_model))
+        Logger().log("Config - loading_model_folder: {0}".format(self.loading_model_folder))
+        Logger().log("Config - loading_model_token: {0}".format(self.loading_model_token))
+        Logger().log("Config - load_weights: {0}".format(self.load_weights))
+        Logger().log("Config - use_jitter: {0}".format(self.use_jitter))
+        Logger().log("Config - use_keras_jitter: {0}".format(self.use_keras_jitter))
+        Logger().log("Config - use_mixup_jitter: {0}".format(self.use_mixup_jitter))
+        Logger().log("Config - width_shift_range: {0}".format(self.width_shift_range))
+        Logger().log("Config - height_shift_range: {0}".format(self.height_shift_range))
+        Logger().log("Config - zoom_range: {0}".format(self.zoom_range))
+        Logger().log("Config - shear_range: {0}".format(self.shear_range))
+        Logger().log("Config - mixup_alpha: {0}".format(self.mixup_alpha))
+        Logger().log("Config - preprocessing_function: {0}".format(self.preprocessing_function))
