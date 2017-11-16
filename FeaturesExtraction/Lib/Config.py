@@ -68,8 +68,8 @@ class Config:
         self.shear_range = 0.2
         self.horizontal_flip = True
         self.mixup_alpha = 0.2
-        # self.preprocessing_function = get_random_eraser(v_l=0, v_h=255)
-        self.preprocessing_function = None
+        self.preprocessing_function = get_random_eraser(v_l=0, v_h=255)
+        # self.preprocessing_function = None
 
         # Old
         # self.use_translation_jitter = False
