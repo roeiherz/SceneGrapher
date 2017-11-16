@@ -18,14 +18,14 @@ class Config:
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Mon_Sep_25_17:47:17_2017"
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Mon_Oct_23_17:49:04_2017"
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_20:08:54_2017"
-        self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Fri_Oct_27_22:41:05_2017"
+        # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Fri_Oct_27_22:41:05_2017"
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Mon_Jul_24_19:58:35_2017"
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Sat_Oct_28_14:36:42_2017"
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Sun_Nov__5_21:15:04_2017"
-        # self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Thu_Nov__9_14:39:14_2017"
+        self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Thu_Nov__9_14:39:14_2017"
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Sat_Oct_28_16:39:57_2017"
-        # self.loading_model_token = "scene_graph_base_module.visual_module.object_cnn_aug_cutoff"
-        self.loading_model_token = "scene_graph_base_module.visual_module.predicate_mask_dual_cnn_finetuned_from_27oct"
+        self.loading_model_token = "scene_graph_base_module.visual_module.object_cnn_aug_cutoff"
+        # self.loading_model_token = "scene_graph_base_module.visual_module.predicate_mask_dual_cnn_finetuned_from_27oct"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
         self.use_cache_dir = False
@@ -62,8 +62,8 @@ class Config:
 
         # Default setup for Jitter
         self.jitter = None
-        self.width_shift_range = 0.1
-        self.height_shift_range = 0.1
+        self.width_shift_range = 0.2
+        self.height_shift_range = 0.2
         self.zoom_range = 0.2
         self.shear_range = 0.2
         self.horizontal_flip = True
