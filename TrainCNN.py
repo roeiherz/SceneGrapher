@@ -1,5 +1,5 @@
 import matplotlib as mpl
-
+import math
 mpl.use('Agg')
 from Data.VisualGenome.models import ObjectMapping
 from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator_with_batch
@@ -28,10 +28,12 @@ TRAINING_PERCENT = 0.75
 VALIDATION_PERCENT = 0.05
 TESTING_PERCENT = 0.2
 NUM_EPOCHS = 90
+EPOCHS_DROP = 10.0
 NUM_BATCHES = 64
 MAX_NOF_SAMPLES_THR = 1000000
 MAX_NOF_SAMPLES = 900000
 LR = 1e-6
+DECAY_DROP = 0.9
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -374,7 +376,8 @@ if __name__ == '__main__':
     callbacks = [ModelCheckpoint(net_weights_path, monitor='val_loss', save_best_only=True, verbose=0),
                  TensorBoard(log_dir="logs", write_graph=True, write_images=True),
                  CSVLogger(os.path.join(path, 'training.log'), separator=',', append=False),
-                 ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=2, min_lr=1e-12)]
+                 ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=2, min_lr=1e-12),
+                 LearningRateScheduler(schedule=lambda epoch: LR * (DECAY_DROP ** math.floor((1 + epoch) / EPOCHS_DROP)))]
 
     logger.log('Starting training with learning rate: {0}'.format(LR))
     history = model.fit_generator(data_gen_train_vg, steps_per_epoch=len(train_imgs) / NUM_BATCHES, epochs=NUM_EPOCHS,
