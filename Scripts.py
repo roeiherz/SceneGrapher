@@ -13,7 +13,7 @@ import time
 import cPickle
 import os
 import numpy as np
-from Data.VisualGenome.local import GetAllImageData, GetSceneGraph
+from Data.VisualGenome.local import GetAllImageData, GetSceneGraph, GetAllRegionDescriptions
 from FilesManager.FilesManager import FilesManager
 from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE, ENTITIES_FILE, \
     HIERARCHY_MAPPING, plot_graph, POSITIVE_NEGATIVE_RATIO, DATA_PATH, CLASSES_COUNT_FILE, RELATIONS_COUNT_FILE, \
@@ -1159,6 +1159,48 @@ def debug_per_predicate(predicate='', path=""):
         cv2.imwrite(file_path2, img2)
 
 
+def get_corpus_from_image_captioning():
+    """
+    This function will get the whole image captioning from the images and saves them as a corpus
+    :return:
+    """
+
+    # load entities
+    # region_interest = GetAllRegionDescriptions()
+    region_interest = cPickle.load(open("region_interst10.p"))
+    # idx_to_ids = FilesManager().load_file("data.visual_genome.idx_to_ids")
+    img_id_to_split = FilesManager().load_file("data.visual_genome.img_id_to_split")
+
+    # index for saving
+    ind = 1
+    train_corpus = open("train_corpus.txt", "w")
+    test_corpus = open("test_corpus.txt", "w")
+    print("Start creating pickle for VisualGenome Data with changes")
+    for region in region_interest:
+        for phrase_data in region:
+            try:
+
+                # Get the phrase
+                phrase_txt = phrase_data.phrase.replace(".", "").replace("\n", "").replace(",", "").rstrip().lstrip() + " "
+                img_id = phrase_data.image.id
+
+                # Write train corpus
+                if img_id_to_split[img_id] == 0:
+                    train_corpus.write(phrase_txt)
+
+                # Write test corpus
+                if img_id_to_split[img_id] == 2:
+                    test_corpus.write(phrase_txt)
+
+                ind += 1
+            except Exception as e:
+                print("Problem with {0} in index: {1} image id: {2}".format(e, ind, img_id))
+
+    # Close txt files
+    train_corpus.close()
+    test_corpus.close()
+    return 1
+
 if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
@@ -1166,7 +1208,7 @@ if __name__ == '__main__':
     file_manager = FilesManager()
     logger = Logger()
 
-    graph_plot()
+    get_corpus_from_image_captioning()
     exit()
 
     # debug_per_predicate(predicate="playing", path="/home/roeih/SceneGrapher/Outputs/Playing")
