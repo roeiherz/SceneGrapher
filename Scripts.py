@@ -1166,7 +1166,7 @@ def get_corpus_from_image_captioning():
     """
 
     # load entities
-    region_interest = GetAllRegionDescriptions()
+    region_interest = GetAllRegionDescriptions("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Data/VisualGenome/data")
     # region_interest = cPickle.load(open("region_interst10.p"))
     # idx_to_ids = FilesManager().load_file("data.visual_genome.idx_to_ids")
     img_id_to_split = FilesManager().load_file("data.visual_genome.img_id_to_split")
@@ -1183,7 +1183,7 @@ def get_corpus_from_image_captioning():
                 # Get the phrase
                 phrase_txt = phrase_data.phrase.replace(".", "").replace("\n", "").replace(",", "").rstrip().lstrip() + " "
                 img_id = phrase_data.image.id
-
+                Logger().log("Image id: {0}".format(img_id))
                 # Write train corpus
                 if img_id_to_split[img_id] == 0:
                     train_corpus.write(phrase_txt)
