@@ -20,6 +20,16 @@ data:
             type: "pickle"
             doc: "dictionary mapping supported object labels to predicate ids old data"
 
+        idx_to_ids:
+            name: "Data/VisualGenome/idx_to_ids.p"
+            type: "pickle"
+            doc: "dictionary mapping between index and image id"
+
+        img_id_to_split:
+            name: "Data/VisualGenome/img_id_to_split.p"
+            type: "pickle"
+            doc: "dictionary mapping between image id and its split (train 0 and test 2)"
+
         # The Data after pre-processing by Xu, et al.
         VG_SGG_dicts:
             name: "Data/VisualGenome/VG-SGG-dicts.json"
@@ -334,6 +344,22 @@ sg_module:
         doc: "stores module weights"
       params:
           name: "module/params.yaml"
+          type: "yaml"
+          doc: "train parameters"
+    eval:
+
+language_module:
+    train:
+      tf_logs:
+        name: "LanguageModule/tf_logs"
+        type: "dir"
+        doc: "holds tensor flow log"
+      saver:
+        name: "LanguageModule/saver"
+        type: "dir"
+        doc: "stores module weights"
+      params:
+          name: "LanguageModule/params.yaml"
           type: "yaml"
           doc: "train parameters"
     eval:

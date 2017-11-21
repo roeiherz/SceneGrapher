@@ -1175,7 +1175,7 @@ def get_corpus_from_image_captioning():
     ind = 1
     train_corpus = open("train_corpus.txt", "w")
     test_corpus = open("test_corpus.txt", "w")
-    print("Start creating pickle for VisualGenome Data with changes")
+    Logger().log("Start creating corpus for train and test from image captioning")
     for region in region_interest:
         for phrase_data in region:
             try:
@@ -1196,6 +1196,7 @@ def get_corpus_from_image_captioning():
             except Exception as e:
                 print("Problem with {0} in index: {1} image id: {2}".format(e, ind, img_id))
 
+    Logger().log("Finish to create train and test corpus")
     # Close txt files
     train_corpus.close()
     test_corpus.close()
