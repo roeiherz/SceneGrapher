@@ -1166,8 +1166,8 @@ def get_corpus_from_image_captioning():
     """
 
     # load entities
-    # region_interest = GetAllRegionDescriptions()
-    region_interest = cPickle.load(open("region_interst10.p"))
+    region_interest = GetAllRegionDescriptions()
+    # region_interest = cPickle.load(open("region_interst10.p"))
     # idx_to_ids = FilesManager().load_file("data.visual_genome.idx_to_ids")
     img_id_to_split = FilesManager().load_file("data.visual_genome.img_id_to_split")
 
