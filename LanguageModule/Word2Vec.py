@@ -102,12 +102,12 @@ def get_train_and_test_word2vec_models(train_sentences, test_sentences):
         return train_model, test_model
 
     # Train Model
-    train_model = Word2Vec(train_sentences, min_count=1, size=10)
+    train_model = Word2Vec(train_sentences, min_count=1, size=300)
     # Save Model
     train_model.save(FilesManager().get_file_path("language_module.word2vec.train_model"))
 
     # Test Model
-    test_model = Word2Vec(test_sentences, min_count=1, size=10)
+    test_model = Word2Vec(test_sentences, min_count=1, size=300)
     # Save Model
     test_model.save(FilesManager().get_file_path("language_module.word2vec.test_model"))
 
