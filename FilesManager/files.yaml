@@ -367,11 +367,11 @@ language_module:
       train_corpus:
         name: "LanguageModule/train_corpus.p"
         type: "pickle"
-        doc: "training corpus (sentences)"
+        doc: "training corpus (sentences) list"
       test_corpus:
         name: "LanguageModule/test_corpus.p"
         type: "pickle"
-        doc: "testing corpus (sentences)"
+        doc: "testing corpus (sentences) list"
       train_model:
         name: "LanguageModule/train_model"
         type: "gensim"
@@ -379,6 +379,10 @@ language_module:
       test_model:
         name: "LanguageModule/test_model"
         type: "gensim"
+        doc: "Testing Language Model Word2vec trained"
+      object_embeddings:
+        name: "LanguageModule/object_embeddings.p"
+        type: "pickle"
         doc: "Testing Language Model Word2vec trained"
     eval:
 
