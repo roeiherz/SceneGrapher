@@ -1,6 +1,6 @@
-from FeaturesExtraction.Utils.data import word2vec_mapping_func
 import sys
 sys.path.append("..")
+from FeaturesExtraction.Utils.data import word2vec_mapping_func
 from Data.VisualGenome.local import GetAllRegionDescriptions
 import os
 from gensim.models import Word2Vec
