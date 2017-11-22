@@ -6,7 +6,6 @@ from Data.VisualGenome.models import Object, Graph, Image, Relationship, ObjectM
     ImageMapping
 from FeaturesExtraction.Utils.Boxes import find_union_box
 from FeaturesExtraction.Utils.Visualizer import VisualizerDrawer, CvColor
-
 matplotlib.use('agg')
 from matplotlib import pyplot as plt
 import time
@@ -1166,8 +1165,8 @@ def get_corpus_from_image_captioning():
     """
 
     # load entities
-    region_interest = GetAllRegionDescriptions("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Data/VisualGenome/data")
-    # region_interest = cPickle.load(open("region_interst10.p"))
+    # region_interest = GetAllRegionDescriptions("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/Data/VisualGenome/data")
+    region_interest = cPickle.load(open("region_interst10.p"))
     # idx_to_ids = FilesManager().load_file("data.visual_genome.idx_to_ids")
     img_id_to_split = FilesManager().load_file("data.visual_genome.img_id_to_split")
 
@@ -1210,6 +1209,7 @@ if __name__ == '__main__':
     logger = Logger()
 
     get_corpus_from_image_captioning()
+
     exit()
 
     # debug_per_predicate(predicate="playing", path="/home/roeih/SceneGrapher/Outputs/Playing")

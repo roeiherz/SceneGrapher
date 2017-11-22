@@ -362,7 +362,26 @@ language_module:
           name: "LanguageModule/params.yaml"
           type: "yaml"
           doc: "train parameters"
+
+    word2vec:
+      train_corpus:
+        name: "LanguageModule/train_corpus.p"
+        type: "pickle"
+        doc: "training corpus (sentences)"
+      test_corpus:
+        name: "LanguageModule/test_corpus.p"
+        type: "pickle"
+        doc: "testing corpus (sentences)"
+      train_model:
+        name: "LanguageModule/train_model"
+        type: "gensim"
+        doc: "Training Language Model Word2vec trained"
+      test_model:
+        name: "LanguageModule/test_model"
+        type: "gensim"
+        doc: "Testing Language Model Word2vec trained"
     eval:
+
 
 scene_graph_base_module:
     visual_module:

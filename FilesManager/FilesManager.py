@@ -9,6 +9,7 @@ import yaml
 import copy
 import json
 import h5py
+from gensim.models import Word2Vec
 
 FILE_MANAGER_PATH = os.path.abspath(os.path.dirname(__file__))
 FILE_MANAGER_FILENAME = "files.yaml"
@@ -94,6 +95,10 @@ class FilesManager(object):
             with open(filename) as f:
                 lines = f.readlines()
                 return lines
+        elif filetype == "gensim":
+            self.log("FilesManager: Load gensim-Word2Vec file: %s=%s" % (tokens, filename))
+            model = Word2Vec.load(filename)
+            return model
 
     def save_file(self, tokens, data, version=None):
         """

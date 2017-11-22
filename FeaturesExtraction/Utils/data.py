@@ -1102,3 +1102,15 @@ def draw_graph(only_gt, pred_gt, pred, obj_gt, obj, predicate_ids, object_ids, f
                 u.edge(edge_key, str(obj_index))
     # u.save(filename, ".")
     u.render(filename=filename)
+
+
+def word2vec_mapping_func():
+    """
+    This function returns a dict with a mapping between relations
+    :return:
+    """
+    return {"belonging to": "belonging", "parked on": "parked", "growing on": "growing", "standing on": "standing",
+            "made of": "made", "attached to": "attached", "hanging from": "hanging", "in front of": "front",
+            "lying on": "lying", "flying in": "flying", "looking at": "looking", "on back of": "back",
+            "laying on": "laying", "walking on": "walking", "walking in": "walking", "sitting on": "sitting",
+            "covered in": "covered", "part of": "part", "painted on": "painted", "mounted on": "mounted"}
