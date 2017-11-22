@@ -116,7 +116,7 @@ def get_train_and_test_word2vec_models(train_sentences, test_sentences):
 if __name__ == '__main__':
 
     # Get data
-    train_sentences, test_sentences = get_corpus_from_image_captioning()
+    train_sentences, test_sentences = get_corpus_from_image_captioning(debug=False)
     # Get models
     train_model, test_model = get_train_and_test_word2vec_models(train_sentences=train_sentences,
                                                                  test_sentences=test_sentences)
