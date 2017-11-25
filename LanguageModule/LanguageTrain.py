@@ -118,9 +118,13 @@ def train(name="test",
           load_module_name="module.ckpt",
           use_saved_module=False,
           timesteps=1,
-          gpu=0):
+          gpu=0,
+          files_train_list=None,
+          files_test_list=None):
     """
 
+    :param files_test_list:
+    :param files_train_list:
     :param name:
     :param nof_iterations:
     :param learning_rate:
@@ -186,14 +190,14 @@ def train(name="test",
 
         # Get the entities
         entities_path = FilesManager().get_file_path("data.visual_genome.detections_v4")
-        # files_train_list = ["Sat_Nov_11_21:59:10_2017"]
-        # files_test_list = ["Sat_Nov_11_21:59:10_2017"]
-        # files_train_list = ["Sat_Nov_11_20:43:42_2017", "Sat_Nov_11_20:47:34_2017", "Sat_Nov_11_20:48:52_2017",
-        #                     "Sat_Nov_11_20:50:15_2017", "Sat_Nov_11_20:56:19_2017"]
-        # files_test_list = ["Sat_Nov_11_21:36:12_2017", "Sat_Nov_11_21:38:29_2017", "Sat_Nov_11_21:42:07_2017",
-        #                    "Sat_Nov_11_21:43:18_2017", "Sat_Nov_11_21:59:10_2017"]
-        files_train_list = ["Sat_Nov_11_20:43:42_2017", "Sat_Nov_11_20:47:34_2017"]
-        files_test_list = ["Sat_Nov_11_20:43:42_2017"]
+
+        if files_train_list is None or len(files_train_list) == 0:
+            Logger().log("Error: No training data")
+            return None
+
+        if files_test_list is None or len(files_test_list) == 0:
+            Logger().log("Error: No testing data")
+            return None
 
         # Load hierarchy_mappings
         hierarchy_mapping_objects = FilesManager().load_file("data.visual_genome.hierarchy_mapping_objects")
@@ -343,9 +347,11 @@ if __name__ == "__main__":
         use_saved_model = process_params["use_saved_model"]
         timesteps = process_params["timesteps"]
         gpu = process_params["gpu"]
+        files_train_list = process_params["files_train"]
+        files_test_list = process_params["files_test"]
 
         train(name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
-              use_saved_model, timesteps, gpu)
+              use_saved_model, timesteps, gpu, files_train_list, files_test_list)
 
         # p = Process(target=train, args=(
         #     name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
