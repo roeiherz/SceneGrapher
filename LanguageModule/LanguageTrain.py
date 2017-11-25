@@ -266,7 +266,7 @@ def train(name="test",
                                     train_total_acc += float(train_acc) / train_num_entities
                                     # Print stats
                                     logger.log("TRAIN MINI-BATCH: epoch: %d - batch : %d - loss: %f - predicates accuracy: %f" %
-                                               (epoch, train_num_entities / BATCH_SIZE, train_total_loss, train_total_acc))
+                                               (epoch, float(train_num_entities) / BATCH_SIZE, train_total_loss, train_total_acc))
 
                                 # Update the number of entities
                                 train_num_entities += 1
