@@ -354,6 +354,10 @@ language_module:
         name: "LanguageModule/tf_logs"
         type: "dir"
         doc: "holds tensor flow log"
+      tf_graphs:
+        name: "LanguageModule/tf_graphs"
+        type: "dir"
+        doc: "training logs"
       saver:
         name: "LanguageModule/saver"
         type: "dir"
