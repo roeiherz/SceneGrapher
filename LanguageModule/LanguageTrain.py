@@ -213,8 +213,10 @@ def train(name="test",
         best_test_loss = -1
         for epoch in range(1, nof_iterations):
             try:
-                train_total_loss = 0
-                train_acc = 0
+                train_loss_epoch = 0
+                train_loss_batch = 0
+                train_acc_epoch = 0
+                train_acc_batch = 0
                 train_num_entities = 1
                 steps = []
                 # read data
@@ -248,9 +250,11 @@ def train(name="test",
                                 # Append gradient to list (will be applied as a batch of entities)
                                 steps.append(gradients_val)
                                 # Calculates loss
-                                train_total_loss += loss_val
+                                train_loss_epoch += loss_val
+                                train_loss_batch += loss_val
                                 # Calculates accuracy
-                                train_acc += accuracy_val
+                                train_acc_epoch += accuracy_val
+                                train_acc_batch += accuracy_val
 
                                 # Update gradients in each epoch
                                 if len(steps) == BATCH_SIZE:
@@ -262,12 +266,14 @@ def train(name="test",
                                         sess.run([train_step], feed_dict=feed_grad_apply_dict)
                                     steps = []
 
-                                    # Update predicates accuracy
-                                    train_total_acc += float(train_acc) / train_num_entities
                                     # Print stats
-                                    logger.log("TRAIN MINI-BATCH: epoch: %d - batch : %d - loss: %f - predicates accuracy: %f" %
-                                               (epoch, float(train_num_entities) / BATCH_SIZE, train_total_loss, train_total_acc))
-
+                                    logger.log("TRAIN MINI-BATCH: epoch: %d - batch : %d - loss: %f - "
+                                               "predicates accuracy: %f" %
+                                               (epoch, float(train_num_entities) / BATCH_SIZE,
+                                                float(train_loss_batch) / BATCH_SIZE,
+                                                float(train_acc_batch) / BATCH_SIZE))
+                                    train_acc_batch = 0
+                                    train_loss_batch = 0
                                 # Update the number of entities
                                 train_num_entities += 1
 
@@ -276,10 +282,10 @@ def train(name="test",
                         continue
 
                 # Update predicates accuracy
-                train_total_acc += float(train_acc) / train_num_entities
+                train_total_acc += float(train_acc_epoch) / train_num_entities
                 # Print stats
                 logger.log("TRAIN: epoch: %d - loss: %f - predicates accuracy: %f - lr: %f" %
-                           (epoch, train_total_loss, train_total_acc, lr))
+                           (epoch, train_loss_epoch, train_total_acc, lr))
 
                 # Perform Testing
                 if epoch % TEST_ITERATIONS == 0:
@@ -297,7 +303,7 @@ def train(name="test",
                                 if ".log" in file_name:
                                     continue
 
-                                file_path = os.path.join(entities_path, file_name)
+                                file_path = os.path.join(entities_path, file_dir, file_name)
                                 file_handle = open(file_path, "rb")
                                 test_entities = cPickle.load(file_handle)
                                 file_handle.close()
@@ -326,7 +332,7 @@ def train(name="test",
                     Logger().log("TEST: iter: %d - loss: %f - predicates accuracy: %f " %
                                  (epoch, test_total_loss, float(test_total_acc) / test_num_entities))
                     # Write to CSV logger
-                    csv_writer.writerow({'epoch': epoch, 'acc': train_total_acc, 'loss': train_total_loss,
+                    csv_writer.writerow({'epoch': epoch, 'acc': train_total_acc, 'loss': train_loss_epoch,
                                          'val_acc': float(test_total_acc) / test_num_entities, 'val_loss': test_total_loss})
                     csv_file.flush()
 
