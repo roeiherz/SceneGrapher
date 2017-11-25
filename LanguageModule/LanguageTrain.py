@@ -177,6 +177,7 @@ def train(name="test",
     tf_graphs_path = FilesManager().get_file_path("language_module.train.tf_graphs")
     csv_writer, csv_file = get_csv_logger(tf_graphs_path)
 
+    Logger().log("Start Training")
     with tf.Session() as sess:
         # Restore variables from disk.
         module_path = FilesManager().get_file_path("language_module.train.saver")
@@ -189,6 +190,8 @@ def train(name="test",
 
         # Get the entities
         entities_path = FilesManager().get_file_path("data.visual_genome.detections_v4")
+        # files_train_list = ["Sat_Nov_11_21:59:10_2017"]
+        # files_test_list = ["Sat_Nov_11_21:59:10_2017"]
 
         if files_train_list is None or len(files_train_list) == 0:
             Logger().log("Error: No training data")
@@ -209,114 +212,143 @@ def train(name="test",
         train_total_acc = 0
         best_test_loss = -1
         for epoch in range(1, nof_iterations):
-            train_total_loss = 0
-            train_acc = 0
-            train_num_entities = 1
-            steps = []
-            # read data
-            for file_dir in files_train_list:
-                files = os.listdir(os.path.join(entities_path, file_dir))
-                for file_name in files:
-                    file_path = os.path.join(entities_path, file_dir, file_name)
-                    file_handle = open(file_path, "rb")
-                    train_entities = cPickle.load(file_handle)
-                    file_handle.close()
-                    for entity in train_entities:
+            try:
+                train_total_loss = 0
+                train_acc = 0
+                train_num_entities = 1
+                steps = []
+                # read data
+                for file_dir in files_train_list:
+                    try:
+                        files = os.listdir(os.path.join(entities_path, file_dir))
+                        for file_name in files:
 
-                        if len(entity.relationships) == 0:
+                            # Load only entities
+                            if ".log" in file_name:
+                                continue
+
+                            file_path = os.path.join(entities_path, file_dir, file_name)
+                            file_handle = open(file_path, "rb")
+                            train_entities = cPickle.load(file_handle)
+                            file_handle.close()
+                            for entity in train_entities:
+
+                                if len(entity.relationships) == 0:
+                                    continue
+
+                                # Pre-processing entities to get RNN inputs and outputs
+                                rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings)
+
+                                # Create the feed dictionary
+                                feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs, lr_ph: lr}
+
+                                # Run the network
+                                accuracy_val, loss_val, gradients_val = sess.run([accuracy, loss, gradients], feed_dict=feed_dict)
+
+                                # Append gradient to list (will be applied as a batch of entities)
+                                steps.append(gradients_val)
+                                # Calculates loss
+                                train_total_loss += loss_val
+                                # Calculates accuracy
+                                train_acc += accuracy_val
+
+                                # Update gradients in each epoch
+                                if len(steps) == BATCH_SIZE:
+                                    for step in steps:
+                                        # apply steps
+                                        feed_grad_apply_dict = {grad_placeholder[j][0]: step[j][0] for j in
+                                                                xrange(len(grad_placeholder))}
+                                        feed_grad_apply_dict[language_module.lr_ph] = lr
+                                        sess.run([train_step], feed_dict=feed_grad_apply_dict)
+                                    steps = []
+
+                                    # Update predicates accuracy
+                                    train_total_acc += float(train_acc) / train_num_entities
+                                    # Print stats
+                                    logger.log("TRAIN MINI-BATCH: epoch: %d - batch : %d - loss: %f - predicates accuracy: %f" %
+                                               (epoch, train_num_entities / BATCH_SIZE, train_total_loss, train_total_acc))
+
+                                # Update the number of entities
+                                train_num_entities += 1
+
+                    except Exception as e:
+                        logger.log("Error: problem in Train in epoch: {0} with: {1}".format(epoch, str(e)))
+                        continue
+
+                # Update predicates accuracy
+                train_total_acc += float(train_acc) / train_num_entities
+                # Print stats
+                logger.log("TRAIN: epoch: %d - loss: %f - predicates accuracy: %f - lr: %f" %
+                           (epoch, train_total_loss, train_total_acc, lr))
+
+                # Perform Testing
+                if epoch % TEST_ITERATIONS == 0:
+                    # read data
+                    test_total_acc = 0
+                    test_total_loss = 0
+                    test_num_entities = 1
+
+                    for file_dir in files_test_list:
+                        try:
+                            files = os.listdir(os.path.join(entities_path, file_dir))
+                            for file_name in files:
+
+                                # Load only entities
+                                if ".log" in file_name:
+                                    continue
+
+                                file_path = os.path.join(entities_path, file_name)
+                                file_handle = open(file_path, "rb")
+                                test_entities = cPickle.load(file_handle)
+                                file_handle.close()
+                                for entity in test_entities:
+                                    # Pre-processing entities to get RNN inputs and outputs
+                                    rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects,
+                                                                               objects_embeddings)
+
+                                    # Create the feed dictionary
+                                    feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs}
+
+                                    # Run the network
+                                    accuracy_val, loss_val = sess.run([accuracy, loss], feed_dict=feed_dict)
+
+                                    # Calculates loss
+                                    test_total_loss += loss_val
+                                    # Calculates accuracy
+                                    test_total_acc += accuracy_val
+                                    # Update the number of entities
+                                    test_num_entities += 1
+                        except Exception as e:
+                            logger.log("Error: problem in Test in epoch: {0} with: {1}".format(epoch, str(e)))
                             continue
 
-                        # Pre-processing entities to get RNN inputs and outputs
-                        rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings)
+                    # Print stats
+                    Logger().log("TEST: iter: %d - loss: %f - predicates accuracy: %f " %
+                                 (epoch, test_total_loss, float(test_total_acc) / test_num_entities))
+                    # Write to CSV logger
+                    csv_writer.writerow({'epoch': epoch, 'acc': train_total_acc, 'loss': train_total_loss,
+                                         'val_acc': float(test_total_acc) / test_num_entities, 'val_loss': test_total_loss})
+                    csv_file.flush()
 
-                        # Create the feed dictionary
-                        feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs, lr_ph: lr}
+                    # save best module so far
+                    if best_test_loss == -1 or test_total_loss < best_test_loss:
+                        module_path_save = os.path.join(module_path, name + "_best_module.ckpt")
+                        save_path = saver.save(sess, module_path_save)
+                        logger.log("Model saved in file: %s" % save_path)
+                        best_test_loss = test_total_loss
 
-                        # Run the network
-                        accuracy_val, loss_val, gradients_val = sess.run([accuracy, loss, gradients], feed_dict=feed_dict)
-
-                        # Append gradient to list (will be applied as a batch of entities)
-                        steps.append(gradients_val)
-                        # Calculates loss
-                        train_total_loss += loss_val
-                        # Calculates accuracy
-                        train_acc += accuracy_val
-
-                        # Update gradients in each epoch
-                        if len(steps) == BATCH_SIZE:
-                            for step in steps:
-                                # apply steps
-                                feed_grad_apply_dict = {grad_placeholder[j][0]: step[j][0] for j in
-                                                        xrange(len(grad_placeholder))}
-                                feed_grad_apply_dict[language_module.lr_ph] = lr
-                                sess.run([train_step], feed_dict=feed_grad_apply_dict)
-                            steps = []
-
-                        # Update the number of entities
-                        train_num_entities += 1
-
-            # Update predicates accuracy
-            train_total_acc += float(train_acc) / train_num_entities
-            # Print stats
-            logger.log("TRAIN: epoch: %d - loss: %f - predicates accuracy: %f - lr: %f" %
-                       (epoch, train_total_loss, train_total_acc, lr))
-
-            # Perform Testing
-            if epoch % TEST_ITERATIONS == 0:
-                # read data
-                test_total_acc = 0
-                test_total_loss = 0
-                test_num_entities = 1
-
-                for file_dir in files_test_list:
-                    files = os.listdir(os.path.join(entities_path, file_dir))
-                    for file_name in files:
-                        file_path = os.path.join(entities_path, file_name)
-                        file_handle = open(file_path, "rb")
-                        test_entities = cPickle.load(file_handle)
-                        file_handle.close()
-                        for entity in test_entities:
-                            # Pre-processing entities to get RNN inputs and outputs
-                            rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects,
-                                                                       objects_embeddings)
-
-                            # Create the feed dictionary
-                            feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs}
-
-                            # Run the network
-                            accuracy_val, loss_val = sess.run([accuracy, loss], feed_dict=feed_dict)
-
-                            # Calculates loss
-                            test_total_loss += loss_val
-                            # Calculates accuracy
-                            test_total_acc += accuracy_val
-                            # Update the number of entities
-                            test_num_entities += 1
-
-                # Print stats
-                Logger().log("TEST: iter: %d - loss: %f - predicates accuracy: %f " %
-                             (epoch, test_total_loss, float(test_total_acc) / test_num_entities))
-                # Write to CSV logger
-                csv_writer.writerow({'epoch': epoch, 'acc': train_total_acc, 'loss': train_total_loss,
-                                     'val_acc': float(test_total_acc) / test_num_entities, 'val_loss': test_total_loss})
-                csv_file.flush()
-
-                # save best module so far
-                if best_test_loss == -1 or test_total_loss < best_test_loss:
-                    module_path_save = os.path.join(module_path, name + "_best_module.ckpt")
+                # Save module
+                if epoch % SAVE_MODEL_ITERATIONS == 0:
+                    module_path_save = os.path.join(module_path, name + "_module.ckpt")
                     save_path = saver.save(sess, module_path_save)
                     logger.log("Model saved in file: %s" % save_path)
-                    best_test_loss = test_total_loss
 
-            # Save module
-            if epoch % SAVE_MODEL_ITERATIONS == 0:
-                module_path_save = os.path.join(module_path, name + "_module.ckpt")
-                save_path = saver.save(sess, module_path_save)
-                logger.log("Model saved in file: %s" % save_path)
-
-            # Update learning rate decay
-            if epoch % learning_rate_steps == 0:
-                lr *= learning_rate_decay
+                # Update learning rate decay
+                if epoch % learning_rate_steps == 0:
+                    lr *= learning_rate_decay
+            except Exception as e:
+                logger.log("Error: problem in epoch: {0} with: {1}".format(epoch, str(e)))
+                continue
 
         # Save module
         module_path_save = os.path.join(module_path, name + "_module.ckpt")
