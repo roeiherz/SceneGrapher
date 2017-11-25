@@ -163,7 +163,4 @@ class LanguageModule(object):
         return self.logits
 
 
-if __name__ == "__main__":
-    filemanager = FilesManager()
-    logger = Logger()
-    print("hi")
+
