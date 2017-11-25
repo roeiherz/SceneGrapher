@@ -287,7 +287,7 @@ def train(name="test",
                         continue
 
                 # endregion
-                # Finished training - one epoch
+                # Finished training - one Epoch
 
                 # Print Stats
                 logger.log("TRAIN EPOCH: epoch: %d - loss: %f - predicates accuracy: %f - lr: %f" %
