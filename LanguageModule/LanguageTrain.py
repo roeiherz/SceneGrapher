@@ -207,9 +207,8 @@ def train(name="test",
         # Load pre-trained objects embeddings
         objects_embeddings = FilesManager().load_file("language_module.word2vec.object_embeddings")
 
-        # Train module
+        # module
         lr = learning_rate
-        train_total_acc = 0
         best_test_loss = -1
         for epoch in range(1, nof_iterations):
             try:
@@ -217,9 +216,10 @@ def train(name="test",
                 train_loss_batch = 0
                 train_acc_epoch = 0
                 train_acc_batch = 0
+                train_num_predicates_total = 0
                 train_num_entities = 1
                 steps = []
-                # read data
+                # region Training
                 for file_dir in files_train_list:
                     try:
                         files = os.listdir(os.path.join(entities_path, file_dir))
@@ -255,6 +255,8 @@ def train(name="test",
                                 # Calculates accuracy
                                 train_acc_epoch += accuracy_val
                                 train_acc_batch += accuracy_val
+                                # Append number of predicates
+                                train_num_predicates_total += rnn_outputs.shape[0]
 
                                 # Update gradients in each epoch
                                 if len(steps) == BATCH_SIZE:
@@ -269,9 +271,9 @@ def train(name="test",
                                     # Print stats
                                     logger.log("TRAIN MINI-BATCH: epoch: %d - batch : %d - loss: %f - "
                                                "predicates accuracy: %f" %
-                                               (epoch, float(train_num_entities) / BATCH_SIZE,
+                                               (epoch, train_num_entities / BATCH_SIZE,
                                                 float(train_loss_batch) / BATCH_SIZE,
-                                                float(train_acc_batch) / BATCH_SIZE))
+                                                float(train_acc_batch) / train_num_predicates_total))
                                     train_acc_batch = 0
                                     train_loss_batch = 0
                                 # Update the number of entities
@@ -281,18 +283,21 @@ def train(name="test",
                         logger.log("Error: problem in Train in epoch: {0} with: {1}".format(epoch, str(e)))
                         continue
 
-                # Update predicates accuracy
-                train_total_acc += float(train_acc_epoch) / train_num_entities
-                # Print stats
-                logger.log("TRAIN: epoch: %d - loss: %f - predicates accuracy: %f - lr: %f" %
-                           (epoch, train_loss_epoch, train_total_acc, lr))
+                # endregion
+                # Finished training - one epoch
 
-                # Perform Testing
+                # Print Stats
+                logger.log("TRAIN EPOCH: epoch: %d - loss: %f - predicates accuracy: %f - lr: %f" %
+                           (epoch, float(train_loss_epoch) / train_num_entities,
+                            float(train_acc_epoch) / train_num_predicates_total, lr))
+
+                # region Testing
                 if epoch % TEST_ITERATIONS == 0:
                     # read data
                     test_total_acc = 0
                     test_total_loss = 0
                     test_num_entities = 1
+                    test_num_predicates_total = 0
 
                     for file_dir in files_test_list:
                         try:
@@ -322,18 +327,24 @@ def train(name="test",
                                     test_total_loss += loss_val
                                     # Calculates accuracy
                                     test_total_acc += accuracy_val
+                                    # Append number of predicates
+                                    test_num_predicates_total += rnn_outputs.shape[0]
                                     # Update the number of entities
                                     test_num_entities += 1
+
                         except Exception as e:
                             logger.log("Error: problem in Test in epoch: {0} with: {1}".format(epoch, str(e)))
                             continue
 
                     # Print stats
                     Logger().log("TEST: iter: %d - loss: %f - predicates accuracy: %f " %
-                                 (epoch, test_total_loss, float(test_total_acc) / test_num_entities))
+                                 (epoch, float(test_total_loss) / test_num_entities,
+                                  float(test_total_acc) / test_num_predicates_total))
                     # Write to CSV logger
-                    csv_writer.writerow({'epoch': epoch, 'acc': train_total_acc, 'loss': train_loss_epoch,
-                                         'val_acc': float(test_total_acc) / test_num_entities, 'val_loss': test_total_loss})
+                    csv_writer.writerow({'epoch': epoch, 'acc': float(train_acc_epoch) / train_num_predicates_total,
+                                         'loss': float(train_loss_epoch) / train_num_entities,
+                                         'val_acc': float(test_total_acc) / test_num_predicates_total,
+                                         'val_loss': float(test_total_loss) / test_num_entities})
                     csv_file.flush()
 
                     # save best module so far
@@ -342,6 +353,9 @@ def train(name="test",
                         save_path = saver.save(sess, module_path_save)
                         logger.log("Model saved in file: %s" % save_path)
                         best_test_loss = test_total_loss
+
+                # endregion
+                # Finished Testing
 
                 # Save module
                 if epoch % SAVE_MODEL_ITERATIONS == 0:
