@@ -38,6 +38,7 @@ def get_csv_logger(tf_graphs_path):
     """
     tf_graphs_path = os.path.join(tf_graphs_path, get_time_and_date())
     create_folder(tf_graphs_path)
+    Logger().log("Folder {0} has been created".format(tf_graphs_path))
     csv_file = open(os.path.join(tf_graphs_path, CSVLOGGER), "wb")
     csv_writer = csv.DictWriter(csv_file, delimiter=',', fieldnames=['epoch', 'acc', 'loss', 'val_acc', 'val_loss'])
     csv_writer.writeheader()
@@ -216,7 +217,8 @@ def train(name="test",
                 train_loss_batch = 0
                 train_acc_epoch = 0
                 train_acc_batch = 0
-                train_num_predicates_total = 0
+                train_num_predicates_epoch = 0
+                train_num_predicates_batch = 0
                 train_num_entities = 1
                 steps = []
                 # region Training
@@ -256,7 +258,8 @@ def train(name="test",
                                 train_acc_epoch += accuracy_val
                                 train_acc_batch += accuracy_val
                                 # Append number of predicates
-                                train_num_predicates_total += rnn_outputs.shape[0]
+                                train_num_predicates_epoch += rnn_outputs.shape[0]
+                                train_num_predicates_batch += rnn_outputs.shape[0]
 
                                 # Update gradients in each epoch
                                 if len(steps) == BATCH_SIZE:
@@ -273,7 +276,7 @@ def train(name="test",
                                                "predicates accuracy: %f" %
                                                (epoch, train_num_entities / BATCH_SIZE,
                                                 float(train_loss_batch) / BATCH_SIZE,
-                                                float(train_acc_batch) / train_num_predicates_total))
+                                                float(train_acc_batch) / train_num_predicates_batch))
                                     train_acc_batch = 0
                                     train_loss_batch = 0
                                 # Update the number of entities
@@ -289,7 +292,7 @@ def train(name="test",
                 # Print Stats
                 logger.log("TRAIN EPOCH: epoch: %d - loss: %f - predicates accuracy: %f - lr: %f" %
                            (epoch, float(train_loss_epoch) / train_num_entities,
-                            float(train_acc_epoch) / train_num_predicates_total, lr))
+                            float(train_acc_epoch) / train_num_predicates_epoch, lr))
 
                 # region Testing
                 if epoch % TEST_ITERATIONS == 0:
@@ -341,7 +344,7 @@ def train(name="test",
                                  (epoch, float(test_total_loss) / test_num_entities,
                                   float(test_total_acc) / test_num_predicates_total))
                     # Write to CSV logger
-                    csv_writer.writerow({'epoch': epoch, 'acc': float(train_acc_epoch) / train_num_predicates_total,
+                    csv_writer.writerow({'epoch': epoch, 'acc': float(train_acc_epoch) / train_num_predicates_epoch,
                                          'loss': float(train_loss_epoch) / train_num_entities,
                                          'val_acc': float(test_total_acc) / test_num_predicates_total,
                                          'val_loss': float(test_total_loss) / test_num_entities})
