@@ -1,10 +1,9 @@
 import sys
+sys.path.append("..")
 import csv
 from FeaturesExtraction.Utils.Utils import get_time_and_date
 from LanguageModule import LanguageModule
 from Utils.Utils import create_folder
-
-sys.path.append("..")
 import cPickle
 from multiprocessing import Process
 from FilesManager.FilesManager import FilesManager
