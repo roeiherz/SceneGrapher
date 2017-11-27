@@ -79,6 +79,7 @@ class LanguageModule(object):
                                             name="relationships_inputs")
             self.labels_ph = tf.placeholder(shape=[None, self.num_classes], dtype=tf.float32,
                                             name="relationships_outputs")
+            self.coeff_loss_ph = tf.placeholder(shape=(None), dtype=tf.float32, name="coeff_inputs")
 
     def create_weights(self, scope_name="weights"):
         """
@@ -104,8 +105,11 @@ class LanguageModule(object):
 
         with tf.variable_scope(scope_name):
             # Calc loss
-            loss_op = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.labels_ph,
-                                                                             name="categorical_ce_loss"))
+            loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.labels_ph, name="categorical_ce_loss")
+            # loss_op = tf.reduce_mean(loss)
+
+            # With Coeff
+            loss_op = tf.reduce_mean(tf.multiply(loss, self.coeff_loss_ph))
             # Optimization
             optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.lr_ph)
             gradients = optimizer.compute_gradients(loss_op)
@@ -141,6 +145,13 @@ class LanguageModule(object):
         """
         return self.labels_ph
 
+    def get_coeff_placeholders(self):
+        """
+        get module outputs place holders
+        :return: tf.placeholder
+        """
+        return self.coeff_loss_ph
+
     def get_lr_placeholder(self):
         """
         get module outputs place holders
@@ -161,6 +172,4 @@ class LanguageModule(object):
         :return: tf.placeholder
         """
         return self.logits
-
-
 

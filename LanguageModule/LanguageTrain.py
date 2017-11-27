@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append("..")
 import csv
 from FeaturesExtraction.Utils.Utils import get_time_and_date
@@ -28,6 +29,8 @@ SAVE_MODEL_ITERATIONS = 5
 TEST_ITERATIONS = 1
 # Graph csv logger
 CSVLOGGER = "training.log"
+# negative vs positive factor
+POS_NEG_FACTOR = 3.3
 
 
 def get_csv_logger(tf_graphs_path):
@@ -65,9 +68,10 @@ def pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings):
     return rnn_inputs, rnn_outputs
 
 
-def get_rnn_data(entity, objects_embeddings):
+def get_rnn_data(entity, objects_embeddings, ignore_negatives=False):
     """
     This function prepares the rnn inputs and outputs.
+    :param ignore_negatives: Do we need to ignore negatives
     :param entity: entity object
     :param objects_embeddings: objects embedding matrix: [num_objects, 300]
     :return: input: relationships embeddings - <object_i embeddings, object_i and object_j embeddings, object_j embeddings>
@@ -80,8 +84,8 @@ def get_rnn_data(entity, objects_embeddings):
         obj_i_embed = objects_embeddings[object_i_ind]
         for object_j_ind in range(len(entity.objects)):
 
-            # if np.argmax(entity.predicates_labels[object_i_ind][object_j_ind]) == 50:
-            #     continue
+            if ignore_negatives and np.argmax(entity.predicates_labels[object_i_ind][object_j_ind]) == 50:
+                continue
 
             # # Continue if it is the same object
             # if object_i_ind == object_j_ind:
@@ -90,15 +94,19 @@ def get_rnn_data(entity, objects_embeddings):
             # Add object_j embeddings
             obj_j_embed = objects_embeddings[object_j_ind]
 
+            # Take Predicates features from MASK CNN
+            objects_location = entity.predicates_outputs_with_no_activation[object_i_ind][object_j_ind]
+
             # Add relation with concatenation with obj_i and obj_j
-            obj_i_place = [entity.objects[object_i_ind].x, entity.objects[object_i_ind].y,
-                           entity.objects[object_i_ind].width, entity.objects[object_i_ind].height]
-            obj_j_place = [entity.objects[object_j_ind].x, entity.objects[object_j_ind].y,
-                           entity.objects[object_j_ind].width, entity.objects[object_j_ind].height]
-            objects_location = np.concatenate([obj_i_place, obj_j_place], axis=0)
+            # obj_i_place = [entity.objects[object_i_ind].x, entity.objects[object_i_ind].y,
+            #                entity.objects[object_i_ind].width, entity.objects[object_i_ind].height]
+            # obj_j_place = [entity.objects[object_j_ind].x, entity.objects[object_j_ind].y,
+            #                entity.objects[object_j_ind].width, entity.objects[object_j_ind].height]
+            # objects_location = np.concatenate([obj_i_place, obj_j_place], axis=0)
             objects_location_with_padd = np.pad(objects_location, (0, NUM_INPUT -
                                                                    len(objects_location) % NUM_INPUT),
                                                 'constant')
+
             # Adding RNN input [obj_i embedding, objects location with padding, obj_h embedding] -[3,300]
             rnn_input = np.vstack([obj_i_embed, objects_location_with_padd, obj_j_embed])
             relationships_embeddings_input.append(rnn_input)
@@ -157,6 +165,8 @@ def train(name="test",
     inputs_ph = language_module.get_inputs_placeholders()
     # get labels place holders
     labels_ph = language_module.get_labels_placeholders()
+    # get coeff place holders
+    coeff_loss_ph = language_module.get_coeff_placeholders()
     # get learning rate place holder
     lr_ph = language_module.get_lr_placeholder()
     # get loss and train step
@@ -208,6 +218,10 @@ def train(name="test",
         # Load pre-trained objects embeddings
         objects_embeddings = FilesManager().load_file("language_module.word2vec.object_embeddings")
 
+        # Create one hot vector for predicate_neg
+        predicate_neg = np.zeros(NOF_PREDICATES)
+        predicate_neg[NOF_PREDICATES - 1] = 1
+
         # module
         lr = learning_rate
         best_test_loss = -1
@@ -217,37 +231,49 @@ def train(name="test",
                 train_loss_batch = 0
                 train_acc_epoch = 0
                 train_acc_batch = 0
-                train_num_predicates_epoch = 0
-                train_num_predicates_batch = 0
-                train_num_entities = 1
+                # train_num_predicates_epoch = 0
+                # train_num_predicates_batch = 0
+                train_num_entities = 0
                 steps = []
                 # region Training
                 for file_dir in files_train_list:
-                    try:
-                        files = os.listdir(os.path.join(entities_path, file_dir))
-                        for file_name in files:
+                    files = os.listdir(os.path.join(entities_path, file_dir))
+                    for file_name in files:
 
-                            # Load only entities
-                            if ".log" in file_name:
-                                continue
+                        # Load only entities
+                        if ".log" in file_name:
+                            continue
 
-                            file_path = os.path.join(entities_path, file_dir, file_name)
-                            file_handle = open(file_path, "rb")
-                            train_entities = cPickle.load(file_handle)
-                            file_handle.close()
-                            for entity in train_entities:
+                        file_path = os.path.join(entities_path, file_dir, file_name)
+                        file_handle = open(file_path, "rb")
+                        train_entities = cPickle.load(file_handle)
+                        file_handle.close()
+                        for entity in train_entities:
+                            try:
 
                                 if len(entity.relationships) == 0:
                                     continue
 
+                                # if train_num_entities == 300:
+                                #     break
+
+                                # Set diagonal to be neg in entity
+                                indices = set_diag_to_negatives(entity, predicate_neg)
+                                # Get coeff matrix
+                                coeff_factor = get_coeff_factor(entity, indices)
+                                coeff_factor_reshape = coeff_factor.reshape(-1)
+
                                 # Pre-processing entities to get RNN inputs and outputs
-                                rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings)
+                                rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects,
+                                                                           objects_embeddings)
 
                                 # Create the feed dictionary
-                                feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs, lr_ph: lr}
+                                feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs, lr_ph: lr,
+                                             coeff_loss_ph: coeff_factor_reshape}
 
                                 # Run the network
-                                accuracy_val, loss_val, gradients_val = sess.run([accuracy, loss, gradients], feed_dict=feed_dict)
+                                accuracy_val, loss_val, gradients_val = sess.run([accuracy, loss, gradients],
+                                                                                 feed_dict=feed_dict)
 
                                 # Append gradient to list (will be applied as a batch of entities)
                                 steps.append(gradients_val)
@@ -258,8 +284,8 @@ def train(name="test",
                                 train_acc_epoch += accuracy_val
                                 train_acc_batch += accuracy_val
                                 # Append number of predicates
-                                train_num_predicates_epoch += rnn_outputs.shape[0]
-                                train_num_predicates_batch += rnn_outputs.shape[0]
+                                # train_num_predicates_epoch += rnn_outputs.shape[0]
+                                # train_num_predicates_batch += rnn_outputs.shape[0]
 
                                 # Update gradients in each epoch
                                 if len(steps) == BATCH_SIZE:
@@ -276,15 +302,15 @@ def train(name="test",
                                                "predicates accuracy: %f" %
                                                (epoch, train_num_entities / BATCH_SIZE,
                                                 float(train_loss_batch) / BATCH_SIZE,
-                                                float(train_acc_batch) / train_num_predicates_batch))
+                                                float(train_acc_batch) / BATCH_SIZE))
                                     train_acc_batch = 0
                                     train_loss_batch = 0
                                 # Update the number of entities
                                 train_num_entities += 1
 
-                    except Exception as e:
-                        logger.log("Error: problem in Train in epoch: {0} with: {1}".format(epoch, str(e)))
-                        continue
+                            except Exception as e:
+                                logger.log("Error: problem in Train in epoch: {0} with: {1}".format(epoch, str(e)))
+                                continue
 
                 # endregion
                 # Finished training - one Epoch
@@ -292,36 +318,47 @@ def train(name="test",
                 # Print Stats
                 logger.log("TRAIN EPOCH: epoch: %d - loss: %f - predicates accuracy: %f - lr: %f" %
                            (epoch, float(train_loss_epoch) / train_num_entities,
-                            float(train_acc_epoch) / train_num_predicates_epoch, lr))
+                            float(train_acc_epoch) / train_num_entities, lr))
 
                 # region Testing
                 if epoch % TEST_ITERATIONS == 0:
                     # read data
                     test_total_acc = 0
                     test_total_loss = 0
-                    test_num_entities = 1
-                    test_num_predicates_total = 0
+                    test_num_entities = 0
+                    # test_num_predicates_total = 0
 
                     for file_dir in files_test_list:
-                        try:
-                            files = os.listdir(os.path.join(entities_path, file_dir))
-                            for file_name in files:
+                        files = os.listdir(os.path.join(entities_path, file_dir))
+                        for file_name in files:
 
-                                # Load only entities
-                                if ".log" in file_name:
-                                    continue
+                            # Load only entities
+                            if ".log" in file_name:
+                                continue
 
-                                file_path = os.path.join(entities_path, file_dir, file_name)
-                                file_handle = open(file_path, "rb")
-                                test_entities = cPickle.load(file_handle)
-                                file_handle.close()
-                                for entity in test_entities:
+                            file_path = os.path.join(entities_path, file_dir, file_name)
+                            file_handle = open(file_path, "rb")
+                            test_entities = cPickle.load(file_handle)
+                            file_handle.close()
+                            for entity in test_entities:
+                                try:
+
+                                    if len(entity.relationships) == 0:
+                                        continue
+
+                                    # Set diagonal to be neg in entity
+                                    indices = set_diag_to_negatives(entity, predicate_neg)
+                                    # Get coeff matrix
+                                    coeff_factor = get_coeff_factor(entity, indices)
+                                    coeff_factor_reshape = coeff_factor.reshape(-1)
+
                                     # Pre-processing entities to get RNN inputs and outputs
                                     rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects,
                                                                                objects_embeddings)
 
                                     # Create the feed dictionary
-                                    feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs}
+                                    feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs,
+                                                 coeff_loss_ph: coeff_factor_reshape}
 
                                     # Run the network
                                     accuracy_val, loss_val = sess.run([accuracy, loss], feed_dict=feed_dict)
@@ -331,22 +368,26 @@ def train(name="test",
                                     # Calculates accuracy
                                     test_total_acc += accuracy_val
                                     # Append number of predicates
-                                    test_num_predicates_total += rnn_outputs.shape[0]
+                                    # test_num_predicates_total += rnn_outputs.shape[0]
                                     # Update the number of entities
                                     test_num_entities += 1
 
-                        except Exception as e:
-                            logger.log("Error: problem in Test in epoch: {0} with: {1}".format(epoch, str(e)))
-                            continue
+                                except Exception as e:
+                                    logger.log(
+                                        "Error: problem in Test. Epoch: {0}, image id: {1} Exception: {2}".format(epoch,
+                                                                                                                  entity.image.id,
+                                                                                                                  str(
+                                                                                                                      e)))
+                                    continue
 
                     # Print stats
-                    Logger().log("TEST: iter: %d - loss: %f - predicates accuracy: %f " %
+                    Logger().log("TEST EPOCH: epoch: %d - loss: %f - predicates accuracy: %f " %
                                  (epoch, float(test_total_loss) / test_num_entities,
-                                  float(test_total_acc) / test_num_predicates_total))
+                                  float(test_total_acc) / test_num_entities))
                     # Write to CSV logger
-                    csv_writer.writerow({'epoch': epoch, 'acc': float(train_acc_epoch) / train_num_predicates_epoch,
+                    csv_writer.writerow({'epoch': epoch, 'acc': float(train_acc_epoch) / train_num_entities,
                                          'loss': float(train_loss_epoch) / train_num_entities,
-                                         'val_acc': float(test_total_acc) / test_num_predicates_total,
+                                         'val_acc': float(test_total_acc) / test_num_entities,
                                          'val_loss': float(test_total_loss) / test_num_entities})
                     csv_file.flush()
 
@@ -354,7 +395,7 @@ def train(name="test",
                     if best_test_loss == -1 or test_total_loss < best_test_loss:
                         module_path_save = os.path.join(module_path, name + "_best_module.ckpt")
                         save_path = saver.save(sess, module_path_save)
-                        logger.log("Model saved in file: %s" % save_path)
+                        logger.log("Model Best saved in file: %s" % save_path)
                         best_test_loss = test_total_loss
 
                 # endregion
@@ -362,7 +403,7 @@ def train(name="test",
 
                 # Save module
                 if epoch % SAVE_MODEL_ITERATIONS == 0:
-                    module_path_save = os.path.join(module_path, name + "_module.ckpt")
+                    module_path_save = os.path.join(module_path, name + "_{}_module.ckpt".format(epoch))
                     save_path = saver.save(sess, module_path_save)
                     logger.log("Model saved in file: %s" % save_path)
 
@@ -380,6 +421,38 @@ def train(name="test",
 
         # Close csv logger
         csv_file.close()
+
+
+def get_coeff_factor(entity, indices):
+    """
+    This function returns coeff matrix for input to the BI-RNN
+    :param entity: Entity class
+    :param indices: a numpy array of indices
+    :return: coeff_matrix [num_objects, num_objects, 51] - positives coeff: 1, negatives get coeff: ratio, diag coeff: 0
+    """
+    # Filter non mixed cases
+    predicates_neg_labels = entity.predicates_labels[:, :, NOF_PREDICATES - 1:]
+    # Give lower weight to negatives
+    coeff_factor = np.ones(predicates_neg_labels.shape)
+    factor = float(np.sum(entity.predicates_labels[:, :, :NOF_PREDICATES - 2])) / \
+             np.sum(predicates_neg_labels) / POS_NEG_FACTOR
+    coeff_factor[predicates_neg_labels == 1] *= factor
+    coeff_factor[indices, indices] = 0
+    return coeff_factor
+
+
+def set_diag_to_negatives(entity, predicate_neg):
+    """
+    This function set diagonal to negative
+    :param entity: Entity class
+    :param predicate_neg: a numpy array of [0,0,....,1]
+    :return: 
+    """
+    indices = np.arange(entity.predicates_probes.shape[0])
+    entity.predicates_outputs_with_no_activation[indices, indices, :] = predicate_neg
+    entity.predicates_labels[indices, indices, :] = predicate_neg
+    entity.predicates_probes[indices, indices, :] = predicate_neg
+    return indices
 
 
 if __name__ == "__main__":
