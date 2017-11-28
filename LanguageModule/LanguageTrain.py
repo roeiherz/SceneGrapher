@@ -299,8 +299,8 @@ def train(name="test",
 
         # Get the entities
         entities_path = FilesManager().get_file_path("data.visual_genome.detections_v4")
-        files_train_list = ["Sat_Nov_11_21:59:10_2017"]
-        files_test_list = ["Sat_Nov_11_21:59:10_2017"]
+        # files_train_list = ["Sat_Nov_11_21:59:10_2017"]
+        # files_test_list = ["Sat_Nov_11_21:59:10_2017"]
 
         if files_train_list is None or len(files_train_list) == 0:
             Logger().log("Error: No training data")
