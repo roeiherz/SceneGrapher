@@ -164,15 +164,18 @@ def get_rnn_positive_data(entity, objects_embeddings,):
 
     # Number of negatives
     num_neg = int(num_pos * POS_NEG_RATIO)
+
     # Set of total objects indices
     total_indices = set(range(len(entity.objects)))
     # Get the negative rows (total - positives)
     neg_rows_remains = total_indices - set(rows)
     # Get the negative cols (total - positives)
     neg_cols_remains = total_indices - set(cols)
-    # Get negatives according to the ratio
-    neg_rows = np.random.choice(list(neg_rows_remains), num_neg, replace=False)
-    neg_cols = np.random.choice(list(neg_cols_remains), num_neg, replace=False)
+    # Set the number of negatives which are want
+    number = min(num_neg, len(neg_rows_remains))
+    # Choose random negatives
+    neg_rows = np.random.choice(list(neg_rows_remains), number, replace=False)
+    neg_cols = np.random.choice(list(neg_cols_remains), number, replace=False)
 
     for ind in range(len(neg_rows)):
         object_i_ind = neg_rows[ind]
