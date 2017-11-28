@@ -1,6 +1,6 @@
 import sys
-
 sys.path.append("..")
+import itertools
 import csv
 from FeaturesExtraction.Utils.Utils import get_time_and_date
 from LanguageModule import LanguageModule
@@ -171,15 +171,19 @@ def get_rnn_positive_data(entity, objects_embeddings,):
     neg_rows_remains = total_indices - set(rows)
     # Get the negative cols (total - positives)
     neg_cols_remains = total_indices - set(cols)
+    # Get the whole negative relations possible
+    all_neg_relations = list(itertools.product(neg_rows_remains, neg_cols_remains))
+    # Remove the same index
+    all_neg_relations = [tup for tup in all_neg_relations if tup[0] != tup[1]]
     # Set the number of negatives which are want
-    number = min(num_neg, len(neg_rows_remains))
+    number = min(num_neg, len(all_neg_relations))
+    # Shuffle
+    np.random.shuffle(all_neg_relations)
     # Choose random negatives
-    neg_rows = np.random.choice(list(neg_rows_remains), number, replace=False)
-    neg_cols = np.random.choice(list(neg_cols_remains), number, replace=False)
+    neg_tuples = all_neg_relations[:number]
 
-    for ind in range(len(neg_rows)):
-        object_i_ind = neg_rows[ind]
-        object_j_ind = neg_cols[ind]
+    for object_i_ind, object_j_ind in neg_tuples:
+
         # Add object_i embeddings
         obj_i_embed = objects_embeddings[object_i_ind]
         # Add object_j embeddings
@@ -295,8 +299,8 @@ def train(name="test",
 
         # Get the entities
         entities_path = FilesManager().get_file_path("data.visual_genome.detections_v4")
-        # files_train_list = ["Sat_Nov_11_21:59:10_2017"]
-        # files_test_list = ["Sat_Nov_11_21:59:10_2017"]
+        files_train_list = ["Sat_Nov_11_21:59:10_2017"]
+        files_test_list = ["Sat_Nov_11_21:59:10_2017"]
 
         if files_train_list is None or len(files_train_list) == 0:
             Logger().log("Error: No training data")
@@ -347,9 +351,6 @@ def train(name="test",
 
                                 if len(entity.relationships) == 0:
                                     continue
-
-                                # if train_num_entities == 300:
-                                #     break
 
                                 # # Set diagonal to be neg in entity
                                 # indices = set_diag_to_negatives(entity, predicate_neg)
@@ -403,7 +404,11 @@ def train(name="test",
                                 train_num_entities += 1
 
                             except Exception as e:
-                                logger.log("Error: problem in Train in epoch: {0} with: {1}".format(epoch, str(e)))
+                                logger.log(
+                                        "Error: problem in Train. Epoch: {0}, image id: {1} Exception: {2}".format(epoch,
+                                                                                                                  entity.image.id,
+                                                                                                                  str(
+                                                                                                                      e)))
                                 continue
 
                 # endregion
