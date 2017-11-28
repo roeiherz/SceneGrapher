@@ -106,10 +106,10 @@ class LanguageModule(object):
         with tf.variable_scope(scope_name):
             # Calc loss
             loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.labels_ph, name="categorical_ce_loss")
-            # loss_op = tf.reduce_mean(loss)
+            loss_op = tf.reduce_mean(loss)
 
             # With Coeff
-            loss_op = tf.reduce_mean(tf.multiply(loss, self.coeff_loss_ph))
+            # loss_op = tf.reduce_mean(tf.multiply(loss, self.coeff_loss_ph))
             # Optimization
             optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.lr_ph)
             gradients = optimizer.compute_gradients(loss_op)

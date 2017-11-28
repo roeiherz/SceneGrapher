@@ -31,6 +31,7 @@ TEST_ITERATIONS = 1
 CSVLOGGER = "training.log"
 # negative vs positive factor
 POS_NEG_FACTOR = 3.3
+POS_NEG_RATIO = 0.3
 
 
 def get_csv_logger(tf_graphs_path):
@@ -64,7 +65,8 @@ def pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings):
     # Get embedding per objects [num_objects, 150] * [150, 300] = [num_objects, 300]
     objects_embeddings = np.dot(objects_hot_vectors, objects_embeddings)
     # Get relationship embeddings
-    rnn_inputs, rnn_outputs = get_rnn_data(entity, objects_embeddings)
+    # rnn_inputs, rnn_outputs = get_rnn_data(entity, objects_embeddings)
+    rnn_inputs, rnn_outputs = get_rnn_positive_data(entity, objects_embeddings)
     return rnn_inputs, rnn_outputs
 
 
@@ -116,6 +118,95 @@ def get_rnn_data(entity, objects_embeddings, ignore_negatives=False):
     relationships_embeddings_input = np.stack(relationships_embeddings_input)
     relationships_embeddings_output = np.stack(relationships_embeddings_output)
     return relationships_embeddings_input, relationships_embeddings_output
+
+
+def get_rnn_positive_data(entity, objects_embeddings,):
+    """
+    This function prepares the rnn inputs and outputs.
+    :param entity: entity object
+    :param objects_embeddings: objects embedding matrix: [num_objects, 300]
+    :return: input: relationships embeddings - <object_i embeddings, object_i and object_j embeddings, object_j embeddings>
+            output: relationships labels
+    """
+    relationships_embeddings_input = []
+    relationships_embeddings_output = []
+    rows, cols = np.where(entity.predicates_labels[:, :, 50] != 1)
+
+    # Number of positives
+    num_pos = len(rows)
+    # Add positives
+    for ind in range(len(rows)):
+        object_i_ind = rows[ind]
+        object_j_ind = cols[ind]
+        # Add object_i embeddings
+        obj_i_embed = objects_embeddings[object_i_ind]
+        # Add object_j embeddings
+        obj_j_embed = objects_embeddings[object_j_ind]
+
+        # Take Predicates features from MASK CNN
+        objects_location = entity.predicates_outputs_with_no_activation[object_i_ind][object_j_ind]
+
+        # Add relation with concatenation with obj_i and obj_j
+        # obj_i_place = [entity.objects[object_i_ind].x, entity.objects[object_i_ind].y,
+        #                entity.objects[object_i_ind].width, entity.objects[object_i_ind].height]
+        # obj_j_place = [entity.objects[object_j_ind].x, entity.objects[object_j_ind].y,
+        #                entity.objects[object_j_ind].width, entity.objects[object_j_ind].height]
+        # objects_location = np.concatenate([obj_i_place, obj_j_place], axis=0)
+        objects_location_with_padd = np.pad(objects_location, (0, NUM_INPUT -
+                                                               len(objects_location) % NUM_INPUT),
+                                            'constant')
+
+        # Adding RNN input [obj_i embedding, objects location with padding, obj_h embedding] -[3,300]
+        rnn_input = np.vstack([obj_i_embed, objects_location_with_padd, obj_j_embed])
+        relationships_embeddings_input.append(rnn_input)
+        predicate_label_one_hot_vector = entity.predicates_labels[object_i_ind][object_j_ind]
+        relationships_embeddings_output.append(predicate_label_one_hot_vector)
+
+    # Number of negatives
+    num_neg = int(num_pos * POS_NEG_RATIO)
+    # Set of total objects indices
+    total_indices = set(range(len(entity.objects)))
+    # Get the negative rows (total - positives)
+    neg_rows_remains = total_indices - set(rows)
+    # Get the negative cols (total - positives)
+    neg_cols_remains = total_indices - set(cols)
+    # Get negatives according to the ratio
+    neg_rows = np.random.choice(list(neg_rows_remains), num_neg, replace=False)
+    neg_cols = np.random.choice(list(neg_cols_remains), num_neg, replace=False)
+
+    for ind in range(len(neg_rows)):
+        object_i_ind = neg_rows[ind]
+        object_j_ind = neg_cols[ind]
+        # Add object_i embeddings
+        obj_i_embed = objects_embeddings[object_i_ind]
+        # Add object_j embeddings
+        obj_j_embed = objects_embeddings[object_j_ind]
+
+        # Take Predicates features from MASK CNN
+        objects_location = entity.predicates_outputs_with_no_activation[object_i_ind][object_j_ind]
+
+        # Add relation with concatenation with obj_i and obj_j
+        # obj_i_place = [entity.objects[object_i_ind].x, entity.objects[object_i_ind].y,
+        #                entity.objects[object_i_ind].width, entity.objects[object_i_ind].height]
+        # obj_j_place = [entity.objects[object_j_ind].x, entity.objects[object_j_ind].y,
+        #                entity.objects[object_j_ind].width, entity.objects[object_j_ind].height]
+        # objects_location = np.concatenate([obj_i_place, obj_j_place], axis=0)
+        objects_location_with_padd = np.pad(objects_location, (0, NUM_INPUT -
+                                                               len(objects_location) % NUM_INPUT),
+                                            'constant')
+
+        # Adding RNN input [obj_i embedding, objects location with padding, obj_h embedding] -[3,300]
+        rnn_input = np.vstack([obj_i_embed, objects_location_with_padd, obj_j_embed])
+        relationships_embeddings_input.append(rnn_input)
+        predicate_label_one_hot_vector = entity.predicates_labels[object_i_ind][object_j_ind]
+        relationships_embeddings_output.append(predicate_label_one_hot_vector)
+
+    relationships_embeddings_input = np.stack(relationships_embeddings_input)
+    relationships_embeddings_output = np.stack(relationships_embeddings_output)
+    # Shuffle indices
+    all_indice = range(len(relationships_embeddings_input))
+    np.random.shuffle(all_indice)
+    return relationships_embeddings_input[all_indice], relationships_embeddings_output[all_indice]
 
 
 def train(name="test",
@@ -257,19 +348,19 @@ def train(name="test",
                                 # if train_num_entities == 300:
                                 #     break
 
-                                # Set diagonal to be neg in entity
-                                indices = set_diag_to_negatives(entity, predicate_neg)
-                                # Get coeff matrix
-                                coeff_factor = get_coeff_factor(entity, indices)
-                                coeff_factor_reshape = coeff_factor.reshape(-1)
+                                # # Set diagonal to be neg in entity
+                                # indices = set_diag_to_negatives(entity, predicate_neg)
+                                # # Get coeff matrix
+                                # coeff_factor = get_coeff_factor(entity, indices)
+                                # coeff_factor_reshape = coeff_factor.reshape(-1)
 
                                 # Pre-processing entities to get RNN inputs and outputs
                                 rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects,
                                                                            objects_embeddings)
 
                                 # Create the feed dictionary
-                                feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs, lr_ph: lr,
-                                             coeff_loss_ph: coeff_factor_reshape}
+                                feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs, lr_ph: lr}
+                                             # coeff_loss_ph: coeff_factor_reshape}
 
                                 # Run the network
                                 accuracy_val, loss_val, gradients_val = sess.run([accuracy, loss, gradients],
@@ -346,19 +437,19 @@ def train(name="test",
                                     if len(entity.relationships) == 0:
                                         continue
 
-                                    # Set diagonal to be neg in entity
-                                    indices = set_diag_to_negatives(entity, predicate_neg)
-                                    # Get coeff matrix
-                                    coeff_factor = get_coeff_factor(entity, indices)
-                                    coeff_factor_reshape = coeff_factor.reshape(-1)
+                                    # # Set diagonal to be neg in entity
+                                    # indices = set_diag_to_negatives(entity, predicate_neg)
+                                    # # Get coeff matrix
+                                    # coeff_factor = get_coeff_factor(entity, indices)
+                                    # coeff_factor_reshape = coeff_factor.reshape(-1)
 
                                     # Pre-processing entities to get RNN inputs and outputs
                                     rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects,
                                                                                objects_embeddings)
 
                                     # Create the feed dictionary
-                                    feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs,
-                                                 coeff_loss_ph: coeff_factor_reshape}
+                                    feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs}
+                                                 # coeff_loss_ph: coeff_factor_reshape}
 
                                     # Run the network
                                     accuracy_val, loss_val = sess.run([accuracy, loss], feed_dict=feed_dict)
