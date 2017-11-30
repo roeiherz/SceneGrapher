@@ -300,6 +300,7 @@ def train(name="test",
             saver.restore(sess, module_path_load)
             Logger().log("Model restored.")
         else:
+            create_folder(os.path.join(module_path, timestamp))
             sess.run(init)
 
         # Get the entities
@@ -499,7 +500,7 @@ def train(name="test",
 
                     # save best module so far
                     if best_test_loss == -1 or test_total_loss < best_test_loss:
-                        module_path_save = os.path.join(module_path, name + "_best_module.ckpt")
+                        module_path_save = os.path.join(module_path, timestamp, name + "_best_module.ckpt")
                         save_path = saver.save(sess, module_path_save)
                         logger.log("Model Best saved in file: %s" % save_path)
                         best_test_loss = test_total_loss
@@ -509,7 +510,7 @@ def train(name="test",
 
                 # Save module
                 if epoch % SAVE_MODEL_ITERATIONS == 0:
-                    module_path_save = os.path.join(module_path, name + "_{}_module.ckpt".format(epoch))
+                    module_path_save = os.path.join(module_path, timestamp, name + "_{}_module.ckpt".format(epoch))
                     save_path = saver.save(sess, module_path_save)
                     logger.log("Model saved in file: %s" % save_path)
 
@@ -521,7 +522,7 @@ def train(name="test",
                 continue
 
         # Save module
-        module_path_save = os.path.join(module_path, name + "_module.ckpt")
+        module_path_save = os.path.join(module_path, timestamp, name + "end_module.ckpt")
         save_path = saver.save(sess, module_path_save)
         logger.log("Model saved in file: %s" % save_path)
 
