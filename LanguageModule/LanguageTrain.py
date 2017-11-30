@@ -31,7 +31,7 @@ TEST_ITERATIONS = 1
 CSVLOGGER = "training.log"
 # negative vs positive factor
 POS_NEG_FACTOR = 3.3
-POS_NEG_RATIO = 0.0
+POS_NEG_RATIO = 0.3
 
 
 def get_csv_logger(tf_graphs_path, timestamp):
@@ -50,9 +50,10 @@ def get_csv_logger(tf_graphs_path, timestamp):
     return csv_writer, csv_file
 
 
-def pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings):
+def pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings, pos_neg_ratio=POS_NEG_RATIO):
     """
     This function pre-processing the entities with the objects_embeddings to return RNN inputs and outputs
+    :param pos_neg_ratio:
     :param entity: entity VG type
     :param hierarchy_mapping_objects: hierarchy_mapping of objects
     :param objects_embeddings: objects embedding - [150, 300]
@@ -67,7 +68,7 @@ def pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings):
     objects_embeddings = np.dot(objects_hot_vectors, objects_embeddings)
     # Get relationship embeddings
     # rnn_inputs, rnn_outputs = get_rnn_data(entity, objects_embeddings, ignore_negatives=True)
-    rnn_inputs, rnn_outputs = get_rnn_positive_data(entity, objects_embeddings)
+    rnn_inputs, rnn_outputs = get_rnn_positive_data(entity, objects_embeddings, pos_neg_ratio)
     return rnn_inputs, rnn_outputs
 
 
@@ -121,9 +122,10 @@ def get_rnn_data(entity, objects_embeddings, ignore_negatives=False):
     return relationships_embeddings_input, relationships_embeddings_output
 
 
-def get_rnn_positive_data(entity, objects_embeddings,):
+def get_rnn_positive_data(entity, objects_embeddings, pos_neg_ratio=POS_NEG_RATIO):
     """
     This function prepares the rnn inputs and outputs.
+    :param pos_neg_ratio:
     :param entity: entity object
     :param objects_embeddings: objects embedding matrix: [num_objects, 300]
     :return: input: relationships embeddings - <object_i embeddings, object_i and object_j embeddings, object_j embeddings>
@@ -164,7 +166,7 @@ def get_rnn_positive_data(entity, objects_embeddings,):
         relationships_embeddings_output.append(predicate_label_one_hot_vector)
 
     # Number of negatives
-    num_neg = int(num_pos * POS_NEG_RATIO)
+    num_neg = int(num_pos * pos_neg_ratio)
 
     # Set of total objects indices
     total_indices = set(range(len(entity.objects)))
@@ -337,90 +339,91 @@ def train(name="test",
                 train_num_entities = 0
                 steps = []
                 # region Training
-                # for file_dir in files_train_list:
-                #     files = os.listdir(os.path.join(entities_path, file_dir))
-                #     for file_name in files:
-                #
-                #         # Load only entities
-                #         if ".log" in file_name:
-                #             continue
-                #
-                #         file_path = os.path.join(entities_path, file_dir, file_name)
-                #         file_handle = open(file_path, "rb")
-                #         train_entities = cPickle.load(file_handle)
-                #         file_handle.close()
-                #         for entity in train_entities:
-                #             try:
-                #
-                #                 if len(entity.relationships) == 0:
-                #                     continue
-                #
-                #                 # # Set diagonal to be neg in entity
-                #                 # indices = set_diag_to_negatives(entity, predicate_neg)
-                #                 # # Get coeff matrix
-                #                 # coeff_factor = get_coeff_factor(entity, indices)
-                #                 # coeff_factor_reshape = coeff_factor.reshape(-1)
-                #
-                #                 # Pre-processing entities to get RNN inputs and outputs
-                #                 rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects,
-                #                                                            objects_embeddings)
-                #
-                #                 # Create the feed dictionary
-                #                 feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs, lr_ph: lr}
-                #                              # coeff_loss_ph: coeff_factor_reshape}
-                #
-                #                 # Run the network
-                #                 accuracy_val, loss_val, gradients_val = sess.run([accuracy, loss, gradients],
-                #                                                                  feed_dict=feed_dict)
-                #
-                #                 # Append gradient to list (will be applied as a batch of entities)
-                #                 steps.append(gradients_val)
-                #                 # Calculates loss
-                #                 train_loss_epoch += loss_val
-                #                 train_loss_batch += loss_val
-                #                 # Calculates accuracy
-                #                 train_acc_epoch += accuracy_val
-                #                 train_acc_batch += accuracy_val
-                #                 # Append number of predicates
-                #                 # train_num_predicates_epoch += rnn_outputs.shape[0]
-                #                 # train_num_predicates_batch += rnn_outputs.shape[0]
-                #
-                #                 # Update gradients in each epoch
-                #                 if len(steps) == BATCH_SIZE:
-                #                     for step in steps:
-                #                         # apply steps
-                #                         feed_grad_apply_dict = {grad_placeholder[j][0]: step[j][0] for j in
-                #                                                 xrange(len(grad_placeholder))}
-                #                         feed_grad_apply_dict[language_module.lr_ph] = lr
-                #                         sess.run([train_step], feed_dict=feed_grad_apply_dict)
-                #                     steps = []
-                #
-                #                     # Print stats
-                #                     logger.log("TRAIN MINI-BATCH: epoch: %d - batch : %d - loss: %f - "
-                #                                "predicates accuracy: %f" %
-                #                                (epoch, train_num_entities / BATCH_SIZE,
-                #                                 float(train_loss_batch) / BATCH_SIZE,
-                #                                 float(train_acc_batch) / BATCH_SIZE))
-                #                     train_acc_batch = 0
-                #                     train_loss_batch = 0
-                #                 # Update the number of entities
-                #                 train_num_entities += 1
-                #
-                #             except Exception as e:
-                #                 logger.log(
-                #                         "Error: problem in Train. Epoch: {0}, image id: {1} Exception: {2}".format(epoch,
-                #                                                                                                   entity.image.id,
-                #                                                                                                   str(
-                #                                                                                                       e)))
-                #                 continue
-                #
-                # # endregion
-                # # Finished training - one Epoch
-                #
-                # # Print Stats
-                # logger.log("TRAIN EPOCH: epoch: %d - loss: %f - predicates accuracy: %f - lr: %f" %
-                #            (epoch, float(train_loss_epoch) / train_num_entities,
-                #             float(train_acc_epoch) / train_num_entities, lr))
+                for file_dir in files_train_list:
+                    files = os.listdir(os.path.join(entities_path, file_dir))
+                    for file_name in files:
+
+                        # Load only entities
+                        if ".log" in file_name:
+                            continue
+
+                        file_path = os.path.join(entities_path, file_dir, file_name)
+                        file_handle = open(file_path, "rb")
+                        train_entities = cPickle.load(file_handle)
+                        file_handle.close()
+                        for entity in train_entities:
+                            try:
+
+                                if len(entity.relationships) == 0:
+                                    continue
+
+                                # # Set diagonal to be neg in entity
+                                # indices = set_diag_to_negatives(entity, predicate_neg)
+                                # # Get coeff matrix
+                                # coeff_factor = get_coeff_factor(entity, indices)
+                                # coeff_factor_reshape = coeff_factor.reshape(-1)
+
+                                # Pre-processing entities to get RNN inputs and outputs
+                                rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects,
+                                                                           objects_embeddings,
+                                                                           pos_neg_ratio=POS_NEG_RATIO)
+
+                                # Create the feed dictionary
+                                feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs, lr_ph: lr}
+                                             # coeff_loss_ph: coeff_factor_reshape}
+
+                                # Run the network
+                                accuracy_val, loss_val, gradients_val = sess.run([accuracy, loss, gradients],
+                                                                                 feed_dict=feed_dict)
+
+                                # Append gradient to list (will be applied as a batch of entities)
+                                steps.append(gradients_val)
+                                # Calculates loss
+                                train_loss_epoch += loss_val
+                                train_loss_batch += loss_val
+                                # Calculates accuracy
+                                train_acc_epoch += accuracy_val
+                                train_acc_batch += accuracy_val
+                                # Append number of predicates
+                                # train_num_predicates_epoch += rnn_outputs.shape[0]
+                                # train_num_predicates_batch += rnn_outputs.shape[0]
+
+                                # Update gradients in each epoch
+                                if len(steps) == BATCH_SIZE:
+                                    for step in steps:
+                                        # apply steps
+                                        feed_grad_apply_dict = {grad_placeholder[j][0]: step[j][0] for j in
+                                                                xrange(len(grad_placeholder))}
+                                        feed_grad_apply_dict[language_module.lr_ph] = lr
+                                        sess.run([train_step], feed_dict=feed_grad_apply_dict)
+                                    steps = []
+
+                                    # Print stats
+                                    logger.log("TRAIN MINI-BATCH: epoch: %d - batch : %d - loss: %f - "
+                                               "predicates accuracy: %f" %
+                                               (epoch, train_num_entities / BATCH_SIZE,
+                                                float(train_loss_batch) / BATCH_SIZE,
+                                                float(train_acc_batch) / BATCH_SIZE))
+                                    train_acc_batch = 0
+                                    train_loss_batch = 0
+                                # Update the number of entities
+                                train_num_entities += 1
+
+                            except Exception as e:
+                                logger.log(
+                                        "Error: problem in Train. Epoch: {0}, image id: {1} Exception: {2}".format(epoch,
+                                                                                                                  entity.image.id,
+                                                                                                                  str(
+                                                                                                                      e)))
+                                continue
+
+                # endregion
+                # Finished training - one Epoch
+
+                # Print Stats
+                logger.log("TRAIN EPOCH: epoch: %d - loss: %f - predicates accuracy: %f - lr: %f" %
+                           (epoch, float(train_loss_epoch) / train_num_entities,
+                            float(train_acc_epoch) / train_num_entities, lr))
 
                 # region Testing
                 if epoch % TEST_ITERATIONS == 0:
@@ -456,7 +459,8 @@ def train(name="test",
 
                                     # Pre-processing entities to get RNN inputs and outputs
                                     rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects,
-                                                                               objects_embeddings)
+                                                                               objects_embeddings,
+                                                                               pos_neg_ratio=0.0)
 
                                     # Create the feed dictionary
                                     feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs}
