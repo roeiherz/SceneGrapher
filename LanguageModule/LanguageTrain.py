@@ -31,7 +31,7 @@ TEST_ITERATIONS = 1
 CSVLOGGER = "training.log"
 # negative vs positive factor
 POS_NEG_FACTOR = 3.3
-POS_NEG_RATIO = 0.3
+POS_NEG_RATIO = 0.0
 
 
 def get_csv_logger(tf_graphs_path, timestamp):
@@ -66,7 +66,7 @@ def pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings):
     # Get embedding per objects [num_objects, 150] * [150, 300] = [num_objects, 300]
     objects_embeddings = np.dot(objects_hot_vectors, objects_embeddings)
     # Get relationship embeddings
-    # rnn_inputs, rnn_outputs = get_rnn_data(entity, objects_embeddings)
+    # rnn_inputs, rnn_outputs = get_rnn_data(entity, objects_embeddings, ignore_negatives=True)
     rnn_inputs, rnn_outputs = get_rnn_positive_data(entity, objects_embeddings)
     return rnn_inputs, rnn_outputs
 
