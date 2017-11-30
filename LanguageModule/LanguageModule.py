@@ -55,11 +55,11 @@ class LanguageModule(object):
         # Define BI-RNN
         self._outputs, _, _ = rnn.static_bidirectional_rnn(lstm_fw_cell, lstm_bw_cell, self._x, dtype=tf.float32)
         # Linear activation, using rnn inner loop last output
-        # self.logits = tf.matmul(self._outputs[-1], self.weights) + self.bias
-        self.logit_0 = tf.matmul(self._outputs[0], self.w_0)
-        self.logit_1 = tf.matmul(self._outputs[1], self.w_1)
-        self.logit_2 = tf.matmul(self._outputs[2], self.w_2)
-        self.logits = self.logit_0 + self.logit_1 + self.logit_2 + self.bias
+        self.logits = tf.matmul(self._outputs[-1], self.weights) + self.bias
+        # self.logit_0 = tf.matmul(self._outputs[0], self.w_0)
+        # self.logit_1 = tf.matmul(self._outputs[1], self.w_1)
+        # self.logit_2 = tf.matmul(self._outputs[2], self.w_2)
+        # self.logits = self.logit_0 + self.logit_1 + self.logit_2 + self.bias
 
         # loss
         if self.is_train:
@@ -87,10 +87,10 @@ class LanguageModule(object):
         """
         with tf.variable_scope(scope_name):
             #  2*n_hidden because of forward + backward cells
-            # self.weights = tf.Variable(tf.random_normal([2 * self.num_hidden, self.num_classes]))
-            self.w_0 = tf.Variable(tf.random_normal([2 * self.num_hidden, self.num_classes]))
-            self.w_1 = tf.Variable(tf.random_normal([2 * self.num_hidden, self.num_classes]))
-            self.w_2 = tf.Variable(tf.random_normal([2 * self.num_hidden, self.num_classes]))
+            self.weights = tf.Variable(tf.random_normal([2 * self.num_hidden, self.num_classes]))
+            # self.w_0 = tf.Variable(tf.random_normal([2 * self.num_hidden, self.num_classes]))
+            # self.w_1 = tf.Variable(tf.random_normal([2 * self.num_hidden, self.num_classes]))
+            # self.w_2 = tf.Variable(tf.random_normal([2 * self.num_hidden, self.num_classes]))
             self.bias = tf.Variable(tf.random_normal([self.num_classes]))
             # self.b_0 = tf.Variable(tf.random_normal([self.num_classes]))
             # self.b_1 = tf.Variable(tf.random_normal([self.num_classes]))
