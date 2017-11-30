@@ -34,15 +34,16 @@ POS_NEG_FACTOR = 3.3
 POS_NEG_RATIO = 3
 
 
-def get_csv_logger(tf_graphs_path):
+def get_csv_logger(tf_graphs_path, timestamp):
     """
     This function writes csv logger
+    :param timestamp: time stamp directory
     :param tf_graphs_path: path directory for tf_graphs
     :return:
     """
-    tf_graphs_path = os.path.join(tf_graphs_path, get_time_and_date())
+    tf_graphs_path = os.path.join(tf_graphs_path, timestamp)
     create_folder(tf_graphs_path)
-    Logger().log("Folder {0} has been created".format(tf_graphs_path))
+    Logger().log("Folder {0} has been created for CSV logger".format(tf_graphs_path))
     csv_file = open(os.path.join(tf_graphs_path, CSVLOGGER), "wb")
     csv_writer = csv.DictWriter(csv_file, delimiter=',', fieldnames=['epoch', 'acc', 'loss', 'val_acc', 'val_loss'])
     csv_writer.writeheader()
@@ -278,13 +279,15 @@ def train(name="test",
     init = tf.global_variables_initializer()
     # Add ops to save and restore all the variables.
     saver = tf.train.Saver()
+    # Get timestamp
+    timestamp = get_time_and_date()
 
     # Define Summaries
     tf_logs_path = FilesManager().get_file_path("language_module.train.tf_logs")
     summary_writer = tf.summary.FileWriter(tf_logs_path, graph=tf.get_default_graph())
     summaries = tf.summary.merge_all()
     tf_graphs_path = FilesManager().get_file_path("language_module.train.tf_graphs")
-    csv_writer, csv_file = get_csv_logger(tf_graphs_path)
+    csv_writer, csv_file = get_csv_logger(tf_graphs_path, timestamp)
 
     Logger().log("Start Training")
     with tf.Session() as sess:
