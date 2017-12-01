@@ -24,14 +24,14 @@ NOF_OBJECTS = 150
 # apply gradients every batch size
 BATCH_SIZE = 100
 # save model every number of iterations
-SAVE_MODEL_ITERATIONS = 5
+SAVE_MODEL_ITERATIONS = 10
 # test every number of iterations
 TEST_ITERATIONS = 1
 # Graph csv logger
 CSVLOGGER = "training.log"
 # negative vs positive factor
 POS_NEG_FACTOR = 3.3
-POS_NEG_RATIO = 0.3
+POS_NEG_RATIO = 1
 
 
 def get_csv_logger(tf_graphs_path, timestamp):
@@ -88,7 +88,7 @@ def get_rnn_data(entity, objects_embeddings, ignore_negatives=False):
         obj_i_embed = objects_embeddings[object_i_ind]
         for object_j_ind in range(len(entity.objects)):
 
-            if ignore_negatives and np.argmax(entity.predicates_labels[object_i_ind][object_j_ind]) == 50:
+            if ignore_negatives and np.argmax(entity.predicates_labels[object_i_ind][object_j_ind]) == NOF_PREDICATES - 1:
                 continue
 
             # # Continue if it is the same object
@@ -133,7 +133,7 @@ def get_rnn_positive_data(entity, objects_embeddings, pos_neg_ratio=POS_NEG_RATI
     """
     relationships_embeddings_input = []
     relationships_embeddings_output = []
-    rows, cols = np.where(entity.predicates_labels[:, :, 50] != 1)
+    rows, cols = np.where(entity.predicates_labels[:, :, NOF_PREDICATES - 1] != 1)
 
     # Number of positives
     num_pos = len(rows)
@@ -232,17 +232,17 @@ def train(name="test",
           files_test_list=None):
     """
 
-    :param files_test_list:
-    :param files_train_list:
-    :param name:
-    :param nof_iterations:
-    :param learning_rate:
-    :param learning_rate_steps:
-    :param learning_rate_decay:
-    :param load_module_name:
-    :param use_saved_module:
-    :param timesteps:
-    :param gpu:
+    :param files_test_list: the list of test files
+    :param files_train_list: the list of train files
+    :param name: the name of the module
+    :param nof_iterations: num of iterations
+    :param learning_rate: the lr
+    :param learning_rate_steps: the num of steps which the lr will be updated
+    :param learning_rate_decay: the decay of the lr
+    :param load_module_name: the module file name
+    :param use_saved_module: to load or start from scratch module
+    :param timesteps: how many RNNs
+    :param gpu: which GPU to use
     :return:
     """
 
@@ -280,7 +280,7 @@ def train(name="test",
     # Initialize the variables (i.e. assign their default value)
     init = tf.global_variables_initializer()
     # Add ops to save and restore all the variables.
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(max_to_keep=None)
     # Get timestamp
     timestamp = get_time_and_date()
 
@@ -345,7 +345,7 @@ def train(name="test",
                     for file_name in files:
 
                         # Load only entities
-                        if ".log" in file_name:
+                        if ".log" in file_name or "lang" in file_name:
                             continue
 
                         file_path = os.path.join(entities_path, file_dir, file_name)
@@ -461,7 +461,7 @@ def train(name="test",
                                     # Pre-processing entities to get RNN inputs and outputs
                                     rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects,
                                                                                objects_embeddings,
-                                                                               pos_neg_ratio=0.0)
+                                                                               pos_neg_ratio=0)
 
                                     # Create the feed dictionary
                                     feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs}
@@ -522,7 +522,7 @@ def train(name="test",
                 continue
 
         # Save module
-        module_path_save = os.path.join(module_path, timestamp, name + "end_module.ckpt")
+        module_path_save = os.path.join(module_path, timestamp, name + "_end_module.ckpt")
         save_path = saver.save(sess, module_path_save)
         logger.log("Model saved in file: %s" % save_path)
 

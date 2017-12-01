@@ -24,9 +24,9 @@ class LanguageModule(object):
 
         :param timesteps: rnn length
         :param is_train: whether the module will be used to train or eval
-        :param learning_rate:
-        :param learning_rate_steps:
-        :param learning_rate_decay:
+        :param learning_rate: the lr
+        :param learning_rate_steps: the num of steps which the lr will be updated
+        :param learning_rate_decay: the decay of the lr
         """
 
         self.num_classes = num_classes
@@ -125,9 +125,9 @@ class LanguageModule(object):
         :return:
         """
         with tf.variable_scope(scope_name):
-            predictions = tf.nn.softmax(self.logits)
+            self.predictions = tf.nn.softmax(self.logits)
             # Evaluate model (with test logits, for dropout to be disabled)
-            correct_pred = tf.equal(tf.argmax(predictions, axis=1), tf.argmax(self.labels_ph, axis=1))
+            correct_pred = tf.equal(tf.argmax(self.predictions, axis=1), tf.argmax(self.labels_ph, axis=1))
             accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
             return accuracy
 
@@ -173,3 +173,9 @@ class LanguageModule(object):
         """
         return self.logits
 
+    def get_predictions(self):
+        """
+        get module predictions - a softmax of the likelihood of the last layer
+        :return: tf.placeholder
+        """
+        return self.predictions

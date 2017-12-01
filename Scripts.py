@@ -1208,9 +1208,9 @@ if __name__ == '__main__':
     file_manager = FilesManager()
     logger = Logger()
 
-    get_corpus_from_image_captioning()
+    # get_corpus_from_image_captioning()
 
-    exit()
+    # exit()
 
     # debug_per_predicate(predicate="playing", path="/home/roeih/SceneGrapher/Outputs/Playing")
     # exit()
