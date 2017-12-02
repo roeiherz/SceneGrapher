@@ -171,6 +171,7 @@ def predict(nof_iterations=100,
         entities_path = FilesManager().get_file_path("data.visual_genome.detections_v4")
         files_list = files_test_list + files_train_list
         files_list = ["Sat_Nov_11_21:59:10_2017"]
+        logger.log("Load this files: {}".format(files_list))
 
         if files_list is None or len(files_list) == 0:
             Logger().log("Error: No data for prediction")
