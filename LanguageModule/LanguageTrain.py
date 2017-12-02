@@ -500,6 +500,12 @@ def train(name="test",
 
                     # save best module so far
                     if best_test_loss == -1 or test_total_loss < best_test_loss:
+                        # Save the best module till 5 epoch as different name
+                        if epoch < 5:
+                            module_path_save = os.path.join(module_path, timestamp, name + "_best5_module.ckpt")
+                            save_path = saver.save(sess, module_path_save)
+                            logger.log("Model Best till 5 epoch saved in file: %s" % save_path)
+
                         module_path_save = os.path.join(module_path, timestamp, name + "_best_module.ckpt")
                         save_path = saver.save(sess, module_path_save)
                         logger.log("Model Best saved in file: %s" % save_path)
