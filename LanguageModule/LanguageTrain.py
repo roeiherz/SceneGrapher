@@ -515,7 +515,7 @@ def train(name="test",
                 # Finished Testing
 
                 # Save module
-                if epoch % SAVE_MODEL_ITERATIONS == 0:
+                if epoch % SAVE_MODEL_ITERATIONS == 0 or epoch < 5:
                     module_path_save = os.path.join(module_path, timestamp, name + "_{}_module.ckpt".format(epoch))
                     save_path = saver.save(sess, module_path_save)
                     logger.log("Model saved in file: %s" % save_path)
