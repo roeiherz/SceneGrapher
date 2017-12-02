@@ -224,6 +224,10 @@ def predict(nof_iterations=100,
                         logger.log('Predicting image id {0} in iteration {1} \n'.format(entity.image.id, iter))
 
                         if len(entity.relationships) == 0:
+
+                            # Append entity as is
+                            if save_pickles:
+                                predicated_entities.append(entity)
                             continue
 
                         # Pre-processing entities to get RNN inputs and outputs
@@ -244,6 +248,7 @@ def predict(nof_iterations=100,
                         previous_predictions = np.argmax(entity.predicates_probes, axis=2).reshape(-1)
                         gt_labels = np.argmax(entity.predicates_labels, axis=2).reshape(-1)
 
+                        # if not len(entity.relationships) == 0:
                         # Print and Calc stats for new predictions
                         df = print_and_calc_stats(stats_dict_new, df, accuracy_val, gt_labels, predictions,
                                                   entity.image.id, img_id_to_split[entity.image.id],
@@ -284,8 +289,9 @@ def predict(nof_iterations=100,
                 if save_pickles:
                     file_new_name = "{0}_lang.p".format(file_path.split(".")[0])
                     file_handle = open(file_new_name, "wb")
-                    cPickle.dump(predicated_entities, file_handle)
+                    cPickle.dump(predicated_entities, file_handle, protocol=cPickle.HIGHEST_PROTOCOL)
                     file_handle.close()
+                    logger.log("Predicted entities have been saved in a new file: {}".format(file_name))
 
         # Print total stats
         Logger().log("TEST EPOCH: loss: %f - predicates accuracy: %f " %
