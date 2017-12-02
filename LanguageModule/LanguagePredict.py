@@ -20,8 +20,6 @@ NOF_PREDICATES = 51
 NOF_OBJECTS = 150
 # apply gradients every batch size
 BATCH_SIZE = 100
-# negative vs positive factor
-POS_NEG_RATIO = 0.3
 
 
 def pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings):
@@ -214,6 +212,11 @@ def predict(nof_iterations=100,
                 file_handle = open(file_path, "rb")
                 test_entities = cPickle.load(file_handle)
                 file_handle.close()
+
+                # Save the predicted new entities in a new file
+                if save_pickles:
+                    predicated_entities = []
+
                 for entity in test_entities:
                     try:
                         iter += 1
@@ -251,6 +254,16 @@ def predict(nof_iterations=100,
                                                   img_id_to_split[entity.image.id], print_stats,
                                                   old_predictions=True)
 
+                        # Save new entities in new pickles
+                        if save_pickles:
+                            # Number of labels
+                            number_of_outputs = logits_val.shape[1]
+                            reshaped_logits = logits_val.reshape((len(entity.objects), len(entity.objects),
+                                                                  number_of_outputs))
+                            # Save predicate outputs with no activations (no softmax)
+                            entity.predicates_outputs_beliefs_language = np.copy(reshaped_logits)
+                            predicated_entities.append(entity)
+
                         # Calculates loss
                         test_total_loss += loss_val
                         # Calculates accuracy
@@ -265,6 +278,13 @@ def predict(nof_iterations=100,
                             "Exception in iter: {0}, image id: {1} Exception: {2}".format(iter, entity.image.id,
                                                                                           str(e)))
                         continue
+
+                # Save new entities in new pickles
+                if save_pickles:
+                    file_new_name = "{0}_lang.p".format(file_path.split(".")[0])
+                    file_handle = open(file_new_name, "wb")
+                    cPickle.dump(predicated_entities, file_handle)
+                    file_handle.close()
 
         # Print total stats
         Logger().log("TEST EPOCH: loss: %f - predicates accuracy: %f " %
@@ -284,8 +304,8 @@ def predict(nof_iterations=100,
         fl.close()
 
         # Save DataFrame and csv
-        df.to_csv(os.path.join(module_path_save, "predict.csv"))
-        fl = open(os.path.join(module_path_save, "predict_df.p"), "wb")
+        df.to_csv(os.path.join(module_path_save, "predict_{}.csv".format(load_model_name.split("/")[-1])))
+        fl = open(os.path.join(module_path_save, "predict_df_{}.p").format(load_model_name.split("/")[-1]), "wb")
         cPickle.dump(df, fl)
         fl.close()
 
