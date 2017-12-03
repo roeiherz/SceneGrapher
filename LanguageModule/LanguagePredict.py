@@ -170,7 +170,7 @@ def predict(nof_iterations=100,
         # Get the entities
         entities_path = FilesManager().get_file_path("data.visual_genome.detections_v4")
         files_list = files_test_list + files_train_list
-        files_list = ["Sat_Nov_11_21:59:10_2017"]
+        # files_list = ["Sat_Nov_11_21:59:10_2017"]
         logger.log("Load this files: {}".format(files_list))
 
         if files_list is None or len(files_list) == 0:
@@ -287,7 +287,7 @@ def predict(nof_iterations=100,
 
                 # Save new entities in new pickles
                 if save_pickles:
-                    file_new_name = "{0}_lang2.p".format(file_path.split(".")[0])
+                    file_new_name = "{0}_language.p".format(file_path.split(".")[0])
                     file_handle = open(file_new_name, "wb")
                     cPickle.dump(predicated_entities, file_handle, protocol=cPickle.HIGHEST_PROTOCOL)
                     file_handle.close()
