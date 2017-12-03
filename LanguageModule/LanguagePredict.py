@@ -209,7 +209,7 @@ def predict(nof_iterations=100,
                 # if ".log" in file_name or "lang" in file_name:
                 #     continue
 
-                if "language" not in file_name:
+                if "language_language" not in file_name:
                     continue
 
                 file_path = os.path.join(entities_path, file_dir, file_name)
@@ -270,7 +270,7 @@ def predict(nof_iterations=100,
                             reshaped_logits = logits_val.reshape((len(entity.objects), len(entity.objects),
                                                                   number_of_outputs))
                             # Save predicate outputs with no activations (no softmax)
-                            entity.predicates_outputs_beliefs_language1 = np.copy(reshaped_logits)
+                            entity.predicates_outputs_beliefs_language2 = np.copy(reshaped_logits)
                             predicated_entities.append(entity)
 
                         # Calculates loss
