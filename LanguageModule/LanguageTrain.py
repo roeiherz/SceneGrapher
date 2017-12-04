@@ -32,6 +32,8 @@ CSVLOGGER = "training.log"
 # negative vs positive factor
 POS_NEG_FACTOR = 3.3
 POS_NEG_RATIO = 0.7
+# Use Predcls task
+PREDCLS = True
 
 
 def get_csv_logger(tf_graphs_path, timestamp):
@@ -60,10 +62,17 @@ def pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings, pos_
     :return:
     """
 
-    # Get the objects which the CNN has been chosen
-    candidate_objects = np.argmax(entity.objects_probs, axis=1)
-    # Create the objects as a one hot vector [num_objects, 150]
-    objects_hot_vectors = np.eye(len(hierarchy_mapping_objects), dtype='uint8')[candidate_objects]
+    # Check if we are using gt objects or predicted object (depends on PredCLS or SgCLS tasks)
+    if not PREDCLS:
+        # SgCLS task - taking the predicted objects
+        # Get the objects which the CNN has been chosen
+        candidate_objects = np.argmax(entity.objects_probs, axis=1)
+        # Create the objects as a one hot vector [num_objects, 150]
+        objects_hot_vectors = np.eye(len(hierarchy_mapping_objects), dtype='uint8')[candidate_objects]
+    else:
+        # PredCLS task - taking the GT objects
+        objects_hot_vectors = entity.objects_labels
+
     # Get embedding per objects [num_objects, 150] * [150, 300] = [num_objects, 300]
     objects_embeddings = np.dot(objects_hot_vectors, objects_embeddings)
     # Get relationship embeddings
@@ -256,6 +265,8 @@ def train(name="test",
     Logger().log('function name "%s"' % inspect.getframeinfo(frame)[2])
     for i in args:
         Logger().log("    %s = %s" % (i, values[i]))
+
+    Logger().log("    %s = %s" % ("PredCLS task", PREDCLS))
 
     # Create Module
     language_module = LanguageModule(timesteps=timesteps, is_train=True, num_hidden=NUM_HIDDEN,
