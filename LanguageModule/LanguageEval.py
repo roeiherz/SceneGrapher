@@ -23,6 +23,8 @@ NOF_OBJECTS = 150
 BATCH_SIZE = 100
 # negative vs positive factor
 POS_NEG_RATIO = 0.3
+# Use Predcls task
+PREDCLS = True
 
 
 def eval(nof_iterations=100,
@@ -58,6 +60,8 @@ def eval(nof_iterations=100,
     Logger().log('function name "%s"' % inspect.getframeinfo(frame)[2])
     for i in args:
         Logger().log("    %s = %s" % (i, values[i]))
+
+    Logger().log("    %s = %s" % ("PredCLS task", PREDCLS))
 
     # Create Module
     language_module = LanguageModule(timesteps=timesteps, is_train=True, num_hidden=NUM_HIDDEN,
@@ -105,7 +109,6 @@ def eval(nof_iterations=100,
 
         # Get the entities
         entities_path = FilesManager().get_file_path("data.visual_genome.detections_v4")
-        # files_train_list = ["Sat_Nov_11_21:59:10_2017"]
         files_test_list = ["Sat_Nov_11_21:59:10_2017"]
 
         if files_train_list is None or len(files_train_list) == 0:
@@ -157,7 +160,8 @@ def eval(nof_iterations=100,
                                 # Pre-processing entities to get RNN inputs and outputs
                                 rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects,
                                                                            objects_embeddings,
-                                                                           pos_neg_ratio=0.0)
+                                                                           pos_neg_ratio=0.0,
+                                                                           pred_cls=PREDCLS)
 
                                 # Create the feed dictionary
                                 feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs}

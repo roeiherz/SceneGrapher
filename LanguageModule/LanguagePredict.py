@@ -20,21 +20,31 @@ NOF_PREDICATES = 51
 NOF_OBJECTS = 150
 # apply gradients every batch size
 BATCH_SIZE = 100
+# Use Predcls task
+PREDCLS = True
 
 
-def pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings):
+def pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings, pred_cls=PREDCLS):
     """
     This function pre-processing the entities with the objects_embeddings to return RNN inputs and outputs
+    :param pred_cls: using gt objects or predicted object (depends on PredCLS or SgCLS tasks)
     :param entity: entity VG type
     :param hierarchy_mapping_objects: hierarchy_mapping of objects
     :param objects_embeddings: objects embedding - [150, 300]
     :return:
     """
 
-    # Get the objects which the CNN has been chosen
-    candidate_objects = np.argmax(entity.objects_probs, axis=1)
-    # Create the objects as a one hot vector [num_objects, 150]
-    objects_hot_vectors = np.eye(len(hierarchy_mapping_objects), dtype='uint8')[candidate_objects]
+    # Check if we are using gt objects or predicted object (depends on PredCLS or SgCLS tasks)
+    if not pred_cls:
+        # SgCLS task - taking the predicted objects
+        # Get the objects which the CNN has been chosen
+        candidate_objects = np.argmax(entity.objects_probs, axis=1)
+        # Create the objects as a one hot vector [num_objects, 150]
+        objects_hot_vectors = np.eye(len(hierarchy_mapping_objects), dtype='uint8')[candidate_objects]
+    else:
+        # PredCLS task - taking the GT objects
+        objects_hot_vectors = entity.objects_labels
+
     # Get embedding per objects [num_objects, 150] * [150, 300] = [num_objects, 300]
     objects_embeddings = np.dot(objects_hot_vectors, objects_embeddings)
     # Get relationship embeddings
@@ -127,6 +137,8 @@ def predict(nof_iterations=100,
     for i in args:
         Logger().log("    %s = %s" % (i, values[i]))
 
+    Logger().log("    %s = %s" % ("PredCLS task", PREDCLS))
+
     # Create Module
     language_module = LanguageModule(timesteps=timesteps, is_train=True, num_hidden=NUM_HIDDEN,
                                      num_classes=NOF_PREDICATES, num_input=NUM_INPUT, learning_rate=learning_rate,
@@ -170,7 +182,7 @@ def predict(nof_iterations=100,
         # Get the entities
         entities_path = FilesManager().get_file_path("data.visual_genome.detections_v4")
         files_list = files_test_list + files_train_list
-        # files_list = ["Sat_Nov_11_21:59:10_2017"]
+        files_list = ["Sat_Nov_11_21:59:10_2017"]
         logger.log("Load this files: {}".format(files_list))
 
         if files_list is None or len(files_list) == 0:
@@ -206,11 +218,11 @@ def predict(nof_iterations=100,
             for file_name in files:
 
                 # Load only entities
-                # if ".log" in file_name or "lang" in file_name:
-                #     continue
-
-                if "language_language_language" not in file_name:
+                if ".log" in file_name or "lang" in file_name:
                     continue
+
+                # if "language_language_language" not in file_name:
+                #     continue
 
                 file_path = os.path.join(entities_path, file_dir, file_name)
                 file_handle = open(file_path, "rb")

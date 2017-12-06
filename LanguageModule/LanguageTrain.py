@@ -52,9 +52,10 @@ def get_csv_logger(tf_graphs_path, timestamp):
     return csv_writer, csv_file
 
 
-def pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings, pos_neg_ratio=POS_NEG_RATIO):
+def pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings, pos_neg_ratio=POS_NEG_RATIO, pred_cls=PREDCLS):
     """
     This function pre-processing the entities with the objects_embeddings to return RNN inputs and outputs
+    :param pred_cls: using gt objects or predicted object (depends on PredCLS or SgCLS tasks)
     :param pos_neg_ratio:
     :param entity: entity VG type
     :param hierarchy_mapping_objects: hierarchy_mapping of objects
@@ -63,7 +64,7 @@ def pre_process_data(entity, hierarchy_mapping_objects, objects_embeddings, pos_
     """
 
     # Check if we are using gt objects or predicted object (depends on PredCLS or SgCLS tasks)
-    if not PREDCLS:
+    if not pred_cls:
         # SgCLS task - taking the predicted objects
         # Get the objects which the CNN has been chosen
         candidate_objects = np.argmax(entity.objects_probs, axis=1)
@@ -267,6 +268,7 @@ def train(name="test",
         Logger().log("    %s = %s" % (i, values[i]))
 
     Logger().log("    %s = %s" % ("PredCLS task", PREDCLS))
+    Logger().log("    %s = %s" % ("POS_NEG_RATIO", POS_NEG_RATIO))
 
     # Create Module
     language_module = LanguageModule(timesteps=timesteps, is_train=True, num_hidden=NUM_HIDDEN,
@@ -378,7 +380,8 @@ def train(name="test",
                                 # Pre-processing entities to get RNN inputs and outputs
                                 rnn_inputs, rnn_outputs = pre_process_data(entity, hierarchy_mapping_objects,
                                                                            objects_embeddings,
-                                                                           pos_neg_ratio=POS_NEG_RATIO)
+                                                                           pos_neg_ratio=POS_NEG_RATIO,
+                                                                           pred_cls=PREDCLS)
 
                                 # Create the feed dictionary
                                 feed_dict = {inputs_ph: rnn_inputs, labels_ph: rnn_outputs, lr_ph: lr}
