@@ -31,7 +31,7 @@ TEST_ITERATIONS = 1
 CSVLOGGER = "training.log"
 # negative vs positive factor
 POS_NEG_FACTOR = 3.3
-POS_NEG_RATIO = 0.3
+POS_NEG_RATIO = 0.6
 # Use Predcls task
 PREDCLS = True
 
