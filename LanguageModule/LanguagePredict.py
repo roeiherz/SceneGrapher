@@ -302,7 +302,7 @@ def predict(nof_iterations=100,
 
                 # Save new entities in new pickles
                 if save_pickles:
-                    file_new_name = "{0}_lang2_predcl.p".format(file_path.split(".")[0])
+                    file_new_name = "{0}_lang3_predcl.p".format(file_path.split(".")[0])
                     file_handle = open(file_new_name, "wb")
                     cPickle.dump(predicated_entities, file_handle, protocol=cPickle.HIGHEST_PROTOCOL)
                     file_handle.close()
