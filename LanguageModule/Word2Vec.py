@@ -150,6 +150,47 @@ def get_objects_embedding(model, fname="object_embeddings"):
     return object_embeddings
 
 
+def get_predicates_embedding(model, fname="predicate_embeddings"):
+    """
+    This function save predicates embeddings
+    :param fname: file name from
+    :param model: Word2Vec gensim model
+    :return:
+    """
+
+    # Load Word2Vec mapping dict
+    word2vec_mapping = word2vec_mapping_func()
+
+    # Check if pickles are already created
+    predicate_embeddings_path = FilesManager().get_file_path("language_module.word2vec.{}".format(fname))
+
+    if os.path.isfile(predicate_embeddings_path):
+        Logger().log('Files {0} are already exist'.format(predicate_embeddings_path))
+        predicate_embeddings = FilesManager().load_file("language_module.word2vec.{}".format(fname))
+        return predicate_embeddings
+
+    # Load hierarchy_mappings
+    hierarchy_mapping_predicates = file_manager.load_file("data.visual_genome.hierarchy_mapping_predicates")
+
+    # Get the inverse hierarchy_mapping_predicates
+    inv_hierarchy_mapping_predicates = {v: k for k, v in hierarchy_mapping_predicates.iteritems()}
+
+    predicates_embedding = []
+    for key, object in inv_hierarchy_mapping_predicates.iteritems():
+        try:
+            if object in word2vec_mapping:
+                object = word2vec_mapping[object]
+            word2vec = model.wv[object]
+            predicates_embedding.append(word2vec)
+        except Exception as e:
+            print("Problem with object:{0} with exception {1}".format(object, e))
+
+    predicate_embeddings = np.stack(predicates_embedding)
+    # Save pickle files
+    FilesManager().save_file("language_module.word2vec.{}".format(fname), predicate_embeddings)
+    return predicate_embeddings
+
+
 if __name__ == '__main__':
 
     # Define FileManager
@@ -171,8 +212,10 @@ if __name__ == '__main__':
     # Get models
     train_model, test_model = get_train_and_test_word2vec_models(train_sentences=None, test_sentences=None)
     train_model.wv.similarity('woman', 'man')
+    # # Save objects embeddings per model
+    # object_embeddings = get_objects_embedding(train_model)
     # Save objects embeddings per model
-    object_embeddings = get_objects_embedding(train_model)
+    predicates_embeddings = get_predicates_embedding(train_model)
 
     exit()
     # Summarize the loaded model

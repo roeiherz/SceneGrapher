@@ -388,6 +388,10 @@ language_module:
         name: "LanguageModule/object_embeddings.p"
         type: "pickle"
         doc: "Testing Language Model Word2vec trained"
+      predicate_embeddings:
+        name: "LanguageModule/predicate_embeddings.p"
+        type: "pickle"
+        doc: "Testing Language Model Word2vec trained"
     eval:
 
 
