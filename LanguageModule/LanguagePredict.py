@@ -182,7 +182,7 @@ def predict(nof_iterations=100,
         # Get the entities
         entities_path = FilesManager().get_file_path("data.visual_genome.detections_v4")
         files_list = files_test_list + files_train_list
-        files_list = ["Sat_Nov_11_21:59:10_2017"]
+        # files_list = ["Sat_Nov_11_21:59:10_2017"]
         logger.log("Load this files: {}".format(files_list))
 
         if files_list is None or len(files_list) == 0:
@@ -218,11 +218,11 @@ def predict(nof_iterations=100,
             for file_name in files:
 
                 # Load only entities
-                if ".log" in file_name or "lang" in file_name:
-                    continue
-
-                # if "language_language_language" not in file_name:
+                # if ".log" in file_name or "lang" in file_name:
                 #     continue
+
+                if "language_language_language" not in file_name:
+                    continue
 
                 file_path = os.path.join(entities_path, file_dir, file_name)
                 file_handle = open(file_path, "rb")
@@ -282,7 +282,7 @@ def predict(nof_iterations=100,
                             reshaped_logits = logits_val.reshape((len(entity.objects), len(entity.objects),
                                                                   number_of_outputs))
                             # Save predicate outputs with no activations (no softmax)
-                            entity.predicates_outputs_beliefs_language3 = np.copy(reshaped_logits)
+                            entity.predicates_outputs_beliefs_language1_predcl = np.copy(reshaped_logits)
                             predicated_entities.append(entity)
 
                         # Calculates loss
@@ -302,7 +302,7 @@ def predict(nof_iterations=100,
 
                 # Save new entities in new pickles
                 if save_pickles:
-                    file_new_name = "{0}_lang3_predcl.p".format(file_path.split(".")[0])
+                    file_new_name = "{0}_language_language_language_predcl.p".format(file_path.split(".")[0])
                     file_handle = open(file_new_name, "wb")
                     cPickle.dump(predicated_entities, file_handle, protocol=cPickle.HIGHEST_PROTOCOL)
                     file_handle.close()
