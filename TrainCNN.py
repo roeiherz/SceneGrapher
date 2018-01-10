@@ -16,7 +16,7 @@ from keras.models import Model
 import sys
 import matplotlib.pyplot as plt
 from FeaturesExtraction.Utils.Utils import get_time_and_date, TRAINING_OBJECTS_CNN_PATH, CLASSES_COUNT_FILE, \
-    CLASSES_MAPPING_FILE, replace_top_layer, get_bad_urls
+    CLASSES_MAPPING_FILE, replace_top_layer, get_bad_urls, get_dev_entities_img_ids
 from Utils.Utils import create_folder
 from FeaturesExtraction.Utils.data import splitting_to_datasets, get_filtered_data, get_name_from_file, pickle_dataset
 from FeaturesExtraction.Utils.Utils import DATA, VISUAL_GENOME
@@ -34,6 +34,7 @@ MAX_NOF_SAMPLES_THR = 1000000
 MAX_NOF_SAMPLES = 900000
 LR = 1e-6
 DECAY_DROP = 0.9
+USE_DEV = True
 
 # If the allocation of training, validation and testing does not adds up to one
 used_percent = TRAINING_PERCENT + VALIDATION_PERCENT + TESTING_PERCENT
@@ -172,6 +173,8 @@ def sorting_urls(train_imgs, test_imgs, val_imgs):
 
     # Get the bad urls
     bad_urls = get_bad_urls()
+    # Get Dev data-set
+    dev_imgs = get_dev_entities_img_ids()
 
     real_train_imgs = []
     real_test_imgs = []
@@ -181,15 +184,30 @@ def sorting_urls(train_imgs, test_imgs, val_imgs):
     for img in train_imgs:
         if img.url in bad_urls:
             continue
+
+        img_id = img.url.split("/")[-1]
+        img_id = int(img_id.split('.')[0])
+        if img_id in dev_imgs and USE_DEV:
+            continue
         real_train_imgs.append(img)
 
     for img in test_imgs:
         if img.url in bad_urls:
             continue
+
+        img_id = img.url.split("/")[-1]
+        img_id = int(img_id.split('.')[0])
+        if img_id in dev_imgs and USE_DEV:
+            continue
         real_test_imgs.append(img)
 
     for img in val_imgs:
         if img.url in bad_urls:
+            continue
+
+        img_id = img.url.split("/")[-1]
+        img_id = int(img_id.split('.')[0])
+        if img_id in dev_imgs and USE_DEV:
             continue
         real_val_imgs.append(img)
 
@@ -295,6 +313,7 @@ if __name__ == '__main__':
     #                                                         testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
     #                                                         path=path, config=config)
 
+    logger.log("Using Dev test: {}".format(USE_DEV))
     # Sorting bad urls - should be delete sometime
     train_imgs, test_imgs, val_imgs = sorting_urls(objects_train, objects_test, objects_val)
 

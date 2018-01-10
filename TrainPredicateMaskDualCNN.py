@@ -20,7 +20,7 @@ import sys
 import matplotlib.pyplot as plt
 from FeaturesExtraction.Utils.Utils import get_time_and_date, TRAINING_PREDICATE_MASK_CNN_PATH, \
     replace_top_layer, DATA, \
-    VISUAL_GENOME, get_bad_urls
+    VISUAL_GENOME, get_bad_urls, get_dev_entities_img_ids
 from Utils.Utils import create_folder
 from FeaturesExtraction.Utils.data import splitting_to_datasets, process_to_detections, get_filtered_data, \
     get_name_from_file, create_negative_relations, pickle_dataset
@@ -34,6 +34,7 @@ NUM_EPOCHS = 90
 NUM_BATCHES = 128
 RATIO = 3.0 / 10
 LR = 1e-6
+USE_DEV = True
 
 
 # If the allocation of training, validation and testing does not adds up to one
@@ -261,6 +262,10 @@ def sorting_urls(train_imgs, test_imgs, val_imgs):
 
     # Get the bad urls
     bad_urls = get_bad_urls()
+    # Get Dev data-set
+    dev_imgs = get_dev_entities_img_ids()
+
+    vfunc = np.vectorize(lambda url: int(url.split("/")[-1].split('.')[0]))
 
     if len(bad_urls) < 100:
         logger.log("WARNING: number of bad urls is lower than 100")
@@ -269,10 +274,18 @@ def sorting_urls(train_imgs, test_imgs, val_imgs):
     # Get indices that are not bad urls
     train_indices = np.where(np.in1d(train_imgs[Detections.Url], bad_urls) == False)[0]
     real_train_imgs = train_imgs[train_indices]
+    if USE_DEV:
+        # Get indices that are not dev img_ids
+        train_indices = np.where(np.in1d(vfunc(real_train_imgs[Detections.Url]), dev_imgs) == False)[0]
+        real_train_imgs = train_imgs[train_indices]
 
     # Get indices that are not bad urls
     test_indices = np.where(np.in1d(test_imgs[Detections.Url], bad_urls) == False)[0]
     real_test_imgs = test_imgs[test_indices]
+    if USE_DEV:
+        # Get indices that are not dev img_ids
+        test_indices = np.where(np.in1d(vfunc(real_test_imgs[Detections.Url]), dev_imgs) == False)[0]
+        real_test_imgs = test_imgs[test_indices]
 
     # Get indices that are not bad urls
     if len(val_imgs) != 0:
@@ -369,21 +382,25 @@ if __name__ == '__main__':
     detections_test = process_to_detections(None, detections_file_name="full_detections_test")
 
     logger.log('Number of train detections before sorting negatives: {0} '
-               'and test detections after sorting negatives {1}'.format(len(detections_train), len(detections_test)))
+               'and test detections before sorting negatives {1}'.format(len(detections_train), len(detections_test)))
 
     # Get new negative - positive ratio and shuffle the data
     detections_train = pick_different_negative_sample_ratio(detections_train, ratio=RATIO)
     detections_test = pick_different_negative_sample_ratio(detections_test, ratio=RATIO)
-    # size_of_test = len(detections_train) / 3
-    # detections_test = detections_test[:size_of_test]
+    size_of_test = len(detections_train) / 3
+    detections_test = detections_test[:size_of_test]
     # No validation test
     detections_val = []
+
+    logger.log('Number of train detections after sorting negatives: {0} '
+               'and test detections after sorting negatives {1}'.format(len(detections_train), len(detections_test)))
 
     # # Split the data to train, test and validate
     # train_imgs, test_imgs, val_imgs = splitting_to_datasets(detections, training_percent=TRAINING_PERCENT,
     #                                                         testing_percent=TESTING_PERCENT, num_epochs=NUM_EPOCHS,
     #                                                         path=path, config=config)
 
+    logger.log("Using Dev test: {}".format(USE_DEV))
     # Sorting bad urls - should be delete sometime
     train_imgs, test_imgs, val_imgs = sorting_urls(detections_train, detections_test, detections_val)
 
