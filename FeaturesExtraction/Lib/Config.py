@@ -15,7 +15,7 @@ class Config:
     def __init__(self, gpu_num):
 
         # Do we continuing to train or start from fresh
-        self.loading_model = True
+        self.loading_model = False
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Mon_Sep_25_17:47:17_2017"
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Mon_Oct_23_17:49:04_2017"
         # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Sun_Oct_22_20:08:54_2017"
@@ -48,7 +48,7 @@ class Config:
         self.use_all_objects_data = True
 
         # Use of Jitter
-        self.use_jitter = False
+        self.use_jitter = True
         self.use_keras_jitter = True
         self.use_mixup_jitter = False
 
@@ -65,9 +65,9 @@ class Config:
         self.jitter = None
         self.width_shift_range = 0.2
         self.height_shift_range = 0.2
-        self.zoom_range = 0.2
-        self.shear_range = 0.2
-        self.horizontal_flip = True
+        self.zoom_range = 0.0
+        self.shear_range = 0.0
+        self.horizontal_flip = False
         self.mixup_alpha = 0.2
         # self.preprocessing_function = get_random_eraser(v_l=0, v_h=255)
         self.preprocessing_function = None
