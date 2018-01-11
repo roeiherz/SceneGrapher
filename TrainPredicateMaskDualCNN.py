@@ -387,8 +387,8 @@ if __name__ == '__main__':
     # Get new negative - positive ratio and shuffle the data
     detections_train = pick_different_negative_sample_ratio(detections_train, ratio=RATIO)
     detections_test = pick_different_negative_sample_ratio(detections_test, ratio=RATIO)
-    size_of_test = len(detections_train) / 3
-    detections_test = detections_test[:size_of_test]
+    # size_of_test = len(detections_train) / 3
+    # detections_test = detections_test[:size_of_test]
     # No validation test
     detections_val = []
 
