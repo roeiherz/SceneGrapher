@@ -31,7 +31,7 @@ class Config:
         # Get the cached data-sets and cached hierarchy mapping and class counting
         self.use_cache_dir = False
         # Load weights
-        self.load_weights = True
+        self.load_weights = False
         # Replace the Dense layer
         self.replace_top = False
         # If we replace top, what is the old top number of classes
