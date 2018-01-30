@@ -2,10 +2,17 @@ import traceback
 
 import matplotlib
 from shutil import copyfile
+
+from keras.engine import Input, Model
+from keras.layers import GlobalAveragePooling2D, Dense
+
 from Data.VisualGenome.models import Object, Graph, Image, Relationship, ObjectMapping, RelationshipMapping, \
     ImageMapping
+from FeaturesExtraction.Lib.Zoo import ModelZoo
 from FeaturesExtraction.Utils.Boxes import find_union_box
 from FeaturesExtraction.Utils.Visualizer import VisualizerDrawer, CvColor
+from FeaturesExtraction.Utils.VisualizerEntity import VisualizerEntity
+
 matplotlib.use('agg')
 from matplotlib import pyplot as plt
 import time
@@ -30,6 +37,7 @@ from DesignPatterns.Detections import Detections
 from Utils.Logger import Logger
 from keras import backend as K
 import pandas as pd
+import tensorflow as tf
 import cv2
 
 
@@ -1201,12 +1209,79 @@ def get_corpus_from_image_captioning():
     test_corpus.close()
     return 1
 
+
+def export_keras_model_tf():
+    """
+    This function exports Keras Model to tensorflow Model
+    :return:
+    """
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.8, allow_growth=False)
+    sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+    K.set_session(sess)
+    img_input = Input(shape=(224, 224, 5), name="image_input")
+    # Define ResNet50 model Without Top
+    net = ModelZoo()
+    model_resnet50 = net.resnet50_with_masking_dual(img_input, trainable=True)
+    # model_resnet50 = net.resnet50_base_reg_and_init(img_input, trainable=config.resnet_body_trainable,
+    #                                                 kernel_regularizer=regularizers.l2(0.005),
+    #                                                 kernel_initializer="he_normal")
+    model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
+    output_resnet50 = Dense(51, kernel_initializer="he_normal", activation='softmax', name='fc')(
+        model_resnet50)
+
+    # Define the model
+    model = Model(inputs=img_input, outputs=output_resnet50, name='resnet50')
+
+
+def run_entities():
+    """
+
+    :return:
+    """
+
+    # Get file list
+    files_train_list = ["Sat_Nov_11_20:47:34_2017"]
+    # Get the entities
+    entities_path = FilesManager().get_file_path("data.visual_genome.detections_v4")
+
+    for file_dir in files_train_list:
+        files = os.listdir(os.path.join(entities_path, file_dir))
+        for file_name in files:
+
+            # Load only entities
+            if ".log" in file_name:
+                continue
+
+            file_path = os.path.join(entities_path, file_dir, file_name)
+            file_handle = open(file_path, "rb")
+            train_entities = cPickle.load(file_handle)
+            file_handle.close()
+
+            i = 0
+            for entity in train_entities:
+
+                if entity.image.id != 2406999:
+                    continue
+
+                # if 3 < len(entity.objects) < 7 and 3 < len(entity.relationships) < 7:
+                #     continue
+
+                i += 1
+                vis = VisualizerEntity(entity, "/home/roeih/Dropbox/SceneGrapher/Paper_photos")
+                vis.draw_objects()
+                vis.draw_scene_graph()
+
+                print("debug")
+
 if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
 
     file_manager = FilesManager()
     logger = Logger()
+
+    run_entities()
+    exit()
 
     # get_corpus_from_image_captioning()
 
@@ -1246,6 +1321,7 @@ if __name__ == '__main__':
     # print("hi")
 
     # exit()
+
 
     logger_parser(dir_path="Temp")
 
