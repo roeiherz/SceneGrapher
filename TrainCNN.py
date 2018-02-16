@@ -1,6 +1,6 @@
 import matplotlib as mpl
 import math
-mpl.use('Agg')
+# mpl.use('Agg')
 from Data.VisualGenome.models import ObjectMapping
 from FeaturesExtraction.Lib.VisualGenomeDataGenerator import visual_genome_data_cnn_generator_with_batch
 from FeaturesExtraction.Lib.Zoo import ModelZoo

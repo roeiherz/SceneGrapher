@@ -11,7 +11,7 @@ from FeaturesExtraction.Utils.Boxes import find_union_box
 from FeaturesExtraction.Utils.Visualizer import VisualizerDrawer, CvColor
 from FeaturesExtraction.Utils.VisualizerEntity import VisualizerEntity
 
-matplotlib.use('agg')
+# matplotlib.use('agg')
 from matplotlib import pyplot as plt
 import time
 import cPickle

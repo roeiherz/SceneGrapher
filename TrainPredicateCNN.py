@@ -1,6 +1,6 @@
 import matplotlib as mpl
 from FilesManager.FilesManager import FilesManager
-mpl.use('Agg')
+# mpl.use('Agg')
 from keras.callbacks import ModelCheckpoint, TensorBoard, CSVLogger, ReduceLROnPlateau
 from keras.optimizers import Adam
 from Data.VisualGenome.models import ObjectMapping, RelationshipMapping
