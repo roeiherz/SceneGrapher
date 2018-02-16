@@ -394,6 +394,25 @@ language_module:
         doc: "Testing Language Model Word2vec trained"
     eval:
 
+e2e_module:
+    train:
+      tf_logs:
+        name: "End2EndModule/tf_logs"
+        type: "dir"
+        doc: "holds tensor flow log"
+      tf_graphs:
+        name: "End2EndModule/tf_graphs"
+        type: "dir"
+        doc: "training logs"
+      saver:
+        name: "End2EndModule/saver"
+        type: "dir"
+        doc: "stores module weights"
+      params:
+          name: "End2EndModule/params.yaml"
+          type: "yaml"
+          doc: "train parameters"
+
 
 scene_graph_base_module:
     visual_module:
