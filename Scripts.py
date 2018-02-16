@@ -1,11 +1,9 @@
 import traceback
-
+import scipy.io
 import matplotlib
 from shutil import copyfile
-
 from keras.engine import Input, Model
 from keras.layers import GlobalAveragePooling2D, Dense
-
 from Data.VisualGenome.models import Object, Graph, Image, Relationship, ObjectMapping, RelationshipMapping, \
     ImageMapping
 from FeaturesExtraction.Lib.Zoo import ModelZoo
@@ -1240,7 +1238,7 @@ def run_entities():
     """
 
     # Get file list
-    files_train_list = ["Sat_Nov_11_20:47:34_2017"]
+    files_train_list = ["Sat_Nov_11_21:36:12_2017"]
     # Get the entities
     entities_path = FilesManager().get_file_path("data.visual_genome.detections_v4")
 
@@ -1260,7 +1258,10 @@ def run_entities():
             i = 0
             for entity in train_entities:
 
-                if entity.image.id != 2406999:
+                # if entity.image.id != 2406999:
+                #     continue
+
+                if entity.image.id != 2343631:
                     continue
 
                 # if 3 < len(entity.objects) < 7 and 3 < len(entity.relationships) < 7:
@@ -1273,6 +1274,15 @@ def run_entities():
 
                 print("debug")
 
+
+def load_NYU_dataset(file_path):
+    """
+
+    :return:
+    """
+    path = os.path.join("/home/roeih/NYU_V2", file_path)
+    mat = scipy.io.loadmat(path)
+
 if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
@@ -1280,8 +1290,9 @@ if __name__ == '__main__':
     file_manager = FilesManager()
     logger = Logger()
 
-    run_entities()
+    load_NYU_dataset(file_path="splits.mat")
     exit()
+    run_entities()
 
     # get_corpus_from_image_captioning()
 
