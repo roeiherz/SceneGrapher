@@ -63,7 +63,7 @@ def get_csv_logger(tf_graphs_path, timestamp):
     return csv_writer, csv_file
 
 
-def pre_process_data(entity, hierarchy_mapping, config, pos_neg_ratio=POS_NEG_RATIO):
+def pre_process_data(entity, hierarchy_mapping, config):
     """
     This function is a generator for Predicate with Detections with batch-size
     :param hierarchy_mapping: hierarchy mapping
@@ -220,6 +220,41 @@ def test(labels_predicate, labels_object, out_belief_predicate_val, out_belief_o
     return results
 
 
+def predicate_class_recall(labels_predicate, out_belief_predicate_val, k=5):
+    """
+    Predicate Classification - Examine the model performance on predicates classification in isolation from other factors
+    :param labels_predicate: labels of image predicates (each one is one hot vector) - shape (N, N, NOF_PREDICATES)
+    :param out_belief_predicate_val: belief of image predicates - shape (N, N, NOF_PREDICATES)
+    :param k: k most confident predictions to consider
+    :return: correct vector (number of times predicate gt appears in top k most confident predicates),
+             total vector ( number of gts per predicate)
+    """
+    correct = np.zeros(NOF_PREDICATES)
+    total = np.zeros(NOF_PREDICATES)
+
+    # one hot vector to actual gt labels
+    predicates_gt = np.argmax(labels_predicate, axis=2)
+
+    # number of objects in the image
+    N = out_belief_predicate_val.shape[0]
+
+    # run over each prediction
+    for subject_index in range(N):
+        for object_index in range(N):
+            # get predicate class
+            predicate_class = predicates_gt[subject_index][object_index]
+            # get predicate probabilities
+            predicate_prob = out_belief_predicate_val[subject_index][object_index]
+
+            max_k_predictions = np.argsort(predicate_prob)[-k:]
+            found = np.where(predicate_class == max_k_predictions)[0]
+            if len(found) != 0:
+                correct[predicate_class] += 1
+            total[predicate_class] += 1
+
+    return correct, total
+
+
 def train(name="test",
           nof_iterations=100,
           learning_rate=0.1,
@@ -282,6 +317,7 @@ def train(name="test",
                               include_bb=include_bb,
                               layers=layers)
 
+    # @todo: clean
     # # get input place holders
     # img_inputs_ph = e2e_module.get_inputs_placeholders()
     # # get labels place holders
@@ -363,15 +399,18 @@ def train(name="test",
             Logger().log("Error: No testing data")
             return None
 
+        # @todo: clean
         # get mini data to filter
-        img_ids = Scripts.get_img_ids()
+        # img_ids = Scripts.get_img_ids()
 
         # Load hierarchy_mappings
-        hierarchy_mapping_objects = FilesManager().load_file("data.visual_genome.hierarchy_mapping_objects")
+        # @todo: clean
+        # hierarchy_mapping_objects = FilesManager().load_file("data.visual_genome.hierarchy_mapping_objects")
         hierarchy_mapping_predicates = FilesManager().load_file("data.visual_genome.hierarchy_mapping_predicates")
 
+        # @todo: clean
         # Process relations to numpy Detections dtype
-        vfunc = np.vectorize(lambda url: int(url.split("/")[-1].split('.')[0]))
+        # vfunc = np.vectorize(lambda url: int(url.split("/")[-1].split('.')[0]))
         # detections_train = process_to_detections(None, detections_file_name="full_detections_test")
         # train_img_ids = set(vfunc(detections_train[Detections.Url]))
         # detections_test = process_to_detections(None, detections_file_name="full_detections_test")
@@ -417,6 +456,7 @@ def train(name="test",
                         for entity in train_entities:
                             try:
 
+                                # @todo: clean
                                 # if entity.image.id != 2416509:
                                 #     continue
 
@@ -454,8 +494,7 @@ def train(name="test",
 
                                 predicate_inputs, predicate_outputs = pre_process_data(entity,
                                                                                        hierarchy_mapping_predicates,
-                                                                                       config,
-                                                                                       pos_neg_ratio=POS_NEG_RATIO)
+                                                                                       config)
 
                                 if predicate_inputs is None or predicate_outputs is None:
                                     logger.log(
@@ -574,9 +613,6 @@ def train(name="test",
                             for entity in test_entities:
                                 try:
 
-                                    if entity.image.id != 2416509:
-                                        continue
-
                                     if len(entity.relationships) == 0:
                                         continue
 
@@ -611,8 +647,7 @@ def train(name="test",
 
                                     predicate_inputs, predicate_outputs = pre_process_data(entity,
                                                                                            hierarchy_mapping_predicates,
-                                                                                           config,
-                                                                                           pos_neg_ratio=POS_NEG_RATIO)
+                                                                                           config)
 
                                     if predicate_inputs is None or predicate_outputs is None:
                                         logger.log(
@@ -850,12 +885,6 @@ if __name__ == "__main__":
         train(name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
               use_saved_model, rnn_steps, loss_func, lr_object_coeff, including_object, include_bb, layers, reg_factor,
               gpu)
-
-        # p = Process(target=train, args=(
-        #     name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
-        #     use_saved_model, timesteps, gpu))
-        # p.start()
-        # processes.append(p)
 
     # wait until all processes done
     for p in processes:

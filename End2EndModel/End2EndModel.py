@@ -65,6 +65,7 @@ class End2EndModel(object):
         # Create Weights
         self.create_weights()
 
+        # @todo: clean
         # # Linear activation, using rnn inner loop last output
         # h1 = tf.matmul(self.output_resnet50, self.nn_predicate_w_1) + self.nn_predicate_b_1
         # self.logits = tf.matmul(h1, self.nn_predicate_w_5) + self.nn_predicate_b_5
@@ -111,12 +112,13 @@ class End2EndModel(object):
         This function creates the place holders for input and labels
         """
         with tf.variable_scope(scope_name):
+            # todo: clean
             # self.img_inputs_ph = tf.placeholder(shape=[None, self.config.crop_height, self.config.crop_width, 5],
             #                                 dtype=tf.float32, name="img_inputs")
-            self.img_inputs_ph = tf.contrib.keras.layers.Input(
-                shape=(self.config.crop_height, self.config.crop_width, 5), name="image_input_ph")
             # self.img_labels_ph = tf.placeholder(shape=[None, self.num_classes], dtype=tf.float32,
             #                                 name="image_output")
+            self.img_inputs_ph = tf.contrib.keras.layers.Input(
+                shape=(self.config.crop_height, self.config.crop_width, 5), name="image_input_ph")
 
             # shape to be used by feature collector
             self.num_objects_ph = tf.placeholder(dtype=tf.int32, shape=[], name="num_of_objects_ph")
@@ -171,9 +173,12 @@ class End2EndModel(object):
         """
         # Create First part
         self.create_detection_net()
+
+        #todo: clean
         # Create Second part
         # self.create_deep_belief_net()
 
+    #todo: clean
     def create_deep_belief_net(self, scope_name="deep_belief"):
         """
         This function creates weights and biases
@@ -208,7 +213,7 @@ class End2EndModel(object):
                                          name='fc')(model_resnet50)
             self.output_resnet50_reshaped = tf.reshape(self.output_resnet50, [self.num_objects_ph, self.num_objects_ph,
                                                                               self.nof_predicates])
-            # todo: didn't successeed
+            # todo: clean didn't successeed
             # # Set negative predicate in diagonal
             # self.try1 = tf.constant([[[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
             #                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -238,8 +243,8 @@ class End2EndModel(object):
         """
         with tf.variable_scope(scope_name):
 
-            in_belief_predicate = self.output_resnet50_reshaped - tf.reduce_mean(self.output_resnet50_reshaped, axis=2,
-                                                                                 keep_dims=True)
+            in_belief_predicate = in_belief_predicate - tf.reduce_mean(self.output_resnet50_reshaped, axis=2,
+                                                                       keep_dims=True)
             self.in_belief_predicate = in_belief_predicate
             in_belief_object = in_belief_object - tf.reduce_mean(in_belief_object, axis=1, keep_dims=True)
             self.in_belief_object = in_belief_object
