@@ -1186,7 +1186,8 @@ def get_corpus_from_image_captioning():
             try:
 
                 # Get the phrase
-                phrase_txt = phrase_data.phrase.replace(".", "").replace("\n", "").replace(",", "").rstrip().lstrip() + " "
+                phrase_txt = phrase_data.phrase.replace(".", "").replace("\n", "").replace(",",
+                                                                                           "").rstrip().lstrip() + " "
                 img_id = phrase_data.image.id
                 Logger().log("Image id: {0}".format(img_id))
                 # Write train corpus
@@ -1239,7 +1240,8 @@ def run_entities():
 
     # Get file list
     # files_lst = ["Sat_Nov_11_21:36:12_2017"]
-    files_lst = ["Sat_Nov_11_21:36:12_2017", "Sat_Nov_11_21:38:29_2017", "Sat_Nov_11_21:42:07_2017", "Sat_Nov_11_21:43:18_2017", "Sat_Nov_11_21:59:10_2017"]
+    files_lst = ["Sat_Nov_11_21:36:12_2017", "Sat_Nov_11_21:38:29_2017", "Sat_Nov_11_21:42:07_2017",
+                 "Sat_Nov_11_21:43:18_2017", "Sat_Nov_11_21:59:10_2017"]
     # Get the entities
     entities_path = FilesManager().get_file_path("data.visual_genome.detections_v4")
 
@@ -1260,8 +1262,7 @@ def run_entities():
             for entity in train_entities:
 
                 if entity.image.id in [2343115, 2343655, 2343239, 2343622, 2342924]:
-                    print(file_name)
-                    exit()
+                    print("img_id:{0} with file_name:{1}".format(entity.image.id, file_name))
                 continue
 
                 # if 3 < len(entity.objects) < 7 and 3 < len(entity.relationships) < 7:
@@ -1282,6 +1283,7 @@ def load_NYU_dataset(file_path):
     """
     path = os.path.join("/home/roeih/NYU_V2", file_path)
     mat = scipy.io.loadmat(path)
+
 
 if __name__ == '__main__':
     # Create mini data-set
