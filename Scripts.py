@@ -1262,7 +1262,7 @@ def run_entities():
             for entity in train_entities:
 
                 if entity.image.id in [2343115, 2343655, 2343239, 2343622, 2342924]:
-                    print("img_id:{0} with file_name:{1}".format(entity.image.id, file_name))
+                    print("img_id:{0} with file_name:{1}, filedir:{2}".format(entity.image.id, file_name, file_dir))
                 continue
 
                 # if 3 < len(entity.objects) < 7 and 3 < len(entity.relationships) < 7:
