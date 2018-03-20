@@ -1259,7 +1259,7 @@ def run_entities():
             i = 0
             for entity in train_entities:
 
-                if entity.image.id == 2343115:
+                if entity.image.id in [2343115, 2343655, 2343239, 2343622, 2342924]:
                     print(file_name)
                     exit()
                 continue
