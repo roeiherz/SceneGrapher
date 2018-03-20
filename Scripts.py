@@ -1238,11 +1238,12 @@ def run_entities():
     """
 
     # Get file list
-    files_train_list = ["Sat_Nov_11_21:36:12_2017"]
+    # files_lst = ["Sat_Nov_11_21:36:12_2017"]
+    files_lst = ["Sat_Nov_11_21:36:12_2017", "Sat_Nov_11_21:38:29_2017", "Sat_Nov_11_21:42:07_2017", "Sat_Nov_11_21:43:18_2017", "Sat_Nov_11_21:59:10_2017"]
     # Get the entities
     entities_path = FilesManager().get_file_path("data.visual_genome.detections_v4")
 
-    for file_dir in files_train_list:
+    for file_dir in files_lst:
         files = os.listdir(os.path.join(entities_path, file_dir))
         for file_name in files:
 
@@ -1258,11 +1259,10 @@ def run_entities():
             i = 0
             for entity in train_entities:
 
-                # if entity.image.id != 2406999:
-                #     continue
-
-                if entity.image.id != 2343631:
-                    continue
+                if entity.image.id == 2343115:
+                    print(file_name)
+                    exit()
+                continue
 
                 # if 3 < len(entity.objects) < 7 and 3 < len(entity.relationships) < 7:
                 #     continue
@@ -1290,9 +1290,9 @@ if __name__ == '__main__':
     file_manager = FilesManager()
     logger = Logger()
 
-    load_NYU_dataset(file_path="splits.mat")
-    exit()
+    # load_NYU_dataset(file_path="splits.mat")
     run_entities()
+    exit()
 
     # get_corpus_from_image_captioning()
 
