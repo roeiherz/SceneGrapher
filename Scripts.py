@@ -1232,16 +1232,54 @@ def export_keras_model_tf():
     model = Model(inputs=img_input, outputs=output_resnet50, name='resnet50')
 
 
-def run_entities():
+# def shrink_boxes_slow(self, data, heat_map):
+#
+#     original_detection_centers = {}
+#
+#     for ind, row in data.iterrows():
+#         confidence = row['confidence']
+#         box = numpy.asarray([row['x1'], row['y1'], row['x2'], row['y2']])
+#         width = box[BOX.X2] - box[BOX.X1]
+#         height = box[BOX.Y2] - box[BOX.Y1]
+#
+#         if self.visualizer:
+#             self.visualizer.draw_labeled_box('orig', box, rect_color=CvColor.GREEN,
+#                                              label=ind)
+#
+#         original_detection_centers[ind] = (box[BOX.X1] + width / 2, box[BOX.Y1] + height / 2)
+#
+#         w_shift = (width * (1 - BOX_RESIZE_FACTOR)) / 2.
+#         h_shift = (height * (1 - BOX_RESIZE_FACTOR)) / 2.
+#
+#         box[BOX.X1] += w_shift
+#         box[BOX.X2] -= w_shift
+#         box[BOX.Y1] += h_shift
+#         box[BOX.Y2] -= h_shift
+#         if self.visualizer:
+#             self.visualizer.draw_labeled_box('img', box, rect_color=CvColor.GREEN,
+#                                              label=ind)
+#         width = box[BOX.X2] - box[BOX.X1]
+#         height = box[BOX.Y2] - box[BOX.Y1]
+#
+#         gaussian = numpy.zeros(shape=[height, width], dtype=numpy.float64)
+#         gaussian[height / 2, width / 2] = 1
+#         gaussian = scipy.ndimage.filters.gaussian_filter(gaussian, (height / 2., width / 2.))
+#         cv2.normalize(gaussian, gaussian, 0, confidence, cv2.NORM_MINMAX)
+#         heat_map[box[BOX.Y1]:box[BOX.Y2], box[BOX.X1]:box[BOX.X2]] += numpy.expand_dims(gaussian, axis=2)
+#
+#     return original_detection_centers
+
+
+def vis_entities():
     """
 
     :return:
     """
 
     # Get file list
-    # files_lst = ["Sat_Nov_11_21:36:12_2017"]
-    files_lst = ["Sat_Nov_11_21:36:12_2017", "Sat_Nov_11_21:38:29_2017", "Sat_Nov_11_21:42:07_2017",
-                 "Sat_Nov_11_21:43:18_2017", "Sat_Nov_11_21:59:10_2017"]
+    files_lst = ["Sat_Nov_11_21:36:12_2017"]
+    # files_lst = ["Sat_Nov_11_21:36:12_2017", "Sat_Nov_11_21:38:29_2017", "Sat_Nov_11_21:42:07_2017",
+    #              "Sat_Nov_11_21:43:18_2017", "Sat_Nov_11_21:59:10_2017"]
     # Get the entities
     entities_path = FilesManager().get_file_path("data.visual_genome.detections_v4")
 
@@ -1261,19 +1299,26 @@ def run_entities():
             i = 0
             for entity in train_entities:
 
-                if entity.image.id in [2343115, 2343655, 2343239, 2343622, 2342924]:
-                    print("img_id:{0} with file_name:{1}, filedir:{2}".format(entity.image.id, file_name, file_dir))
-                continue
+                # if entity.image.id not in [2343115, 2343655, 2343239, 2343622, 2342924]:
+                if entity.image.id != 2343239:
+                    # print("img_id:{0} with file_name:{1}, filedir:{2}".format(entity.image.id, file_name, file_dir))
+                    continue
 
                 # if 3 < len(entity.objects) < 7 and 3 < len(entity.relationships) < 7:
                 #     continue
 
                 i += 1
                 vis = VisualizerEntity(entity, "/home/roeih/Dropbox/SceneGrapher/Paper_photos")
+                confidences = np.array([[0.01, 0.0, 0.05, 0.0, 0.0, 0.03], [0.15, 0.0, .39, .0, .0, .03],
+                                        [.82, 1.0, 0.03, 0.98, 0.01, 0.61], [0.01, 0.0, 0.47, 0.01, 0.99, 0.29],
+                                        [0.0, 0.0, 0.03, 0.01, 0.0, 0.02], [0.01, 0.0, 0.03, 0.0, 0.0, 0.01]])
+                # vis.draw_attention(confidences)
                 vis.draw_objects()
                 vis.draw_scene_graph()
 
-                print("debug")
+                vis.save_all()
+
+        print("debug")
 
 
 def load_NYU_dataset(file_path):
@@ -1293,7 +1338,7 @@ if __name__ == '__main__':
     logger = Logger()
 
     # load_NYU_dataset(file_path="splits.mat")
-    run_entities()
+    vis_entities()
     exit()
 
     # get_corpus_from_image_captioning()

@@ -1,5 +1,5 @@
 import traceback
-
+import scipy
 import cv2
 import numpy
 import os
@@ -19,7 +19,7 @@ FILL_COLOR = (255, 255, 0)
 PADDING = 1
 SCALE_FACTOR_DEF = 500
 
-color_vec = [(125, 0, 0), (0, 125, 0), (0, 0, 125), (255, 255, 0), (255, 0, 255), (0, 255, 255),
+color_vec = [(255, 255, 255), (0, 125, 0), (0, 0, 125), (255, 255, 0), (255, 0, 255), (0, 255, 255),
              (0, 125, 125), (125, 0, 125), (125, 125, 0), (255, 125, 125), (125, 255, 125), (125, 125, 255),
              (255, 255, 125), (255, 125, 255), (125, 255, 255), (0, 125, 255), (125, 0, 255), (125, 255, 0),
              (0, 255, 125), (255, 125, 0), (255, 0, 125), (60, 0, 125), (60, 125, 0), (125, 60, 0),
@@ -80,6 +80,8 @@ class VisualizerEntity(object):
         self.create_canvas(self.id)
         self.folder_path = path
         self.draw_num = 0
+        self.color_dict = {0: cv2.COLORMAP_AUTUMN, 1: cv2.COLORMAP_WINTER, 2: cv2.COLORMAP_JET, 3: cv2.COLORMAP_WINTER,
+                           4: cv2.COLORMAP_SPRING, 5: cv2.COLORMAP_SUMMER, 6: cv2.COLORMAP_OCEAN}
 
     def create_canvas(self, name):
         if name not in self.canvases:
@@ -88,6 +90,90 @@ class VisualizerEntity(object):
             return name
         else:
             return None
+
+    def get_color_map(self, image, color=cv2.COLORMAP_JET):
+        return cv2.applyColorMap(cv2.equalizeHist(image), color)
+
+    def draw_attention(self, confidences):
+        original_detection_centers = {}
+        i = 0
+        for object in self.entity.objects:
+            try:
+                confidences_per_object = confidences[:, i]
+                heat_map = numpy.zeros(shape=[self.image.shape[0], self.image.shape[1], 1], dtype=numpy.float64)
+                original_detection_centers = self.attention_per_neighb(original_detection_centers, confidences_per_object, heat_map)
+
+                cv2.normalize(heat_map, heat_map, 0, 255, cv2.NORM_MINMAX)
+                heat_map = cv2.convertScaleAbs(heat_map)
+                heat_map_float = heat_map / (heat_map.max() / 16.)
+                heat_map_float = numpy.power(heat_map_float, 2)
+                heat_map_int = cv2.normalize(heat_map_float, None, 0, 255, cv2.NORM_MINMAX)
+                heat_map_int = cv2.convertScaleAbs(heat_map_int)
+                heat_map = heat_map_int
+
+                color_map = self.get_color_map(heat_map)
+                color_map[heat_map == 0] = self.image[heat_map == 0]
+                blend = cv2.addWeighted(color_map, 0.6, self.image, 0.4, 0)
+
+                # path_save = os.path.join(self.folder_path, "objects_img_{0}_att_{1}.jpg".format(self.entity.image.id, object))
+                path_save = os.path.join("objects_img_{0}_att_{1}.jpg".format(self.entity.image.id, object))
+                cv2.imwrite(path_save, blend)
+                print("Objects image have been saved in {} \n".format(path_save))
+                i += 1
+
+            except Exception as e:
+                print("Error: {}".format(str(e)))
+                traceback.print_exc()
+
+    def attention_per_neighb(self, original_detection_centers, confidences_per_object, heat_map, scale=2):
+
+        ind = 0
+        # output = self.image.copy()
+        for object in self.entity.objects:
+            try:
+                # overlay = self.image.copy()
+                confidence = confidences_per_object[ind]
+                # Get the mask: a dict with {x1,x2,y1,y2}
+                mask_object = get_mask_from_object(object)
+                # Saves as a box
+                object_box = numpy.array([mask_object['x1'], mask_object['y1'], mask_object['x2'], mask_object['y2']])
+                width = object_box[BOX.X2] - object_box[BOX.X1]
+                height = object_box[BOX.Y2] - object_box[BOX.Y1]
+                object_label_gt = object.names[0]
+                original_detection_centers[ind] = (object_box[BOX.X1] + width / 2, object_box[BOX.Y1] + height / 2)
+                # self.draw_labeled_box(name=self.id, box=object_box, label=object_label_gt,
+                #                       rect_color=rect_color(ind), scale=2, img=overlay)
+
+                # cv2.imwrite("overlay.jpg", overlay)
+                # output = cv2.addWeighted(overlay, confidence, output, 1, 0)
+                # cv2.imwrite("output.jpg", output)
+
+                gaussian = numpy.zeros(shape=[height, width], dtype=numpy.float64)
+                gaussian[height / 2, width / 2] = 1
+                gaussian = scipy.ndimage.filters.gaussian_filter(gaussian, (height / 8., width / 8.))
+                cv2.normalize(gaussian, gaussian, 0, confidence, cv2.NORM_MINMAX)
+                heat_map[object_box[BOX.Y1]:object_box[BOX.Y2], object_box[BOX.X1]:object_box[BOX.X2]] += numpy.expand_dims(gaussian, axis=2)
+                # heat_map[object_box[BOX.Y1]:object_box[BOX.Y2], object_box[BOX.X1]:object_box[BOX.X2]] = numpy.expand_dims(gaussian, axis=2)
+
+                # copy_heatmap = numpy.copy(heat_map)
+                # cv2.normalize(copy_heatmap, copy_heatmap, 0, 255, cv2.NORM_MINMAX)
+                # copy_heatmap = cv2.convertScaleAbs(copy_heatmap)
+                # heat_map_float = copy_heatmap / (copy_heatmap.max() / 16.)
+                # heat_map_float = numpy.power(heat_map_float, 2)
+                # heat_map_int = cv2.normalize(heat_map_float, None, 0, 255, cv2.NORM_MINMAX)
+                # heat_map_int = cv2.convertScaleAbs(heat_map_int)
+                # copy_heatmap = heat_map_int
+                #
+                # color_map = self.get_color_map(copy_heatmap, 0)
+                # color_map[copy_heatmap == 0] = self.image[copy_heatmap == 0]
+                # blend = cv2.addWeighted(color_map, 0.5, self.image, 0.5, 0)
+
+                ind += 1
+            except Exception as e:
+                print("Error: {}".format(str(e)))
+                traceback.print_exc()
+
+        return original_detection_centers
 
     def draw_objects(self):
         i = 0
@@ -115,7 +201,7 @@ class VisualizerEntity(object):
 
     def save_image(self, image, name):
         self.draw_num += 1
-        img_path = os.path.join(self.folder_path, str(self.draw_num) + '-' + name + '.jpg')
+        img_path = os.path.join(self.folder_path, str(self.draw_num) + '-' + str(name) + '.jpg')
         cv2.imwrite(img_path, image)
         print('Image saved: {}'.format(img_path))
 
@@ -124,11 +210,14 @@ class VisualizerEntity(object):
             self.save_image(self.canvases[name], name)
 
     def draw_labeled_box(self, name, box, label=None, rect_color=CvColor.GREEN, scale=None, text_color=None,
-                         where="top_left", label2=None):
+                         where="top_left", label2=None, img=None):
         self.create_canvas(name)
         # Drawing the rectangular.
         try:
-            cv2.rectangle(self.image, (int(box[BOX.X1]), int(box[BOX.Y1])), (int(box[BOX.X2]), int(box[BOX.Y2])),
+            if img is None:
+                img = self.image
+
+            cv2.rectangle(img, (int(box[BOX.X1]), int(box[BOX.Y1])), (int(box[BOX.X2]), int(box[BOX.Y2])),
                           rect_color, thickness=2 * scale)
         except Exception as e:
             print('error drawing box {} with exception {}'.format(str(box), e))
@@ -138,14 +227,16 @@ class VisualizerEntity(object):
 
             label_size = cv2.getTextSize(label, FONT_FACE, scale, FONT_THICKNESS)
             label_pixel_size = label_size[0]
-            rect_top_left_pt = (box[BOX.X1], box[BOX.Y1])
+            rect_top_left_pt = (box[BOX.X1] + 10, box[BOX.Y1] + 25)
+            if label == "man":
+                rect_top_left_pt = (box[BOX.X1] - 30, box[BOX.Y1] + 90)
             label_pixel_height = label_pixel_size[1]
             text_org = tuple(map(lambda x: numpy.float32(sum(x)), zip(rect_top_left_pt, (0, label_pixel_height),
                                                                       (PADDING, 2 * PADDING))))
             if text_color is None:
                 text_color = FONT_COLOR
-            cv2.putText(self.image, label, text_org, FONT_FACE, 2, rect_color, 9)
-            cv2.putText(self.image, label, text_org, FONT_FACE, 2, text_color, 3)
+            cv2.putText(img, label, text_org, FONT_FACE, 4, rect_color, 9)
+            cv2.putText(img, label, text_org, FONT_FACE, 4, text_color, 3)
 
     def draw_scene_graph(self):
         """
