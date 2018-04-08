@@ -1,13 +1,18 @@
+import sys
+
+from tensorflow.contrib.slim.python.slim.nets import resnet_utils
+from tensorflow.contrib.slim.python.slim.nets.resnet_v2 import resnet_v2_50, bottleneck, resnet_v2
+
+sys.path.append("..")
+
 from keras.layers import GlobalAveragePooling2D, Dense
 
 from FeaturesExtraction.Lib.Zoo import ModelZoo
 from FilesManager.FilesManager import FilesManager
 from Utils.Logger import Logger
 import tensorflow as tf
-from tensorflow.contrib import rnn
 import numpy as np
-
-__author__ = 'roeih'
+from vgg16 import vgg16
 
 
 class End2EndModel(object):
@@ -16,96 +21,51 @@ class End2EndModel(object):
     the belief of predicates and objects. The E2E Module outputs an improved belief for predicates and objects
     """
 
-    def __init__(self, nof_predicates, nof_objects, visual_features_predicate_size, visual_features_object_size,
-                 rnn_steps=2, is_train=True, loss_func="all", learning_rate=0.1, learning_rate_steps=1000,
-                 learning_rate_decay=0.5, including_object=False, include_bb=False, layers=[1000, 200],
-                 reg_factor=0.03, lr_object_coeff=1, config=None):
+    def __init__(self, gpi_type="FeatureAttention", nof_predicates=51, nof_objects=150, rnn_steps=1, is_train=True,
+                 learning_rate=0.0001,
+                 learning_rate_steps=1000, learning_rate_decay=0.5,
+                 including_object=False, layers=[500, 500, 500], reg_factor=0.0, lr_object_coeff=4, config=None):
         """
         Construct module:
         - create input placeholders
-        - create rnn step
-        - attach rnn_step rnn_steps times
+        - apply SGP rnn_steps times
         - create labels placeholders
         - create module loss and train_step
 
+        :type gpi_type: "Linguistic", "FeatureAttention", "NeighbourAttention"
         :param nof_predicates: nof predicate labels
         :param nof_objects: nof object labels
-        :param visual_features_predicate_size: predicate visual features size
-        :param visual_features_object_size: object visual features size
-        :param rnn_steps: rnn length
+        :param rnn_steps: number of time to apply SGP
         :param is_train: whether the module will be used to train or eval
         """
-
-        ## save input
+        # save input
         self.learning_rate_decay = learning_rate_decay
         self.learning_rate_steps = learning_rate_steps
         self.learning_rate = learning_rate
         self.nof_predicates = nof_predicates
         self.nof_objects = nof_objects
-        self.visual_features_predicate_size = visual_features_predicate_size
-        self.visual_features_object_size = visual_features_object_size
         self.is_train = is_train
         self.rnn_steps = rnn_steps
         self.embed_size = 300
-        self.loss_func = loss_func
+        self.gpi_type = gpi_type
+
         self.including_object = including_object
         self.lr_object_coeff = lr_object_coeff
         self.layers = layers
-        self.include_bb = include_bb
         self.reg_factor = reg_factor
         self.activation_fn = tf.nn.relu
+        self.reuse = None
         self.config = config
-
         # logging module
         logger = Logger()
 
         # Create tf Graph Inputs
         self.create_placeholders()
 
-        # Create Weights
-        self.create_weights()
-
-        # @todo: clean
-        # # Linear activation, using rnn inner loop last output
-        # h1 = tf.matmul(self.output_resnet50, self.nn_predicate_w_1) + self.nn_predicate_b_1
-        # self.logits = tf.matmul(h1, self.nn_predicate_w_5) + self.nn_predicate_b_5
-        # # self.logits = self.output_resnet50
-
-        # store all the outputs of of rnn steps
-        self.out_belief_object_lst = []
-        self.out_belief_predicate_lst = []
-        # rnn stage module
-        belief_predicate = self.output_resnet50_reshaped
-        belief_object = self.belief_object_ph
-
-        # features msg
-        for step in range(self.rnn_steps):
-            belief_predicate, belief_object_temp = \
-                self.deep_graph(in_belief_predicate=belief_predicate,
-                                in_belief_object=belief_object,
-                                in_extended_belief_object_shape=self.extended_belief_object_shape_ph,
-                                scope_name="deep_graph")
-            # store the belief
-            self.out_belief_predicate_lst.append(belief_predicate)
-            if self.including_object:
-                belief_object = belief_object_temp
-                # store the belief
-                self.out_belief_object_lst.append(belief_object_temp)
-
-        self.out_belief_predicate = belief_predicate
-        self.out_belief_object = belief_object
-        reshaped_predicate_belief = tf.reshape(belief_predicate, (-1, self.nof_predicates))
-        self.reshaped_predicete_probes = tf.nn.softmax(reshaped_predicate_belief)
-        self.out_predicate_probes = tf.reshape(self.reshaped_predicete_probes, tf.shape(belief_predicate),
-                                               name="out_predicate_probes")
-        self.out_object_probes = tf.nn.softmax(belief_object, name="out_object_probes")
-
-        # loss
-        if self.is_train:
-            # Learning rate
-            self.lr_ph = tf.placeholder(dtype=tf.float32, shape=[], name="lr_ph")
-
-            self.loss, self.gradients, self.grad_placeholder, self.train_step = self.module_loss()
+        # Feature Extractor
+        self.feature_extractor()
+        # SGP
+        self.sgp()
 
     def create_placeholders(self, scope_name="placeholders"):
         """
@@ -113,91 +73,53 @@ class End2EndModel(object):
         """
         with tf.variable_scope(scope_name):
             # todo: clean
-            # self.img_inputs_ph = tf.placeholder(shape=[None, self.config.crop_height, self.config.crop_width, 5],
-            #                                 dtype=tf.float32, name="img_inputs")
-            # self.img_labels_ph = tf.placeholder(shape=[None, self.num_classes], dtype=tf.float32,
-            #                                 name="image_output")
-            self.img_inputs_ph = tf.contrib.keras.layers.Input(
-                shape=(self.config.crop_height, self.config.crop_width, 5), name="image_input_ph")
+            self.img_inputs_ph = tf.placeholder(shape=[None, self.config.crop_height, self.config.crop_width, 5],
+                                                dtype=tf.float32, name="img_inputs")
+            # size of slices of image relations (to avoid from OOM error)
+            self.slices_size_ph = tf.placeholder(dtype=tf.int32, shape=[3])
+            self.slices = tf.split(self.img_inputs_ph, self.slices_size_ph)
 
             # shape to be used by feature collector
             self.num_objects_ph = tf.placeholder(dtype=tf.int32, shape=[], name="num_of_objects_ph")
 
-            ## module input
-            # batch normalization
+            ##
+            # SGP input
+
             self.phase_ph = tf.placeholder(tf.bool, name='phase')
 
-            # Visual features
-            self.visual_features_predicate_ph = tf.placeholder(dtype=tf.float32,
-                                                               shape=(None, None, self.visual_features_predicate_size),
-                                                               name="visual_feautres_predicate")
-            self.visual_features_object_ph = tf.placeholder(dtype=tf.float32,
-                                                            shape=(None, self.visual_features_object_size),
-                                                            name="visual_features_object")
-            # belief
-            # self.belief_predicate_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, self.nof_predicates),
-            #                                           name="belief_predicate")
-            self.belief_object_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects),
-                                                   name="belief_object")
+            # confidence
+            # self.confidence_relation_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, self.nof_predicates),
+            #                                             name="confidence_relation")
+            # self.confidence_relation_ph = tf.contrib.layers.dropout(self.confidence_relation_ph, keep_prob=0.9, is_training=self.phase_ph)
+            self.confidence_entity_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects),
+                                                       name="confidence_entity")
+            # self.confidence_entity_ph = tf.contrib.layers.dropout(self.confidence_entity_ph, keep_prob=0.9, is_training=self.phase_ph)
+            # spatial features
+            self.entity_bb_ph = tf.placeholder(dtype=tf.float32, shape=(None, 4), name="obj_bb")
 
-            # shape to be used by feature collector
-            self.extended_belief_object_shape_ph = tf.placeholder(dtype=tf.int32, shape=(3),
-                                                                  name="extended_belief_object_shape")
-
-            # shape to be used by feature collector
-            self.extended_obj_bb_shape_ph = tf.placeholder(dtype=tf.int32, shape=(3), name="extended_obj_bb_shape")
-            self.obj_bb_ph = tf.placeholder(dtype=tf.float32, shape=(None, 4), name="obj_bb")
-            self.expand_obj_bb = tf.add(tf.zeros(self.extended_obj_bb_shape_ph), self.obj_bb_ph, name="expand_obj_bb")
-            # expand subject bb
-            expand_sub_bb = tf.transpose(self.expand_obj_bb, perm=[1, 0, 2], name="expand_sub_bb")
-            self.expand_sub_bb = expand_sub_bb
-            bb_features_0 = tf.concat((expand_sub_bb, self.expand_obj_bb), axis=2, name="bb_features")
-            self.bb_features = bb_features_0
             # word embeddings
-            self.word_embed_objects = tf.placeholder(dtype=tf.float32, shape=(self.nof_objects, self.embed_size),
-                                                     name="word_embed_objects")
-            self.word_embed_predicates = tf.placeholder(dtype=tf.float32, shape=(self.nof_predicates, self.embed_size),
-                                                        name="word_embed_predicates")
+            # self.word_embed_entities_ph = tf.placeholder(dtype=tf.float32, shape=(self.nof_objects, self.embed_size),
+            #                                             name="word_embed_objects")
+            # self.word_embed_relations_ph = tf.placeholder(dtype=tf.float32,
+            #                                              shape=(self.nof_predicates, self.embed_size),
+            #                                              name="word_embed_predicates")
 
             # labels
             if self.is_train:
-                self.labels_predicate_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, self.nof_predicates),
-                                                          name="labels_predicate")
-                self.labels_object_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects),
+                self.labels_relation_ph = tf.placeholder(dtype=tf.float32, shape=(None, None, self.nof_predicates),
+                                                         name="labels_predicate")
+                self.labels_entity_ph = tf.placeholder(dtype=tf.float32, shape=(None, self.nof_objects),
                                                        name="labels_object")
                 self.labels_coeff_loss_ph = tf.placeholder(dtype=tf.float32, shape=(None), name="labels_coeff_loss")
 
-    def create_weights(self):
+    def feature_extractor(self):
         """
         This function creates weights and biases
         """
         # Create First part
-        self.create_detection_net()
-
-        #todo: clean
-        # Create Second part
-        # self.create_deep_belief_net()
-
-    #todo: clean
-    def create_deep_belief_net(self, scope_name="deep_belief"):
-        """
-        This function creates weights and biases
-        """
-        h1_size = 500
-        h4_size = 500
-        out_size = 51
-
-        with tf.variable_scope(scope_name):
-            # Define the initialization of the first layer
-            self.nn_predicate_w_1 = tf.get_variable(name="w1", shape=(51, h1_size),
-                                                    initializer=tf.truncated_normal_initializer(stddev=0.03))
-            self.nn_predicate_b_1 = tf.get_variable(name="b1", shape=(h1_size),
-                                                    initializer=tf.truncated_normal_initializer(stddev=0.03))
-            # Define the initialization of the layer 5
-            self.nn_predicate_w_5 = tf.get_variable(name="w5", shape=(h4_size, out_size),
-                                                    initializer=tf.truncated_normal_initializer(stddev=0.03))
-            self.nn_predicate_b_5 = tf.get_variable(name="b5", shape=(out_size),
-                                                    initializer=tf.truncated_normal_initializer(stddev=0.03))
+        # self.create_detection_net()
+        # self.create_vgg_detection_net()
+        self.create_resnet_detection_net()
 
     def create_detection_net(self, scope_name="detector"):
         """
@@ -213,7 +135,7 @@ class End2EndModel(object):
                                          name='fc')(model_resnet50)
             self.output_resnet50_reshaped = tf.reshape(self.output_resnet50, [self.num_objects_ph, self.num_objects_ph,
                                                                               self.nof_predicates])
-            # todo: clean didn't successeed
+            # todo: clean didn't succeed
             # # Set negative predicate in diagonal
             # self.try1 = tf.constant([[[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
             #                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -230,211 +152,263 @@ class End2EndModel(object):
             mask = tf.transpose(tf.matrix_diag(tf.ones_like(tf.transpose(self.output_resnet50_reshaped[0])))) * -1 + 1
             self.output_resnet50_reshaped = tf.multiply(self.output_resnet50_reshaped, mask)
 
-    def deep_graph(self, in_belief_predicate, in_belief_object,
-                   in_extended_belief_object_shape, scope_name="rnn_cell"):
+    def create_vgg_detection_net(self):
+        output_slices = []
+        reuse = None
+        # for slice in self.slices:
+        #    relation_net = vgg16(slice, reuse=reuse)
+        #    reuse = True
+        #    output_slices.append(relation_net.features)
+
+        # self.output_resnet50 = tf.concat(output_slices, 0)
+
+        relation_net = vgg16(self.img_inputs_ph)
+        self.output_resnet50 = relation_net.features
+
+        N = tf.slice(tf.shape(self.confidence_entity_ph), [0], [1], name="N")
+        M = tf.constant([50], dtype=tf.int32)
+        relations_shape = tf.concat((N, N, M), 0)
+        self.output_resnet50_reshaped = tf.reshape(self.output_resnet50, relations_shape)
+
+    def create_resnet_detection_net(self):
+        #reuse = None
+        #output_slices = []
+        #for slice in self.slices:
+        #    slice_output, end_points = alexnet_v2(slice, num_classes=50, reuse=reuse)
+        #    reuse = True
+        #    output_slices.append(slice_output)
+
+        #self.output_resnet50 = tf.concat(output_slices, 0)
+
+        self.output_resnet50, end_points = self.resnet_v2_18(self.img_inputs_ph, num_classes=50)
+        N = tf.slice(tf.shape(self.confidence_entity_ph), [0], [1], name="N")
+        M = tf.constant([50], dtype=tf.int32)
+        relations_shape = tf.concat((N, N, M), 0)
+        self.output_resnet50_reshaped = tf.reshape(self.output_resnet50, relations_shape)
+
+    def sgp(self):
+        # store all the outputs of of rnn steps
+        self.out_confidence_entity_lst = []
+        self.out_confidence_relation_lst = []
+        # rnn stage module
+        confidence_relation = self.output_resnet50_reshaped
+        confidence_entity = self.confidence_entity_ph
+
+        # features msg
+        for step in range(self.rnn_steps):
+            confidence_relation, confidence_entity_temp = \
+                self.sgp_cell(relation_features=confidence_relation,
+                              entity_features=confidence_entity,
+                              scope_name="deep_graph")
+            # store the confidence
+            self.out_confidence_relation_lst.append(confidence_relation)
+            if self.including_object:
+                confidence_entity = confidence_entity_temp
+                # store the confidence
+                self.out_confidence_entity_lst.append(confidence_entity_temp)
+            self.reuse = True
+
+        # confidence_entity = confidence_entity_temp
+        self.out_confidence_relation = confidence_relation
+        self.out_confidence_entity = confidence_entity
+        reshaped_relation_confidence = tf.reshape(confidence_relation, (-1, self.nof_predicates))
+        self.reshaped_relation_probes = tf.nn.softmax(reshaped_relation_confidence)
+        self.out_relation_probes = tf.reshape(self.reshaped_relation_probes, tf.shape(confidence_relation),
+                                              name="out_relation_probes")
+        self.out_entity_probes = tf.nn.softmax(confidence_entity, name="out_entity_probes")
+
+        # loss
+        if self.is_train:
+            # Learning rate
+            self.lr_ph = tf.placeholder(dtype=tf.float32, shape=[], name="lr_ph")
+
+            self.loss, self.gradients, self.grad_placeholder, self.train_step = self.module_loss()
+
+    def nn(self, features, layers, out, scope_name, seperated_layer=False, last_activation=None):
         """
-        RNN stage - which get as an input a belief of the predicates and objects and return an improved belief of the predicates and the objects
+        simple nn to convert features to confidence
+        :param features: list of features tensor
+        :param layers: hidden layers
+        :param separated_layer: First run FC one each feature tensor separately
+        :param out: output shape (used to reshape to required output shape)
+        :param scope_name: tensorflow scope name
+        :param last_activation: activation function for the last layer (None means no activation)
+        :return: confidence
+        """
+        with tf.variable_scope(scope_name) as scope:
+
+            # first layer each feature separately
+            features_h_lst = []
+            index = 0
+            for feature in features:
+                if seperated_layer:
+                    in_size = feature.shape[-1]._value
+                    scope = str(index)
+                    h = tf.contrib.layers.fully_connected(feature, in_size, reuse=self.reuse, scope=scope,
+                                                          activation_fn=self.activation_fn)
+                    index += 1
+                    features_h_lst.append(h)
+                else:
+                    features_h_lst.append(feature)
+
+            h = tf.concat(features_h_lst, axis=-1)
+            h = tf.contrib.layers.dropout(h, keep_prob=0.9, is_training=self.phase_ph)
+            for layer in layers:
+                scope = str(index)
+                h = tf.contrib.layers.fully_connected(h, layer, reuse=self.reuse, scope=scope,
+                                                      activation_fn=self.activation_fn)
+                h = tf.contrib.layers.dropout(h, keep_prob=0.9, is_training=self.phase_ph)
+                index += 1
+
+            scope = str(index)
+            y = tf.contrib.layers.fully_connected(h, out, reuse=self.reuse, scope=scope, activation_fn=last_activation)
+        return y
+
+    def sgp_cell(self, relation_features, entity_features, scope_name="rnn_cell"):
+        """
+        SGP step - which get as an input a confidence of the predicates and objects and return an improved confidence of the predicates and the objects
         :return:
-        :param in_belief_predicate: predicate belief of the last stage in the RNN
-        :param in_belief_object: object belief of the last stage in the RNNS
-        :param in_extended_belief_object_shape: the shape of the extended version of object belief (N, N, NOF_OBJECTS)
-        :param scope_name: rnn stage scope
-        :return: improved predicates probabilities, improved predicate belief,  improved object probabilities and improved object belief
+        :param relation_features: in relation confidence
+        :param entity_features: in entity confidence
+        :param scope_name: sgp step scope
+        :return: improved relation probabilities, improved relation confidence,  improved entity probabilities and improved entity confidence
         """
         with tf.variable_scope(scope_name):
 
-            in_belief_predicate = in_belief_predicate - tf.reduce_mean(self.output_resnet50_reshaped, axis=2,
-                                                                       keep_dims=True)
-            self.in_belief_predicate = in_belief_predicate
-            in_belief_object = in_belief_object - tf.reduce_mean(in_belief_object, axis=1, keep_dims=True)
-            self.in_belief_object = in_belief_object
-
-            # belief to probes
-            self.in_belief_predicate_actual = in_belief_predicate
-            predicate_probes = tf.nn.softmax(in_belief_predicate)
-            self.predicate_probes = predicate_probes
-            in_belief_predicate_norm = tf.log(predicate_probes + tf.constant(1e-10))
-
-            in_belief_object = self.belief_object_ph
-            self.in_belief_object_actual = in_belief_object
-            object_probes = tf.nn.softmax(in_belief_object)
-            self.object_probes = object_probes
-            in_belief_object_norm = tf.log(object_probes + tf.constant(1e-10))
+            # add the spatial features to entity features
+            orig_entity_features = entity_features
+            entity_features = tf.concat((entity_features, self.entity_bb_ph), axis=1)
 
             # word embeddings
-            # expand object embed
-            self.obj_prediction = tf.argmax(self.object_probes, axis=1)
-            self.obj_prediction_val = tf.reduce_max(self.object_probes, axis=1)
-            self.embed_objects = tf.gather(self.word_embed_objects, self.obj_prediction)
-            self.embed_objects = tf.transpose(tf.multiply(tf.transpose(self.embed_objects), self.obj_prediction_val))
-            in_extended_belief_embed_shape = in_extended_belief_object_shape - tf.constant(
-                [0, 0, 150 - self.embed_size])
-            expand_embed_object = tf.add(tf.zeros(in_extended_belief_embed_shape), self.embed_objects)
-            in_belief_object_norm = self.embed_objects
+            # expand object word embed
+            N = tf.slice(tf.shape(entity_features), [0], [1], name="N")
 
-            # expand subject belief
-            expand_embed_subject = tf.transpose(expand_embed_object, perm=[1, 0, 2])
-            self.expand_embed_subject = expand_embed_subject
-            self.pred_prediction = tf.argmax(self.predicate_probes, axis=2)
-            self.pred_prediction_val = tf.reduce_max(self.predicate_probes, axis=2)
-            self.embed_predicates = tf.gather(self.word_embed_predicates, tf.reshape(self.pred_prediction, [-1]))
-            self.embed_predicates = tf.transpose(
-                tf.multiply(tf.transpose(self.embed_predicates), tf.reshape(self.pred_prediction_val, [-1])))
-            self.embed_predicates = tf.reshape(self.embed_predicates, tf.shape(expand_embed_object))
-            in_belief_predicate_norm = self.embed_predicates
-            # expand to NxN
-            self.predicate_opposite = tf.transpose(in_belief_predicate_norm, perm=[1, 0, 2])
-            # expand object belief
-            self.expand_object_belief = tf.add(tf.zeros(in_extended_belief_embed_shape), in_belief_object_norm,
-                                               name="expand_object_belief")
-            # expand subject belief
-            self.expand_subject_belief = tf.transpose(self.expand_object_belief, perm=[1, 0, 2],
-                                                      name="expand_subject_belief")
+            # append relations in both directions
+            self.relation_features = tf.concat((relation_features, tf.transpose(relation_features, perm=[1, 0, 2])),
+                                               axis=2)
 
-            N = tf.slice(tf.shape(in_belief_predicate_norm), [0], [1], name="N")
-            expand_predicate_3d_shape = tf.concat((N, tf.shape(in_belief_predicate_norm)), 0)
-            expand_object_3d_shape = tf.concat((N, N, tf.shape(in_belief_object_norm)), 0)
-            in_belief_predicate_expand_3d = tf.add(tf.zeros(expand_predicate_3d_shape), in_belief_predicate_norm)
-            in_belief_predicate_opp_expand_3d = tf.transpose(in_belief_predicate_expand_3d, perm=[0, 2, 1, 3])
-            self.predicate_expand_3d = tf.transpose(in_belief_predicate_expand_3d, perm=[1, 2, 0, 3])
-            self.object_expand_3d = tf.add(tf.zeros(expand_object_3d_shape), self.expand_object_belief)
-            self.subject_expand_3d = tf.transpose(self.object_expand_3d, perm=[0, 2, 1, 3])
-            self.object_atten_expand_3d = tf.transpose(self.object_expand_3d, perm=[2, 0, 1, 3])
-            # in_belief_object_expand_3d = tf.transpose(in_belief_object_expand_3d, perm=[2, 0, 1, 3])
-            # self.expand_object_ngbrs_phi_all_3d = tf.add(tf.zeros(expand_object_3d_shape), self.expand_object_ngbrs_phi_all)
-            # self.expand_object_ngbrs_phi_all_3d = tf.transpose(self.expand_object_ngbrs_phi_all_3d, perm=[2, 0, 1, 3])
-            expand_bb_3d_shape = tf.concat((N, tf.shape(self.bb_features)), 0)
-            self.pred_bb_expand_3d = tf.add(tf.zeros(expand_bb_3d_shape), self.bb_features)
-            self.pred2_bb_expand_3d = tf.transpose(self.pred_bb_expand_3d, perm=[1, 2, 0, 3])
+            # expand object confidence
+            self.extended_entity_features_shape = tf.concat((N, tf.shape(entity_features)), 0)
+            self.expand_object_features = tf.add(tf.zeros(self.extended_entity_features_shape),
+                                                 entity_features,
+                                                 name="expand_object_features")
+            # expand subject confidence
+            self.expand_subject_features = tf.transpose(self.expand_object_features, perm=[1, 0, 2],
+                                                        name="expand_subject_features")
 
-            # stage 1 graph embedding
-            self.object_ngbrs = [self.expand_object_belief, self.expand_subject_belief, in_belief_predicate_norm,
-                                 self.predicate_opposite, self.bb_features]
-
+            ##
+            # Node Neighbours
+            self.object_ngbrs = [self.expand_object_features, self.expand_subject_features, relation_features]
+            # apply phi
             self.object_ngbrs_phi = self.nn(features=self.object_ngbrs, layers=[], out=500, scope_name="nn_phi")
+            # Attention mechanism
+            if self.gpi_type == "FeatureAttention":
+                self.object_ngbrs_scores = self.nn(features=self.object_ngbrs, layers=[], out=500,
+                                                   scope_name="nn_phi_atten")
+                self.object_ngbrs_weights = tf.nn.softmax(self.object_ngbrs_scores, dim=1)
+                self.object_ngbrs_phi_all = tf.reduce_sum(tf.multiply(self.object_ngbrs_phi, self.object_ngbrs_weights),
+                                                          axis=1)
 
-            self.object_ngbrs_scores = self.nn(features=self.object_ngbrs, layers=[], out=500,
-                                               scope_name="nn_phi_atten")
-            self.object_ngbrs_weights = tf.nn.softmax(self.object_ngbrs_scores, dim=1)
-            self.object_ngbrs_phi_all = tf.reduce_sum(tf.multiply(self.object_ngbrs_phi, self.object_ngbrs_weights),
-                                                      axis=1)
+            elif self.gpi_type == "NeighbourAttention":
+                self.object_ngbrs_scores = self.nn(features=self.object_ngbrs, layers=[], out=1,
+                                                   scope_name="nn_phi_atten")
+                self.object_ngbrs_weights = tf.nn.softmax(self.object_ngbrs_scores, dim=1)
+                self.object_ngbrs_phi_all = tf.reduce_sum(tf.multiply(self.object_ngbrs_phi, self.object_ngbrs_weights),
+                                                          axis=1)
+            else:
+                self.object_ngbrs_phi_all = tf.reduce_mean(self.object_ngbrs_phi, axis=1)
+
+            ##
+            # Nodes
+            self.object_ngbrs2 = [entity_features, self.object_ngbrs_phi_all]
+            # apply alpha
+            self.object_ngbrs2_alpha = self.nn(features=self.object_ngbrs2, layers=[], out=500, scope_name="nn_phi2")
+            # Attention mechanism
+            if self.gpi_type == "FeatureAttention":
+                self.object_ngbrs2_scores = self.nn(features=self.object_ngbrs2, layers=[], out=500,
+                                                    scope_name="nn_phi2_atten")
+                self.object_ngbrs2_weights = tf.nn.softmax(self.object_ngbrs2_scores, dim=0)
+                self.object_ngbrs2_alpha_all = tf.reduce_sum(
+                    tf.multiply(self.object_ngbrs2_alpha, self.object_ngbrs2_weights), axis=0)
+            elif self.gpi_type == "NeighbourAttention":
+                self.object_ngbrs2_scores = self.nn(features=self.object_ngbrs2, layers=[], out=1,
+                                                    scope_name="nn_phi2_atten")
+                self.object_ngbrs2_weights = tf.nn.softmax(self.object_ngbrs2_scores, dim=0)
+                self.object_ngbrs2_alpha_all = tf.reduce_sum(
+                    tf.multiply(self.object_ngbrs2_alpha, self.object_ngbrs2_weights), axis=0)
+            else:
+                self.object_ngbrs2_alpha_all = tf.reduce_mean(self.object_ngbrs2_alpha, axis=0)
+
+            expand_graph_shape = tf.concat((N, N, tf.shape(self.object_ngbrs2_alpha_all)), 0)
+            expand_graph = tf.add(tf.zeros(expand_graph_shape), self.object_ngbrs2_alpha_all)
+
+            ##
+            # rho relation (relation prediction)
+            # The input is object features, subject features, relation features and the representation of the graph
             self.expand_obj_ngbrs_phi_all = tf.add(tf.zeros_like(self.object_ngbrs_phi), self.object_ngbrs_phi_all)
             self.expand_sub_ngbrs_phi_all = tf.transpose(self.expand_obj_ngbrs_phi_all, perm=[1, 0, 2])
-            # stage 2 graph embedding
+            self.relation_all_features = [relation_features, self.expand_object_features, self.expand_subject_features,
+                                          expand_graph]
 
-            self.object_ngbrs2 = [in_belief_object_norm, self.object_ngbrs_phi_all]
-            self.object_ngbrs2_phi = self.nn(features=self.object_ngbrs2, layers=[], out=500, scope_name="nn_phi2")
-            self.object_ngbrs2_scores = self.nn(features=self.object_ngbrs2, layers=[], out=500,
-                                                scope_name="nn_phi2_atten")
-            self.object_ngbrs2_weights = tf.nn.softmax(self.object_ngbrs2_scores, dim=0)
-            self.object_ngbrs2_phi_all = tf.reduce_sum(tf.multiply(self.object_ngbrs2_phi, self.object_ngbrs2_weights),
-                                                       axis=0)
-            expand_graph_shape = tf.concat((N, N, tf.shape(self.object_ngbrs2_phi_all)), 0)
-            expand_graph = tf.add(tf.zeros(expand_graph_shape), self.object_ngbrs2_phi_all)
-            # predicate refine
-            self.predicate_all_features = [self.predicate_probes, self.expand_object_belief, self.expand_subject_belief,
-                                           self.expand_sub_ngbrs_phi_all, self.expand_obj_ngbrs_phi_all, expand_graph,
-                                           self.bb_features]
-
-            pred_delta = self.nn(features=self.predicate_all_features, layers=self.layers, out=self.nof_predicates,
+            pred_delta = self.nn(features=self.relation_all_features, layers=self.layers, out=self.nof_predicates,
                                  scope_name="nn_pred")
-            pred_forget_gate = self.nn(features=self.predicate_all_features, layers=[], out=1,
+            pred_forget_gate = self.nn(features=self.relation_all_features, layers=[], out=1,
                                        scope_name="nn_pred_forgate", last_activation=tf.nn.sigmoid)
-            pred_input_gate = self.nn(features=self.predicate_all_features, layers=[], out=1,
-                                      scope_name="nn_pred_ingate", last_activation=tf.nn.sigmoid)
-            out_belief_predicate = pred_delta + pred_forget_gate * in_belief_predicate
-            # object refine
-            self.object_all_features = [self.object_probes, expand_graph[0], self.object_ngbrs_phi_all]
+            out_confidence_relation = pred_delta  # + pred_forget_gate * relation_features
+
+            ##
+            # rho entity (entity prediction)
+            # The input is entity features, entity neighbour features and the representation of the graph
             if self.including_object:
+                self.object_all_features = [entity_features, expand_graph[0], self.object_ngbrs_phi_all]
                 obj_delta = self.nn(features=self.object_all_features, layers=self.layers, out=self.nof_objects,
                                     scope_name="nn_obj")
                 obj_forget_gate = self.nn(features=self.object_all_features, layers=[], out=self.nof_objects,
                                           scope_name="nn_obj_forgate", last_activation=tf.nn.sigmoid)
-                out_belief_object = obj_delta + obj_forget_gate * in_belief_object
+                out_confidence_object = obj_delta + obj_forget_gate * orig_entity_features
             else:
-                out_belief_object = in_belief_object
+                out_confidence_object = orig_entity_features
 
-            return out_belief_predicate, out_belief_object
+            return out_confidence_relation, out_confidence_object
 
     def module_loss(self, scope_name="loss"):
         """
-        Set and minimize module loss
-        :param lr: init learning rate
-        :param lr_steps: steps to decay learning rate
-        :param lr_decay: factor to decay the learning rate by
+        SGP loss
         :param scope_name: tensor flow scope name
         :return: loss and train step
         """
         with tf.variable_scope(scope_name):
             # reshape to batch like shape
-            shaped_labels_predicate = tf.reshape(self.labels_predicate_ph, (-1, self.nof_predicates))
+            shaped_labels_predicate = tf.reshape(self.labels_relation_ph, (-1, self.nof_predicates))
 
-            # predicate gt
+            # relation gt
             self.gt = tf.argmax(shaped_labels_predicate, axis=1)
-
-            # get negative predicate indices
-            ones = tf.ones_like(shaped_labels_predicate)
-            zeros = tf.zeros_like(shaped_labels_predicate)
-            neg_const = tf.constant(self.nof_predicates - 1, dtype=tf.int64)
-            self.neg_indices = tf.equal(self.gt, neg_const)
-
-            # get postive predicate indices
-            self.pos_indices = tf.not_equal(self.gt, neg_const)
 
             loss = 0
 
             for rnn_step in range(self.rnn_steps):
 
-                shaped_belief_predicate = tf.reshape(self.out_belief_predicate_lst[rnn_step], (-1, self.nof_predicates))
+                shaped_confidence_predicate = tf.reshape(self.out_confidence_relation_lst[rnn_step],
+                                                         (-1, self.nof_predicates))
 
                 # set predicate loss
-                self.predicate_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=shaped_labels_predicate,
-                                                                                 logits=shaped_belief_predicate,
-                                                                                 name="predicate_ce_loss")
+                self.relation_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=shaped_labels_predicate,
+                                                                                logits=shaped_confidence_predicate,
+                                                                                name="relation_ce_loss")
 
-                self.shaped_scores = -tf.log(self.reshaped_predicete_probes)
-                self.neg_scores = tf.where(self.neg_indices, self.shaped_scores,
-                                           ones * tf.reduce_max(self.shaped_scores))
-                self.pos_scores = tf.where(self.pos_indices, self.shaped_scores,
-                                           ones * tf.reduce_max(self.shaped_scores))
-                self.pos_score = tf.reduce_max(
-                    tf.where(self.pos_indices, tf.multiply(self.shaped_scores, shaped_labels_predicate), zeros), axis=1)
-                self.max_neg_score = tf.reduce_min(self.neg_scores[:, :self.nof_predicates - 1])
-                self.wrong_score = tf.reduce_min(tf.multiply(self.shaped_scores, ones - shaped_labels_predicate),
-                                                 axis=1)
-                self.error_score = tf.minimum(self.wrong_score, self.max_neg_score)
-                self.loss_predicate = tf.reduce_sum(tf.maximum(0.0, self.pos_score - self.error_score + 1.0))
+                self.loss_relation = self.relation_ce_loss
+                self.loss_relation_weighted = tf.multiply(self.loss_relation, self.labels_coeff_loss_ph)
 
-                # self.loss_predicate = tf.reduce_sum(self.labels_coeff_loss_ph) * tf.maximum(0.0, 1.0 + self.max_pos_log_probe - self.min_neg_log_probe)
-                # self.loss_predicate = tf.reduce_sum(self.loss_pos) + tf.reduce_sum(self.weighted_neg_loss)
-
-                # loss += self.loss_predicate
-
-                self.loss_predicate = self.predicate_ce_loss
-                self.loss_predicate_weighted = tf.multiply(self.loss_predicate, self.labels_coeff_loss_ph)
-
-                loss += tf.reduce_sum(self.loss_predicate_weighted)
+                loss += tf.reduce_sum(self.loss_relation_weighted)
 
                 # set object loss
                 if self.including_object:
-                    self.object_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_object_ph,
-                                                                                  logits=self.out_belief_object_lst[
+                    self.object_ce_loss = tf.nn.softmax_cross_entropy_with_logits(labels=self.labels_entity_ph,
+                                                                                  logits=self.out_confidence_entity_lst[
                                                                                       rnn_step],
                                                                                   name="object_ce_loss")
 
-                    # object weights according to number of positives per object
-
-                    # self.reshaped_weights = tf.reshape(self.labels_coeff_loss_ph, tf.shape(self.out_predicate_probes[:,:,0]))
-                    self.reshaped_weights = tf.reshape(tf.to_float(self.pos_indices),
-                                                       tf.shape(self.out_predicate_probes[:, :, 0]))
-                    self.sub_weights = tf.reduce_sum(self.reshaped_weights, axis=1)
-                    self.obj_weights = tf.reduce_sum(self.reshaped_weights, axis=0)
-                    self.obj_total_weights = tf.add(self.sub_weights, self.obj_weights)
-                    # self.obj_total_weights /= tf.reduce_sum(self.obj_total_weights)
-
-                    self.loss_object = tf.multiply(self.object_ce_loss, self.obj_total_weights)
-
-                    loss += self.lr_object_coeff * tf.reduce_sum(self.object_ce_loss)  # (self.loss_object)
+                    loss += self.lr_object_coeff * tf.reduce_sum(self.object_ce_loss)
 
             # reg
             trainable_vars = tf.trainable_variables()
@@ -442,12 +416,9 @@ class End2EndModel(object):
             loss += lossL2
 
             # minimize
-            opt = tf.train.GradientDescentOptimizer(self.lr_ph)
-            # opt = tf.train.AdamOptimizer(self.lr_ph)
-            # train_step = opt.minimize(loss)
+            # opt = tf.train.GradientDescentOptimizer(self.lr_ph)
+            opt = tf.train.AdamOptimizer(self.lr_ph)
             # opt = tf.train.MomentumOptimizer(self.lr_ph, 0.9, use_nesterov=True)
-            # gradients = []
-            # grad_placeholder = []
             gradients = opt.compute_gradients(loss)
             # create placeholder to minimize in a batch
             grad_placeholder = [(tf.placeholder("float", shape=grad[0].get_shape()), grad[1]) for grad in gradients]
@@ -455,58 +426,54 @@ class End2EndModel(object):
             train_step = opt.apply_gradients(grad_placeholder)
         return loss, gradients, grad_placeholder, train_step
 
-    def nn(self, features, layers, out, scope_name, seperated_layer=False, last_activation=None):
-        """
-        simple nn to convert features to belief
-        :param features: features tensor
-        :param out: output shape (used to reshape to required output shape)
-        :param scope_name: tensorflow scope name
-        :return: belief
-        """
-        with tf.variable_scope(scope_name):
-
-            # first layer each feature seperatly
-            features_h_lst = []
-            for feature in features:
-                if seperated_layer:
-                    in_size = feature.shape[-1]._value
-                    h = tf.contrib.layers.fully_connected(feature, in_size, activation_fn=self.activation_fn)
-                    features_h_lst.append(h)
-                else:
-                    features_h_lst.append(feature)
-
-            h = tf.concat(features_h_lst, axis=-1)
-
-            index = 0
-            for layer in layers:
-                h = tf.contrib.layers.fully_connected(h, layer, activation_fn=self.activation_fn)
-                index += 1
-
-            y = tf.contrib.layers.fully_connected(h, out, activation_fn=last_activation)
-
-        return y
-
     def get_in_ph(self):
         """
         get input place holders
         """
-        return self.img_inputs_ph, self.belief_object_ph, self.extended_belief_object_shape_ph, \
-               self.visual_features_predicate_ph, self.visual_features_object_ph, self.num_objects_ph
+        return self.confidence_entity_ph, self.entity_bb_ph
 
     def get_output(self):
         """
         get module output
         """
-        return self.out_predicate_probes, self.out_object_probes
+        return self.out_relation_probes, self.out_entity_probes
 
     def get_labels_ph(self):
         """
         get module labels ph (used for train)
         """
-        return self.labels_predicate_ph, self.labels_object_ph, self.labels_coeff_loss_ph
+        return self.labels_relation_ph, self.labels_entity_ph, self.labels_coeff_loss_ph
 
     def get_module_loss(self):
         """
         get module loss and train step
         """
         return self.loss, self.gradients, self.grad_placeholder, self.train_step
+
+    def resnet_v2_18(self,
+                     inputs,
+                     num_classes=None,
+                     global_pool=True,
+                     output_stride=None,
+                     reuse=None,
+                     scope='resnet_v2_50'):
+        """ResNet-50 model of [1]. See resnet_v2() for arg and return description."""
+        blocks = [
+            resnet_utils.Block('block1', bottleneck,
+                               [(64, 64, 3)] * 1 + [(64, 64, 3)]),
+            resnet_utils.Block('block2', bottleneck,
+                               [(128, 128, 3)] * 1 + [(128, 128, 3)]),
+            resnet_utils.Block('block3', bottleneck,
+                               [(256, 256, 3)] * 1 + [(256, 256, 3)]),
+            resnet_utils.Block('block4', bottleneck, [(512, 512, 3)] * 1 + [(512, 512, 3)])
+        ]
+        return resnet_v2(
+            inputs,
+            blocks,
+            num_classes,
+            global_pool,
+            output_stride,
+            include_root_block=True,
+            reuse=reuse,
+            scope=scope)
+
