@@ -86,11 +86,13 @@ class End2EndModel(object):
         """
         with tf.variable_scope(scope_name):
             # todo: clean
-            self.img_inputs_ph = tf.placeholder(shape=[None, 112, 112, 5],
-                                                dtype=tf.float32, name="img_inputs")
+            self.relation_inputs_ph = tf.placeholder(shape=[None, 112, 112, 5],
+                                                     dtype=tf.float32, name="relation_inputs_ph")
+            self.entity_inputs_ph = tf.placeholder(shape=[None, self.config.crop_width, self.config.crop_height, 3],
+                                                   dtype=tf.float32, name="relation_inputs_ph")
             # size of slices of image relations (to avoid from OOM error)
             self.slices_size_ph = tf.placeholder(dtype=tf.int32, shape=[3])
-            self.slices = tf.split(self.img_inputs_ph, self.slices_size_ph)
+            self.slices = tf.split(self.relation_inputs_ph, self.slices_size_ph)
 
             # shape to be used by feature collector
             self.num_objects_ph = tf.placeholder(dtype=tf.int32, shape=[], name="num_of_objects_ph")
@@ -127,87 +129,104 @@ class End2EndModel(object):
 
     def feature_extractor(self):
         """
-        This function creates weights and biases
+        This function creates weights and biases for the Feature Extractor
         """
         # Create First part
         # self.create_detection_net()
         # self.create_vgg_detection_net()
-        self.create_resnet_detection_net()
+        self.create_resnet_relation_net()
+        self.create_resnet_entity_net()
 
-    def create_detection_net(self, scope_name="detector"):
+    # todo: delete all
+    # def create_detection_net(self, scope_name="detector"):
+    #     """
+    #     This function creates weights and biases for the detection architecture unit
+    #     """
+    #     with tf.variable_scope(scope_name):
+    #         # Define ResNet50 model With Top
+    #         net = ModelZoo()
+    #         model_resnet50 = net.resnet50_with_masking_dual(self.relation_inputs_ph,
+    #                                                         trainable=self.config.resnet_body_trainable)
+    #         model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
+    #         self.output_resnet50_relation = Dense(self.nof_predicates, kernel_initializer="he_normal", activation=None,
+    #                                               name='fc')(model_resnet50)
+    #         self.output_resnet50_relation_reshaped = tf.reshape(self.output_resnet50_relation,
+    #                                                             [self.num_objects_ph, self.num_objects_ph,
+    #                                                              self.nof_predicates])
+    #         # todo: clean didn't succeed
+    #         # # Set negative predicate in diagonal
+    #         # self.try1 = tf.constant([[[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    #         #                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    #         #                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    #         #                            0.0, 0.0, 1.0]]])
+    #         # self.try4 = tf.constant([[[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    #         #                            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    #         #                            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+    #         #                            1.0, 1.0, 0.0]]])
+    #         # self.try2 = tf.matrix_set_diag(self.belief_masked, tf.ones([6, 6]))
+    #         # self.try3 = tf.tile(self.try1, [self.num_objects_ph, 1])
+    #         # # mask = tf.transpose(tf.matrix_diag(tf.ones_like(tf.transpose(self.output_resnet50_reshaped)))) * -1 + 1
+    #         # # mask = tf.less(self.output_resnet50, 0.0001 * tf.ones_like(original_tensor))
+    #         mask = tf.transpose(
+    #             tf.matrix_diag(tf.ones_like(tf.transpose(self.output_resnet50_relation_reshaped[0])))) * -1 + 1
+    #         self.output_resnet50_relation_reshaped = tf.multiply(self.output_resnet50_relation_reshaped, mask)
+
+    # def create_vgg_detection_net(self):
+    #     output_slices = []
+    #     reuse = None
+    #     # for slice in self.slices:
+    #     #    relation_net = vgg16(slice, reuse=reuse)
+    #     #    reuse = True
+    #     #    output_slices.append(relation_net.features)
+    #
+    #     # self.output_resnet50 = tf.concat(output_slices, 0)
+    #
+    #     relation_net = vgg16(self.relation_inputs_ph)
+    #     self.output_resnet50_relation = relation_net.features
+    #
+    #     N = tf.slice(tf.shape(self.confidence_entity_ph), [0], [1], name="N")
+    #     M = tf.constant([50], dtype=tf.int32)
+    #     relations_shape = tf.concat((N, N, M), 0)
+    #     self.output_resnet50_relation_reshaped = tf.reshape(self.output_resnet50_relation, relations_shape)
+
+    def create_resnet_relation_net(self, scope_name="relation_resnet50"):
         """
-        This function creates weights and biases for the detection architecture unit
+        This function creates the resnet50 relation network
+        :return:
         """
         with tf.variable_scope(scope_name):
-            # Define ResNet50 model With Top
-            net = ModelZoo()
-            model_resnet50 = net.resnet50_with_masking_dual(self.img_inputs_ph,
-                                                            trainable=self.config.resnet_body_trainable)
-            model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
-            self.output_resnet50 = Dense(self.nof_predicates, kernel_initializer="he_normal", activation=None,
-                                         name='fc')(model_resnet50)
-            self.output_resnet50_reshaped = tf.reshape(self.output_resnet50, [self.num_objects_ph, self.num_objects_ph,
-                                                                              self.nof_predicates])
-            # todo: clean didn't succeed
-            # # Set negative predicate in diagonal
-            # self.try1 = tf.constant([[[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            #                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            #                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            #                            0.0, 0.0, 1.0]]])
-            # self.try4 = tf.constant([[[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-            #                            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-            #                            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-            #                            1.0, 1.0, 0.0]]])
-            # self.try2 = tf.matrix_set_diag(self.belief_masked, tf.ones([6, 6]))
-            # self.try3 = tf.tile(self.try1, [self.num_objects_ph, 1])
-            # # mask = tf.transpose(tf.matrix_diag(tf.ones_like(tf.transpose(self.output_resnet50_reshaped)))) * -1 + 1
-            # # mask = tf.less(self.output_resnet50, 0.0001 * tf.ones_like(original_tensor))
-            mask = tf.transpose(tf.matrix_diag(tf.ones_like(tf.transpose(self.output_resnet50_reshaped[0])))) * -1 + 1
-            self.output_resnet50_reshaped = tf.multiply(self.output_resnet50_reshaped, mask)
+            self.output_resnet50_relation, end_points = resnet_v2_50(self.relation_inputs_ph, num_classes=50)
+            N = tf.slice(tf.shape(self.confidence_entity_ph), [0], [1], name="N_relation")
+            M = tf.constant([50], dtype=tf.int32, name="M_relation")
+            relations_shape = tf.concat((N, N, M), 0)
+            self.output_resnet50_relation_reshaped = tf.reshape(self.output_resnet50_relation, relations_shape)
 
-    def create_vgg_detection_net(self):
-        output_slices = []
-        reuse = None
-        # for slice in self.slices:
-        #    relation_net = vgg16(slice, reuse=reuse)
-        #    reuse = True
-        #    output_slices.append(relation_net.features)
-
-        # self.output_resnet50 = tf.concat(output_slices, 0)
-
-        relation_net = vgg16(self.img_inputs_ph)
-        self.output_resnet50 = relation_net.features
-
-        N = tf.slice(tf.shape(self.confidence_entity_ph), [0], [1], name="N")
-        M = tf.constant([50], dtype=tf.int32)
-        relations_shape = tf.concat((N, N, M), 0)
-        self.output_resnet50_reshaped = tf.reshape(self.output_resnet50, relations_shape)
-
-    def create_resnet_detection_net(self):
-        # reuse = None
-        # output_slices = []
-        # for slice in self.slices:
-        #    slice_output, end_points = alexnet_v2(slice, num_classes=50, reuse=reuse)
-        #    reuse = True
-        #    output_slices.append(slice_output)
-
-        # self.output_resnet50 = tf.concat(output_slices, 0)
-
-        self.output_resnet50, end_points = resnet_v2_50(self.img_inputs_ph, num_classes=50)
-        N = tf.slice(tf.shape(self.confidence_entity_ph), [0], [1], name="N")
-        M = tf.constant([50], dtype=tf.int32)
-        relations_shape = tf.concat((N, N, M), 0)
-        self.output_resnet50_reshaped = tf.reshape(self.output_resnet50, relations_shape)
+    def create_resnet_entity_net(self, scope_name="entity_resnet50"):
+        """
+        This function creates the resnet50 entity network
+        :return:
+        """
+        with tf.variable_scope(scope_name):
+            self.output_resnet50_entity, end_points = resnet_v2_50(self.entity_inputs_ph, num_classes=150)
+            N = tf.slice(tf.shape(self.confidence_entity_ph), [0], [1], name="N_entity")
+            M = tf.constant([150], dtype=tf.int32, name="M_entity")
+            relations_shape = tf.concat((N, M), 0)
+            self.output_resnet50_entity_reshaped = tf.reshape(self.output_resnet50_entity, relations_shape)
 
     def sgp(self):
+        """
+        SGP module as in the paper
+        """
         # store all the outputs of of rnn steps
         self.out_confidence_entity_lst = []
         self.out_confidence_relation_lst = []
         # rnn stage module
-        confidence_relation = self.output_resnet50_reshaped
-        confidence_entity = self.confidence_entity_ph
+        confidence_relation = self.output_resnet50_relation_reshaped
+        # todo: to delete - old entity confidence
+        # confidence_entity = self.confidence_entity_ph
+        confidence_entity = self.output_resnet50_entity_reshaped
 
-        # features msg
+        # iterations of the features message
         for step in range(self.rnn_steps):
             confidence_relation, confidence_entity_temp = \
                 self.sgp_cell(relation_features=confidence_relation,

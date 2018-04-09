@@ -53,25 +53,80 @@ def get_csv_logger(tf_graphs_path, timestamp):
     return csv_writer, csv_file
 
 
-def pre_process_data(entity, hierarchy_mapping, config):
+def pre_process_entities_data(image, hierarchy_mapping, config):
+    """
+    This function is a generator for Object with Detections with batch-size
+    :param hierarchy_mapping: hierarchy mapping
+    :param config: the class config which contains different parameters
+    :return: This function will return numpy array of training images, numpy array of labels
+    """
+    patches = []
+    labels = []
+    url = image.image.url
+
+    # Get image
+    img = get_img(url, download=True)
+
+    if img is None:
+        Logger().log("Coulden't get the image in url {}".format(url))
+        return None, None
+
+    for entity in image.objects:
+
+        # Get the lable of object
+        label = entity.names[0]
+
+        # Check if it is a correct label
+        if label not in hierarchy_mapping.keys():
+            Logger().log("WARNING: label isn't familiar")
+            return None
+
+        # Get the label uuid
+        label_id = hierarchy_mapping[label]
+
+        # Create the y labels as a one hot vector
+        y_labels = np.eye(len(hierarchy_mapping), dtype='uint8')[label_id]
+
+        # Get the mask: a dict with {x1,x2,y1,y2}
+        mask = get_mask_from_object(entity)
+
+        # Cropping the patch from the image.
+        patch = img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
+
+        # Resize the image according the padding method
+        resized_patch = get_img_resize(patch, config.crop_width, config.crop_height,
+                                     type=config.padding_method)
+
+        # Expand dimensions - add batch dimension for the numpy
+        resized_patch = np.expand_dims(resized_patch, axis=0)
+        y_labels = np.expand_dims(y_labels, axis=0)
+
+        patches.append(np.copy(resized_patch))
+        labels.append(np.copy(y_labels))
+
+    return np.concatenate(patches, axis=0), np.concatenate(labels, axis=0)
+
+
+def pre_process_predicates_data(image, hierarchy_mapping, config):
     """
     This function is a generator for Predicate with Detections with batch-size
     :param hierarchy_mapping: hierarchy mapping
     :param config: the class config which contains different parameters
+    :return: This function will return numpy array of training images, numpy array of labels
     """
-    imgs = []
+    patches = []
     labels = []
-    url = entity.image.url
+    url = image.image.url
 
     # Create object pairs
-    objects_pairs = list(itertools.product(entity.objects, repeat=2))
+    entities_pairs = list(itertools.product(image.objects, repeat=2))
 
     # Create a dict with key as pairs - (subject, object) and their values are predicates use for labels
     relations_dict = {}
 
     # Create a dict with key as pairs - (subject, object) and their values are relation index_id
     relations_filtered_id_dict = {}
-    for relation in entity.relationships:
+    for relation in image.relationships:
         relations_dict[(relation.subject.id, relation.object.id)] = relation.predicate
         relations_filtered_id_dict[(relation.subject.id, relation.object.id)] = relation.filtered_id
 
@@ -86,7 +141,7 @@ def pre_process_data(entity, hierarchy_mapping, config):
         Logger().log("Coulden't get the image in url {}".format(url))
         return None, None
 
-    for relation in objects_pairs:
+    for relation in entities_pairs:
 
         subject = relation[0]
         object = relation[1]
@@ -143,28 +198,28 @@ def pre_process_data(entity, hierarchy_mapping, config):
 
         # Resize the image according the padding method
         # FIXME resized_img = get_img_resize(patch_predicate, config.crop_width, config.crop_height,
-        resized_img = get_img_resize(patch_predicate, 112, 112,
+        resized_patch = get_img_resize(patch_predicate, 112, 112,
                                      type=config.padding_method)
         resized_heatmap_subject = get_img_resize(patch_heatmap_heat_map_subject, 112, 112, type=config.padding_method)
         resized_heatmap_object = get_img_resize(patch_heatmap_heat_map_object, 112, 112, type=config.padding_method)
 
         # Concatenate the heat-map to the image in the kernel axis
-        resized_img = np.concatenate((resized_img, resized_heatmap_subject[:, :, :1]), axis=2)
-        resized_img = np.concatenate((resized_img, resized_heatmap_object[:, :, :1]), axis=2)
+        resized_patch = np.concatenate((resized_patch, resized_heatmap_subject[:, :, :1]), axis=2)
+        resized_patch = np.concatenate((resized_patch, resized_heatmap_object[:, :, :1]), axis=2)
 
         # Expand dimensions - add batch dimension for the numpy
-        resized_img = np.expand_dims(resized_img, axis=0)
+        resized_patch = np.expand_dims(resized_patch, axis=0)
         y_labels = np.expand_dims(y_labels, axis=0)
 
-        imgs.append(np.copy(resized_img))
+        patches.append(np.copy(resized_patch))
         labels.append(np.copy(y_labels))
 
     # slices sizes
     slices_size = np.zeros((3))
-    slices_size[0] = slices_size[1] = len(objects_pairs) / 3
-    slices_size[2] = len(objects_pairs) - slices_size[0] - slices_size[1]
+    slices_size[0] = slices_size[1] = len(entities_pairs) / 3
+    slices_size[2] = len(entities_pairs) - slices_size[0] - slices_size[1]
 
-    return np.concatenate(imgs, axis=0), np.concatenate(labels, axis=0), slices_size
+    return np.concatenate(patches, axis=0), np.concatenate(labels, axis=0), slices_size
 
 
 def test(labels_relation, labels_entity, out_confidence_relation_val, out_confidence_entity_val):
@@ -314,23 +369,6 @@ def train(name="module",
                     including_object=including_object,
                     layers=layers, config=config)
 
-    # @todo: clean
-    # # get input place holders
-    # img_inputs_ph = e2e_module.get_inputs_placeholders()
-    # # get labels place holders
-    # labels_ph = e2e_module.get_labels_placeholders()
-    # # get coeff place holders
-    # # coeff_loss_ph = e2e_module.get_coeff_placeholders()
-    # # get learning rate place holder
-    # lr_ph = e2e_module.get_lr_placeholder()
-    # # get loss and train step
-    # loss, gradients, grad_placeholder, train_step = e2e_module.module_loss()
-    # # get module output
-    # # accuracy = e2e_module.get_output()
-    # # get logits (likelihood)
-    # logits = e2e_module.get_logits()
-    ##
-
     # Get timestamp
     timestamp = get_time_and_date()
 
@@ -368,11 +406,13 @@ def train(name="module",
         vg_train_path = filesmanager.get_file_path("data.visual_genome.train")
         # list of train files
         train_files_list = range(2, 72)
+        # train_files_list = range(0, 1)
         shuffle(train_files_list)
 
         # Actual validation is 5 files.
         # After tunning the hyper parameters, use just 2 files for early stopping.
         validation_files_list = range(2)
+        # validation_files_list = range(1, 2)
 
         # create one hot vector for predicate_negative (i.e. not labeled)
         relation_neg = np.zeros(NOF_PREDICATES)
@@ -385,6 +425,7 @@ def train(name="module",
         #                            axis=0)  # concat negative representation
 
         hierarchy_mapping_predicates = FilesManager().load_file("data.visual_genome.hierarchy_mapping_predicates")
+        hierarchy_mapping_objects = FilesManager().load_file("data.visual_genome.hierarchy_mapping_objects")
 
         # train module
         lr = learning_rate
@@ -404,6 +445,7 @@ def train(name="module",
                 file_handle = open(file_path, "rb")
                 train_images = cPickle.load(file_handle)
                 file_handle.close()
+                #todo:remove
                 shuffle(train_images)
 
                 for image in train_images:
@@ -428,7 +470,8 @@ def train(name="module",
                     if image.predicates_labels.shape[0] > 25:
                         continue
 
-                    relations_inputs, _, slices_size = pre_process_data(image, hierarchy_mapping_predicates, config)
+                    entity_inputs, _ = pre_process_entities_data(image, hierarchy_mapping_objects, config)
+                    relations_inputs, _, slices_size = pre_process_predicates_data(image, hierarchy_mapping_predicates, config)
 
                     #print image.predicates_labels.shape[0]
                     #print slices_size
@@ -447,10 +490,9 @@ def train(name="module",
                     coeff_factor[indices, indices] = 0
 
                     # create the feed dictionary
-                    feed_dict = {module.img_inputs_ph: relations_inputs, module.slices_size_ph : slices_size,
-                                 confidence_entity_ph: in_entity_confidence,
-                                 bb_ph: entity_bb,
-                                 module.phase_ph: True,
+                    feed_dict = {module.relation_inputs_ph: relations_inputs, module.entity_inputs_ph: entity_inputs,
+                                 module.slices_size_ph: slices_size, confidence_entity_ph: in_entity_confidence,
+                                 bb_ph: entity_bb, module.phase_ph: True,
                                  labels_relation_ph: image.predicates_labels, labels_entity_ph: image.objects_labels,
                                  labels_coeff_loss_ph: coeff_factor.reshape((-1)), module.lr_ph: lr}
 
@@ -540,7 +582,7 @@ def train(name="module",
                         extended_confidence_object_shape = np.asarray(image.predicates_outputs_with_no_activation.shape)
                         extended_confidence_object_shape[2] = NOF_OBJECTS
 
-                        relations_inputs, _, slices_size = pre_process_data(image, hierarchy_mapping_predicates, config)
+                        relations_inputs, _, slices_size = pre_process_predicates_data(image, hierarchy_mapping_predicates, config)
 
                         # spatial features
                         entity_bb = np.zeros((len(image.objects), 4))
@@ -573,7 +615,7 @@ def train(name="module",
 
 
                         # create the feed dictionary
-                        feed_dict = {module.img_inputs_ph: relations_inputs, module.slices_size_ph : slices_size,
+                        feed_dict = {module.relation_inputs_ph: relations_inputs, module.slices_size_ph : slices_size,
                                      confidence_entity_ph: in_entity_confidence,
                                      module.entity_bb_ph: entity_bb,
                                      module.phase_ph: False,
