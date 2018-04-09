@@ -142,12 +142,11 @@ def pre_process_data(entity, hierarchy_mapping, config):
                                         :]
 
         # Resize the image according the padding method
-        resized_img = get_img_resize(patch_predicate, config.crop_width, config.crop_height,
+        # FIXME resized_img = get_img_resize(patch_predicate, config.crop_width, config.crop_height,
+        resized_img = get_img_resize(patch_predicate, 112, 112,
                                      type=config.padding_method)
-        resized_heatmap_subject = get_img_resize(patch_heatmap_heat_map_subject, config.crop_width,
-                                                 config.crop_height, type=config.padding_method)
-        resized_heatmap_object = get_img_resize(patch_heatmap_heat_map_object, config.crop_width,
-                                                config.crop_height, type=config.padding_method)
+        resized_heatmap_subject = get_img_resize(patch_heatmap_heat_map_subject, 112, 112, type=config.padding_method)
+        resized_heatmap_object = get_img_resize(patch_heatmap_heat_map_object, 112, 112, type=config.padding_method)
 
         # Concatenate the heat-map to the image in the kernel axis
         resized_img = np.concatenate((resized_img, resized_heatmap_subject[:, :, :1]), axis=2)
@@ -426,8 +425,8 @@ def train(name="module",
                     if np.sum(image.predicates_labels[:, :, :NOF_PREDICATES - 2]) == 0 or np.sum(
                             relations_neg_labels) == 0:
                         continue
-                    #if image.predicates_labels.shape[0] > 15:
-                    #    continue
+                    if image.predicates_labels.shape[0] > 25:
+                        continue
 
                     relations_inputs, _, slices_size = pre_process_data(image, hierarchy_mapping_predicates, config)
 

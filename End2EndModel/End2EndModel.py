@@ -6,10 +6,10 @@ from tensorflow.contrib.framework.python.ops import arg_scope
 from tensorflow.contrib.layers.python.layers import layers
 from tensorflow.contrib.layers.python.layers import utils
 from tensorflow.contrib.slim.python.slim.nets import resnet_utils
-from tensorflow.contrib.slim.python.slim.nets.resnet_v2 import resnet_v2
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import variable_scope
+from tensorflow.contrib.slim.python.slim.nets.resnet_v2 import resnet_v2_50, bottleneck, resnet_v2, resnet_v2_block
 
 sys.path.append("..")
 
@@ -86,7 +86,7 @@ class End2EndModel(object):
         """
         with tf.variable_scope(scope_name):
             # todo: clean
-            self.img_inputs_ph = tf.placeholder(shape=[None, self.config.crop_height, self.config.crop_width, 5],
+            self.img_inputs_ph = tf.placeholder(shape=[None, 112, 112, 5],
                                                 dtype=tf.float32, name="img_inputs")
             # size of slices of image relations (to avoid from OOM error)
             self.slices_size_ph = tf.placeholder(dtype=tf.int32, shape=[3])
@@ -193,7 +193,7 @@ class End2EndModel(object):
 
         # self.output_resnet50 = tf.concat(output_slices, 0)
 
-        self.output_resnet50, end_points = self.resnet_v2_18(self.img_inputs_ph, num_classes=50)
+        self.output_resnet50, end_points = resnet_v2_50(self.img_inputs_ph, num_classes=50)
         N = tf.slice(tf.shape(self.confidence_entity_ph), [0], [1], name="N")
         M = tf.constant([50], dtype=tf.int32)
         relations_shape = tf.concat((N, N, M), 0)
@@ -463,12 +463,12 @@ class End2EndModel(object):
         """
         return self.loss, self.gradients, self.grad_placeholder, self.train_step
 
-    def resnet_v2_18(self,
-                     inputs,
+    def resnet_v2_18(self, inputs,
                      num_classes=None,
                      is_training=True,
                      global_pool=True,
                      output_stride=None,
+                     spatial_squeeze=True,
                      reuse=None,
                      scope='resnet_v2_50'):
         """ResNet-50 model of [1]. See resnet_v2() for arg and return description."""
