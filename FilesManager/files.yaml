@@ -5,6 +5,18 @@ logs:
     doc: "default folder for logs"
 data:
     visual_genome:
+        train:
+            name: "../End2EndModel/data/train"
+            type: "dir"
+            doc:  "dir with entities files. each file inclues 1000 entities"
+        test:
+            name: "../End2EndModel/data/test"
+            type: "dir"
+            doc:  "dir with entities files. each file inclues 1000 entities"
+        data:
+            name: "../End2EndModel"
+            type: "dir"
+            doc:  "dir with zip file and data folder"
         pics:
             name: "../Pics"
             type: "dir"
