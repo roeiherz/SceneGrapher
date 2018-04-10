@@ -28,8 +28,6 @@ import inspect
 
 NOF_PREDICATES = 51
 NOF_OBJECTS = 150
-# apply gradients every batch size
-BATCH_SIZE = 20
 # save model every number of iterations
 SAVE_MODEL_ITERATIONS = 10
 # test every number of iterations
@@ -407,7 +405,7 @@ def train(name="module",
         # list of train files
         train_files_list = range(2, 72)
         # train_files_list = range(0, 1)
-        shuffle(train_files_list)
+        #shuffle(train_files_list)
 
         # Actual validation is 5 files.
         # After tunning the hyper parameters, use just 2 files for early stopping.
@@ -437,18 +435,20 @@ def train(name="module",
             # read data
             file_index = -1
             for file_name in train_files_list:
-
                 file_index += 1
-
                 # load data from file
                 file_path = os.path.join(vg_train_path, str(file_name) + ".p")
                 file_handle = open(file_path, "rb")
                 train_images = cPickle.load(file_handle)
                 file_handle.close()
                 #todo:remove
-                shuffle(train_images)
+                #shuffle(train_images)
 
                 for image in train_images:
+                    # filter images that fails in resize
+                    if image.image.id in [2379987, 2374549, 2351430, 2387196, 2403903, 2387505]:
+                        continue
+                    #print("%s (%d) " % (image.image.id, file_index))
                     # set diagonal to be negative predicate (no relation for a single object)
                     indices = np.arange(image.predicates_outputs_with_no_activation.shape[0])
                     image.predicates_outputs_with_no_activation[indices, indices, :] = relation_neg
@@ -467,19 +467,15 @@ def train(name="module",
                     if np.sum(image.predicates_labels[:, :, :NOF_PREDICATES - 2]) == 0 or np.sum(
                             relations_neg_labels) == 0:
                         continue
+                    # filter images with more than 25 entities to avoid from OOM (just for train)
                     if image.predicates_labels.shape[0] > 25:
                         continue
 
                     entity_inputs, _ = pre_process_entities_data(image, hierarchy_mapping_objects, config)
                     relations_inputs, _, slices_size = pre_process_predicates_data(image, hierarchy_mapping_predicates, config)
-
                     #print image.predicates_labels.shape[0]
                     #print slices_size
 
-                    if including_object:
-                        in_entity_confidence = image.objects_outputs_with_no_activations
-                    else:
-                        in_entity_confidence = image.objects_labels * 1000
 
                     # give lower weight to negatives
                     coeff_factor = np.ones(relations_neg_labels.shape)
@@ -491,7 +487,7 @@ def train(name="module",
 
                     # create the feed dictionary
                     feed_dict = {module.relation_inputs_ph: relations_inputs, module.entity_inputs_ph: entity_inputs,
-                                 module.slices_size_ph: slices_size, confidence_entity_ph: in_entity_confidence,
+                                 module.slices_size_ph: slices_size,
                                  bb_ph: entity_bb, module.phase_ph: True,
                                  labels_relation_ph: image.predicates_labels, labels_entity_ph: image.objects_labels,
                                  labels_coeff_loss_ph: coeff_factor.reshape((-1)), module.lr_ph: lr}
@@ -583,7 +579,8 @@ def train(name="module",
                         extended_confidence_object_shape[2] = NOF_OBJECTS
 
                         relations_inputs, _, slices_size = pre_process_predicates_data(image, hierarchy_mapping_predicates, config)
-
+                        entity_inputs, _ = pre_process_entities_data(image, hierarchy_mapping_objects, config)
+                        
                         # spatial features
                         entity_bb = np.zeros((len(image.objects), 4))
                         for obj_id in range(len(image.objects)):
@@ -597,9 +594,7 @@ def train(name="module",
                         if np.sum(image.predicates_labels[:, :, :NOF_PREDICATES - 2]) == 0 or np.sum(
                                 relations_neg_labels) == 0:
                             continue
-                        #if image.predicates_labels.shape[0] > 12:
-                        #    continue
-
+                        #print(image.predicates_labels.shape[0])
                         # give lower weight to negatives
                         coeff_factor = np.ones(relations_neg_labels.shape)
                         factor = float(np.sum(image.predicates_labels[:, :, :NOF_PREDICATES - 2])) / np.sum(
@@ -608,15 +603,8 @@ def train(name="module",
                         coeff_factor[indices, indices] = 0
                         coeff_factor[relations_neg_labels == 1] = 0
 
-                        if including_object:
-                            in_entity_confidence = image.objects_outputs_with_no_activations
-                        else:
-                            in_entity_confidence = image.objects_labels * 1000
-
-
                         # create the feed dictionary
-                        feed_dict = {module.relation_inputs_ph: relations_inputs, module.slices_size_ph : slices_size,
-                                     confidence_entity_ph: in_entity_confidence,
+                        feed_dict = {module.relation_inputs_ph: relations_inputs, module.entity_inputs_ph: entity_inputs, module.slices_size_ph : slices_size,
                                      module.entity_bb_ph: entity_bb,
                                      module.phase_ph: False,
                                      labels_relation_ph: image.predicates_labels,

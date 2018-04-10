@@ -195,9 +195,9 @@ class End2EndModel(object):
         :return:
         """
         with tf.variable_scope(scope_name):
-            self.output_resnet50_relation, end_points = resnet_v2_50(self.relation_inputs_ph, num_classes=50)
-            N = tf.slice(tf.shape(self.confidence_entity_ph), [0], [1], name="N_relation")
-            M = tf.constant([50], dtype=tf.int32, name="M_relation")
+            self.output_resnet50_relation, end_points = resnet_v2_50(self.relation_inputs_ph, num_classes=100)
+            N = tf.slice(tf.shape(self.entity_inputs_ph), [0], [1], name="N_relation")
+            M = tf.constant([100], dtype=tf.int32, name="M_relation")
             relations_shape = tf.concat((N, N, M), 0)
             self.output_resnet50_relation_reshaped = tf.reshape(self.output_resnet50_relation, relations_shape)
 
@@ -207,9 +207,9 @@ class End2EndModel(object):
         :return:
         """
         with tf.variable_scope(scope_name):
-            self.output_resnet50_entity, end_points = resnet_v2_50(self.entity_inputs_ph, num_classes=150)
-            N = tf.slice(tf.shape(self.confidence_entity_ph), [0], [1], name="N_entity")
-            M = tf.constant([150], dtype=tf.int32, name="M_entity")
+            self.output_resnet50_entity, end_points = resnet_v2_50(self.entity_inputs_ph, num_classes=300)
+            N = tf.slice(tf.shape(self.entity_inputs_ph), [0], [1], name="N_entity")
+            M = tf.constant([300], dtype=tf.int32, name="M_entity")
             relations_shape = tf.concat((N, M), 0)
             self.output_resnet50_entity_reshaped = tf.reshape(self.output_resnet50_entity, relations_shape)
 
@@ -284,12 +284,12 @@ class End2EndModel(object):
                     features_h_lst.append(feature)
 
             h = tf.concat(features_h_lst, axis=-1)
-            h = tf.contrib.layers.dropout(h, keep_prob=0.9, is_training=self.phase_ph)
+            #h = tf.contrib.layers.dropout(h, keep_prob=0.9, is_training=self.phase_ph)
             for layer in layers:
                 scope = str(index)
                 h = tf.contrib.layers.fully_connected(h, layer, reuse=self.reuse, scope=scope,
                                                       activation_fn=self.activation_fn)
-                h = tf.contrib.layers.dropout(h, keep_prob=0.9, is_training=self.phase_ph)
+                #h = tf.contrib.layers.dropout(h, keep_prob=0.9, is_training=self.phase_ph)
                 index += 1
 
             scope = str(index)
@@ -308,7 +308,6 @@ class End2EndModel(object):
         with tf.variable_scope(scope_name):
 
             # add the spatial features to entity features
-            orig_entity_features = entity_features
             entity_features = tf.concat((entity_features, self.entity_bb_ph), axis=1)
 
             # word embeddings
@@ -386,7 +385,7 @@ class End2EndModel(object):
                                  scope_name="nn_pred")
             pred_forget_gate = self.nn(features=self.relation_all_features, layers=[], out=1,
                                        scope_name="nn_pred_forgate", last_activation=tf.nn.sigmoid)
-            out_confidence_relation = pred_delta  # + pred_forget_gate * relation_features
+            out_confidence_relation = pred_delta# + pred_forget_gate * relation_features
 
             ##
             # rho entity (entity prediction)
@@ -397,7 +396,7 @@ class End2EndModel(object):
                                     scope_name="nn_obj")
                 obj_forget_gate = self.nn(features=self.object_all_features, layers=[], out=self.nof_objects,
                                           scope_name="nn_obj_forgate", last_activation=tf.nn.sigmoid)
-                out_confidence_object = obj_delta + obj_forget_gate * orig_entity_features
+                out_confidence_object = obj_delta# + obj_forget_gate * orig_entity_features
             else:
                 out_confidence_object = orig_entity_features
 
