@@ -17,7 +17,8 @@ from FeaturesExtraction.Utils.Utils import get_time_and_date, get_img_resize, ge
 from LanguageModule import LanguageModule
 from Utils.Utils import create_folder
 import cPickle
-from multiprocessing import Process
+from multiprocessing import Process, Queue
+import threading
 from FilesManager.FilesManager import FilesManager
 from Utils.Logger import Logger
 import tensorflow as tf
@@ -66,7 +67,7 @@ def pre_process_entities_data(image, hierarchy_mapping, config):
     img = get_img(url, download=True)
 
     if img is None:
-        Logger().log("Coulden't get the image in url {}".format(url))
+        Logger().log("Couldn't get the image in url {}".format(url))
         return None, None
 
     for entity in image.objects:
@@ -136,7 +137,7 @@ def pre_process_predicates_data(image, hierarchy_mapping, config):
     img = get_img(url, download=True)
 
     if img is None:
-        Logger().log("Coulden't get the image in url {}".format(url))
+        Logger().log("Couldn't get the image in url {}".format(url))
         return None, None
 
     for relation in entities_pairs:
@@ -303,6 +304,70 @@ def predicate_class_recall(labels_predicate, out_belief_predicate_val, k=5):
     return correct, total
 
 
+class PreProcessWorker(threading.Thread):
+    def __init__(self, module, train_images, relation_neg, queue, lr, pred_pos_neg_ratio, hierarchy_mapping_objects, hierarchy_mapping_predicates, config):
+        threading.Thread.__init__(self)
+        self.train_images = train_images
+        self.relation_neg = relation_neg
+        self.queue = queue
+        self.module = module
+        self.lr = lr
+        self.pred_pos_neg_ratio = pred_pos_neg_ratio
+        self.hierarchy_mapping_objects = hierarchy_mapping_objects
+        self.hierarchy_mapping_predicates = hierarchy_mapping_predicates
+        self.config = config
+
+    def run(self):
+        for image in self.train_images:
+
+            # filter images that fails in resize
+            if image.image.id in [2379987, 2374549, 2351430, 2387196, 2403903, 2387505]:
+                continue
+
+            # filter non mixed cases
+            relations_neg_labels = image.predicates_labels[:, :, NOF_PREDICATES - 1:]
+            if np.sum(image.predicates_labels[:, :, :NOF_PREDICATES - 2]) == 0 or np.sum(
+                    relations_neg_labels) == 0:
+                continue
+
+            # filter images with more than 25 entities to avoid from OOM (just for train)
+            if image.predicates_labels.shape[0] > 25:
+                continue
+
+
+            indices = np.arange(image.predicates_outputs_with_no_activation.shape[0])
+            image.predicates_labels[indices, indices, :] = self.relation_neg
+
+            # spatial features
+            entity_bb = np.zeros((len(image.objects), 4))
+            for obj_id in range(len(image.objects)):
+                entity_bb[obj_id][0] = image.objects[obj_id].x / 1200.0
+                entity_bb[obj_id][1] = image.objects[obj_id].y / 1200.0
+                entity_bb[obj_id][2] = (image.objects[obj_id].x + image.objects[obj_id].width) / 1200.0
+                entity_bb[obj_id][3] = (image.objects[obj_id].y + image.objects[obj_id].height) / 1200.0
+
+
+
+            entity_inputs, _ = pre_process_entities_data(image, self.hierarchy_mapping_objects, self.config)
+            relations_inputs, _, slices_size = pre_process_predicates_data(image, self.hierarchy_mapping_predicates, self.config)
+
+            # give lower weight to negatives
+            coeff_factor = np.ones(relations_neg_labels.shape)
+            factor = float(np.sum(image.predicates_labels[:, :, :NOF_PREDICATES - 2])) / np.sum(
+                relations_neg_labels) / self.pred_pos_neg_ratio
+            coeff_factor[relations_neg_labels == 1] *= factor
+
+            coeff_factor[indices, indices] = 0
+
+            # create the feed dictionary
+            info = [image, relations_inputs, entity_inputs, entity_bb, slices_size, coeff_factor.reshape((-1)), indices]
+
+            self.queue.put(info)
+
+
+        self.queue.put(None)
+
+
 def train(name="module",
           nof_iterations=100,
           learning_rate=0.0001,
@@ -410,7 +475,6 @@ def train(name="module",
         # Actual validation is 5 files.
         # After tunning the hyper parameters, use just 2 files for early stopping.
         validation_files_list = range(2)
-        # validation_files_list = range(1, 2)
 
         # create one hot vector for predicate_negative (i.e. not labeled)
         relation_neg = np.zeros(NOF_PREDICATES)
@@ -434,6 +498,7 @@ def train(name="module",
             steps = []
             # read data
             file_index = -1
+
             for file_name in train_files_list:
                 file_index += 1
                 # load data from file
@@ -441,56 +506,45 @@ def train(name="module",
                 file_handle = open(file_path, "rb")
                 train_images = cPickle.load(file_handle)
                 file_handle.close()
-                #todo:remove
-                #shuffle(train_images)
 
-                for image in train_images:
-                    # filter images that fails in resize
-                    if image.image.id in [2379987, 2374549, 2351430, 2387196, 2403903, 2387505]:
-                        continue
-                    #print("%s (%d) " % (image.image.id, file_index))
-                    # set diagonal to be negative predicate (no relation for a single object)
-                    indices = np.arange(image.predicates_outputs_with_no_activation.shape[0])
-                    image.predicates_outputs_with_no_activation[indices, indices, :] = relation_neg
-                    image.predicates_labels[indices, indices, :] = relation_neg
-
-                    # spatial features
-                    entity_bb = np.zeros((len(image.objects), 4))
-                    for obj_id in range(len(image.objects)):
-                        entity_bb[obj_id][0] = image.objects[obj_id].x / 1200.0
-                        entity_bb[obj_id][1] = image.objects[obj_id].y / 1200.0
-                        entity_bb[obj_id][2] = (image.objects[obj_id].x + image.objects[obj_id].width) / 1200.0
-                        entity_bb[obj_id][3] = (image.objects[obj_id].y + image.objects[obj_id].height) / 1200.0
-
-                    # filter non mixed cases
-                    relations_neg_labels = image.predicates_labels[:, :, NOF_PREDICATES - 1:]
-                    if np.sum(image.predicates_labels[:, :, :NOF_PREDICATES - 2]) == 0 or np.sum(
-                            relations_neg_labels) == 0:
-                        continue
-                    # filter images with more than 25 entities to avoid from OOM (just for train)
-                    if image.predicates_labels.shape[0] > 25:
+                pre_process_image_queue = Queue(maxsize=10)
+                worker1 = PreProcessWorker(module=module, train_images=train_images[:len(train_images)/2], relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
+                                          pred_pos_neg_ratio=pred_pos_neg_ratio, hierarchy_mapping_objects=hierarchy_mapping_objects, hierarchy_mapping_predicates=hierarchy_mapping_predicates,
+                                          config=config)
+                worker2 = PreProcessWorker(module=module, train_images=train_images[len(train_images)/2:], relation_neg=relation_neg,
+                                           queue=pre_process_image_queue, lr=lr,
+                                           pred_pos_neg_ratio=pred_pos_neg_ratio,
+                                           hierarchy_mapping_objects=hierarchy_mapping_objects,
+                                           hierarchy_mapping_predicates=hierarchy_mapping_predicates,
+                                           config=config)
+                worker1.start()
+                worker2.start()
+                none_count = 0
+                while True:
+                    #print(str(pre_process_image_queue.qsize()))
+                    info = pre_process_image_queue.get()
+                    if info is None:
+                        none_count += 1
+                        if none_count == 2:
+                            break
                         continue
 
-                    entity_inputs, _ = pre_process_entities_data(image, hierarchy_mapping_objects, config)
-                    relations_inputs, _, slices_size = pre_process_predicates_data(image, hierarchy_mapping_predicates, config)
-                    #print image.predicates_labels.shape[0]
-                    #print slices_size
+                    image = info[0]
+                    relations_inputs = info[1]
+                    entity_inputs = info[2]
+                    entity_bb = info[3]
+                    slices_size = info[4]
+                    coeff_factor = info[5]
+                    indices = info[6]
 
-
-                    # give lower weight to negatives
-                    coeff_factor = np.ones(relations_neg_labels.shape)
-                    factor = float(np.sum(image.predicates_labels[:, :, :NOF_PREDICATES - 2])) / np.sum(
-                        relations_neg_labels) / pred_pos_neg_ratio
-                    coeff_factor[relations_neg_labels == 1] *= factor
-
-                    coeff_factor[indices, indices] = 0
-
-                    # create the feed dictionary
-                    feed_dict = {module.relation_inputs_ph: relations_inputs, module.entity_inputs_ph: entity_inputs,
+                    feed_dict = {module.relation_inputs_ph: relations_inputs,
+                                 module.entity_inputs_ph: entity_inputs,
                                  module.slices_size_ph: slices_size,
-                                 bb_ph: entity_bb, module.phase_ph: True,
-                                 labels_relation_ph: image.predicates_labels, labels_entity_ph: image.objects_labels,
-                                 labels_coeff_loss_ph: coeff_factor.reshape((-1)), module.lr_ph: lr}
+                                 module.entity_bb_ph: entity_bb, module.phase_ph: True,
+                                 module.labels_relation_ph: image.predicates_labels,
+                                 module.labels_entity_ph: image.objects_labels,
+                                 module.labels_coeff_loss_ph: coeff_factor,
+                                 module.lr_ph: lr}
 
                     # run the network
                     out_relation_probes_val, out_entity_probes_val, loss_val, gradients_val = \
@@ -568,49 +622,48 @@ def train(name="module",
                     validation_images = cPickle.load(file_handle)
                     file_handle.close()
 
-                    for image in validation_images:
-                        # set diagonal to be neg
-                        indices = np.arange(image.predicates_outputs_with_no_activation.shape[0])
-                        image.predicates_outputs_with_no_activation[indices, indices, :] = relation_neg
-                        image.predicates_labels[indices, indices, :] = relation_neg
-
-                        # get shape of extended object to be used by the module
-                        extended_confidence_object_shape = np.asarray(image.predicates_outputs_with_no_activation.shape)
-                        extended_confidence_object_shape[2] = NOF_OBJECTS
-
-                        relations_inputs, _, slices_size = pre_process_predicates_data(image, hierarchy_mapping_predicates, config)
-                        entity_inputs, _ = pre_process_entities_data(image, hierarchy_mapping_objects, config)
-                        
-                        # spatial features
-                        entity_bb = np.zeros((len(image.objects), 4))
-                        for obj_id in range(len(image.objects)):
-                            entity_bb[obj_id][0] = image.objects[obj_id].x / 1200.0
-                            entity_bb[obj_id][1] = image.objects[obj_id].y / 1200.0
-                            entity_bb[obj_id][2] = (image.objects[obj_id].x + image.objects[obj_id].width) / 1200.0
-                            entity_bb[obj_id][3] = (image.objects[obj_id].y + image.objects[obj_id].height) / 1200.0
-
-                        # filter non mixed cases
-                        relations_neg_labels = image.predicates_labels[:, :, NOF_PREDICATES - 1:]
-                        if np.sum(image.predicates_labels[:, :, :NOF_PREDICATES - 2]) == 0 or np.sum(
-                                relations_neg_labels) == 0:
+                    pre_process_image_queue = Queue(maxsize=10)
+                    worker1 = PreProcessWorker(module=module, train_images=validation_images[:len(train_images) / 2],
+                                               relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
+                                               pred_pos_neg_ratio=pred_pos_neg_ratio,
+                                               hierarchy_mapping_objects=hierarchy_mapping_objects,
+                                               hierarchy_mapping_predicates=hierarchy_mapping_predicates,
+                                               config=config)
+                    worker2 = PreProcessWorker(module=module, train_images=validation_images[len(train_images) / 2:],
+                                               relation_neg=relation_neg,
+                                               queue=pre_process_image_queue, lr=lr,
+                                               pred_pos_neg_ratio=pred_pos_neg_ratio,
+                                               hierarchy_mapping_objects=hierarchy_mapping_objects,
+                                               hierarchy_mapping_predicates=hierarchy_mapping_predicates,
+                                               config=config)
+                    worker1.start()
+                    worker2.start()
+                    none_count = 0
+                    while True:
+                        # print(str(pre_process_image_queue.qsize()))
+                        info = pre_process_image_queue.get()
+                        if info is None:
+                            none_count += 1
+                            if none_count == 2:
+                                break
                             continue
-                        #print(image.predicates_labels.shape[0])
-                        # give lower weight to negatives
-                        coeff_factor = np.ones(relations_neg_labels.shape)
-                        factor = float(np.sum(image.predicates_labels[:, :, :NOF_PREDICATES - 2])) / np.sum(
-                            relations_neg_labels) / pred_pos_neg_ratio
-                        coeff_factor[relations_neg_labels == 1] *= factor
-                        coeff_factor[indices, indices] = 0
-                        coeff_factor[relations_neg_labels == 1] = 0
 
-                        # create the feed dictionary
-                        feed_dict = {module.relation_inputs_ph: relations_inputs, module.entity_inputs_ph: entity_inputs, module.slices_size_ph : slices_size,
-                                     module.entity_bb_ph: entity_bb,
-                                     module.phase_ph: False,
-                                     labels_relation_ph: image.predicates_labels,
-                                     labels_entity_ph: image.objects_labels,
-                                     labels_coeff_loss_ph: coeff_factor.reshape((-1))}
+                        image = info[0]
+                        relations_inputs = info[1]
+                        entity_inputs = info[2]
+                        entity_bb = info[3]
+                        slices_size = info[4]
+                        coeff_factor = info[5]
+                        indices = info[6]
 
+                        feed_dict = {module.relation_inputs_ph: relations_inputs,
+                                     module.entity_inputs_ph: entity_inputs,
+                                     module.slices_size_ph: slices_size,
+                                     module.entity_bb_ph: entity_bb, module.phase_ph: True,
+                                     module.labels_relation_ph: image.predicates_labels,
+                                     module.labels_entity_ph: image.objects_labels,
+                                     module.labels_coeff_loss_ph: coeff_factor,
+                                     module.lr_ph: lr}
                         # run the network
                         out_relation_probes_val, out_entity_probes_val, loss_val = sess.run(
                             [out_relation_probes, out_entity_probes, loss],
