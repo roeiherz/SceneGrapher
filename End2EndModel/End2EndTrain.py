@@ -324,32 +324,40 @@ class PreProcessWorker(threading.Thread):
             if image.image.id in [2379987, 2374549, 2351430, 2387196, 2403903, 2387505]:
                 continue
 
+            # Get image
+            img = get_img(image.image.url, download=True)
+            img = img.reshape((1, 1024, 1024, 3))
+
+            if img is None:
+                Logger().log("Couldn't get the image in url {}".format(url))
+                continue
+
             # filter non mixed cases
             relations_neg_labels = image.predicates_labels[:, :, NOF_PREDICATES - 1:]
             if np.sum(image.predicates_labels[:, :, :NOF_PREDICATES - 2]) == 0 or np.sum(
                     relations_neg_labels) == 0:
                 continue
 
-            # filter images with more than 25 entities to avoid from OOM (just for train)
-            if image.predicates_labels.shape[0] > 25:
-                continue
-
-
-            indices = np.arange(image.predicates_outputs_with_no_activation.shape[0])
-            image.predicates_labels[indices, indices, :] = self.relation_neg
 
             # spatial features
             entity_bb = np.zeros((len(image.objects), 4))
             for obj_id in range(len(image.objects)):
-                entity_bb[obj_id][0] = image.objects[obj_id].x / 1200.0
-                entity_bb[obj_id][1] = image.objects[obj_id].y / 1200.0
-                entity_bb[obj_id][2] = (image.objects[obj_id].x + image.objects[obj_id].width) / 1200.0
-                entity_bb[obj_id][3] = (image.objects[obj_id].y + image.objects[obj_id].height) / 1200.0
+                entity_bb[obj_id][0] = image.objects[obj_id].y
+                entity_bb[obj_id][1] = image.objects[obj_id].x
+                entity_bb[obj_id][2] = (image.objects[obj_id].y + image.objects[obj_id].height)
+                entity_bb[obj_id][3] = (image.objects[obj_id].x + image.objects[obj_id].width)
 
+            relation_bb = np.zeros((len(image.objects), len(image.objects), 4))
+            for sub_id in range(len(image.objects)):
+                for obj_id in range(len(image.objects)):
+                    relation_bb[sub_id][obj_id][0] = np.minimum(entity_bb[sub_id][0], entity_bb[obj_id][0])
+                    relation_bb[sub_id][obj_id][1] = np.minimum(entity_bb[sub_id][1], entity_bb[obj_id][1])
+                    relation_bb[sub_id][obj_id][2] = np.maximum(entity_bb[sub_id][2], entity_bb[obj_id][2])
+                    relation_bb[sub_id][obj_id][3] = np.maximum(entity_bb[sub_id][3], entity_bb[obj_id][3])
+            relation_bb = relation_bb.reshape([-1, 4])
 
-
-            entity_inputs, _ = pre_process_entities_data(image, self.hierarchy_mapping_objects, self.config)
-            relations_inputs, _, slices_size = pre_process_predicates_data(image, self.hierarchy_mapping_predicates, self.config)
+            indices = np.arange(image.predicates_outputs_with_no_activation.shape[0])
+            image.predicates_labels[indices, indices, :] = self.relation_neg
 
             # give lower weight to negatives
             coeff_factor = np.ones(relations_neg_labels.shape)
@@ -358,6 +366,18 @@ class PreProcessWorker(threading.Thread):
             coeff_factor[relations_neg_labels == 1] *= factor
 
             coeff_factor[indices, indices] = 0
+
+            info = [image, img, entity_bb, relation_bb, coeff_factor, indices]
+            self.queue.put(info)
+            continue
+
+            # filter images with more than 25 entities to avoid from OOM (just for train)
+            if image.predicates_labels.shape[0] > 25:
+                continue
+
+            entity_inputs, _ = pre_process_entities_data(image, self.hierarchy_mapping_objects, self.config)
+            relations_inputs, _, slices_size = pre_process_predicates_data(image, self.hierarchy_mapping_predicates, self.config)
+
 
             # create the feed dictionary
             info = [image, relations_inputs, entity_inputs, entity_bb, slices_size, coeff_factor.reshape((-1)), indices]
@@ -530,17 +550,19 @@ def train(name="module",
                         continue
 
                     image = info[0]
-                    relations_inputs = info[1]
-                    entity_inputs = info[2]
-                    entity_bb = info[3]
-                    slices_size = info[4]
-                    coeff_factor = info[5]
-                    indices = info[6]
+                    img = info[1]
+                    entity_bb = info[2]
+                    relation_bb = info[3]
+                    coeff_factor = info[4]
+                    indices = info[5]
+                    #relations_inputs = info[1]
+                    #entity_inputs = info[2]
+                    #slices_size = info[4]
+                    #coeff_factor = info[5]
 
-                    feed_dict = {module.relation_inputs_ph: relations_inputs,
-                                 module.entity_inputs_ph: entity_inputs,
-                                 module.slices_size_ph: slices_size,
-                                 module.entity_bb_ph: entity_bb, module.phase_ph: True,
+                    feed_dict = {module.image_ph: img,
+                                 module.entity_bb_ph: entity_bb, module.relation_bb_ph: relation_bb,
+                                 module.phase_ph: True,
                                  module.labels_relation_ph: image.predicates_labels,
                                  module.labels_entity_ph: image.objects_labels,
                                  module.labels_coeff_loss_ph: coeff_factor,
@@ -649,21 +671,24 @@ def train(name="module",
                             continue
 
                         image = info[0]
-                        relations_inputs = info[1]
-                        entity_inputs = info[2]
-                        entity_bb = info[3]
-                        slices_size = info[4]
-                        coeff_factor = info[5]
-                        indices = info[6]
+                        img = info[1]
+                        entity_bb = info[2]
+                        relation_bb = info[3]
+                        coeff_factor = info[4]
+                        indices = info[5]
+                        # relations_inputs = info[1]
+                        # entity_inputs = info[2]
+                        # slices_size = info[4]
+                        # coeff_factor = info[5]
 
-                        feed_dict = {module.relation_inputs_ph: relations_inputs,
-                                     module.entity_inputs_ph: entity_inputs,
-                                     module.slices_size_ph: slices_size,
-                                     module.entity_bb_ph: entity_bb, module.phase_ph: True,
+                        feed_dict = {module.image_ph: img,
+                                     module.entity_bb_ph: entity_bb, module.relation_bb_ph: relation_bb,
+                                     module.phase_ph: True,
                                      module.labels_relation_ph: image.predicates_labels,
                                      module.labels_entity_ph: image.objects_labels,
                                      module.labels_coeff_loss_ph: coeff_factor,
                                      module.lr_ph: lr}
+
                         # run the network
                         out_relation_probes_val, out_entity_probes_val, loss_val = sess.run(
                             [out_relation_probes, out_entity_probes, loss],

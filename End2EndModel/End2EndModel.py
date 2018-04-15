@@ -85,6 +85,8 @@ class End2EndModel(object):
         This function creates the place holders for input and labels
         """
         with tf.variable_scope(scope_name):
+            self.image_ph = tf.placeholder(shape=[1, 1024, 1024, 3],
+                                                     dtype=tf.float32, name="relation_inputs_ph")
             # todo: clean
             self.relation_inputs_ph = tf.placeholder(shape=[None, 112, 112, 5],
                                                      dtype=tf.float32, name="relation_inputs_ph")
@@ -111,6 +113,7 @@ class End2EndModel(object):
             # self.confidence_entity_ph = tf.contrib.layers.dropout(self.confidence_entity_ph, keep_prob=0.9, is_training=self.phase_ph)
             # spatial features
             self.entity_bb_ph = tf.placeholder(dtype=tf.float32, shape=(None, 4), name="obj_bb")
+            self.relation_bb_ph = tf.placeholder(dtype=tf.float32, shape=(None, 4), name="relation_bb")
 
             # word embeddings
             # self.word_embed_entities_ph = tf.placeholder(dtype=tf.float32, shape=(self.nof_objects, self.embed_size),
@@ -195,11 +198,17 @@ class End2EndModel(object):
         :return:
         """
         with tf.variable_scope(scope_name):
-            self.output_resnet50_relation, end_points = resnet_v2_50(self.relation_inputs_ph, num_classes=100)
-            N = tf.slice(tf.shape(self.entity_inputs_ph), [0], [1], name="N_relation")
-            M = tf.constant([100], dtype=tf.int32, name="M_relation")
+            _, end_points = resnet_v2_50(self.image_ph, num_classes=None)
+            self.output_resnet50_relation = end_points['relation_resnet50/resnet_v2_50/block4']
+            N_relation = tf.slice(tf.shape(self.relation_bb_ph), [0], [1], name="N_relation")
+            relation_norm_bb = self.relation_bb_ph / tf.constant(32.0)
+            self.relation_features = tf.image.crop_and_resize(self.output_resnet50_relation, relation_norm_bb,
+                                                            tf.zeros(shape=N_relation, dtype=tf.int32), crop_size=[1, 1])
+
+            N = tf.slice(tf.shape(self.entity_bb_ph), [0], [1], name="N_entity")
+            M = tf.constant([2048], dtype=tf.int32, name="M_relation")
             relations_shape = tf.concat((N, N, M), 0)
-            self.output_resnet50_relation_reshaped = tf.reshape(self.output_resnet50_relation, relations_shape)
+            self.output_resnet50_relation_reshaped = tf.reshape(self.relation_features, relations_shape)
 
     def create_resnet_entity_net(self, scope_name="entity_resnet50"):
         """
@@ -207,11 +216,16 @@ class End2EndModel(object):
         :return:
         """
         with tf.variable_scope(scope_name):
-            self.output_resnet50_entity, end_points = resnet_v2_50(self.entity_inputs_ph, num_classes=300)
-            N = tf.slice(tf.shape(self.entity_inputs_ph), [0], [1], name="N_entity")
-            M = tf.constant([300], dtype=tf.int32, name="M_entity")
-            relations_shape = tf.concat((N, M), 0)
-            self.output_resnet50_entity_reshaped = tf.reshape(self.output_resnet50_entity, relations_shape)
+            _, end_points = resnet_v2_50(self.image_ph, num_classes=None)
+            self.output_resnet50_entity = end_points['entity_resnet50/resnet_v2_50/block4']
+
+            entity_norm_bb = self.entity_bb_ph / tf.constant(32.0)
+            N = tf.slice(tf.shape(self.entity_bb_ph), [0], [1], name="N_entity")
+            self.entity_features = tf.image.crop_and_resize(self.output_resnet50_entity, entity_norm_bb, tf.zeros(shape=N, dtype=tf.int32), crop_size=[1, 1])
+
+            M = tf.constant([2048], dtype=tf.int32, name="M_entity")
+            entities_shape = tf.concat((N, M), 0)
+            self.output_resnet50_entity_reshaped = tf.reshape(self.entity_features, entities_shape)
 
     def sgp(self):
         """
