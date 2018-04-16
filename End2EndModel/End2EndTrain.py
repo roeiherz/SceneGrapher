@@ -342,10 +342,10 @@ class PreProcessWorker(threading.Thread):
             # spatial features
             entity_bb = np.zeros((len(image.objects), 4))
             for obj_id in range(len(image.objects)):
-                entity_bb[obj_id][0] = image.objects[obj_id].y
-                entity_bb[obj_id][1] = image.objects[obj_id].x
-                entity_bb[obj_id][2] = (image.objects[obj_id].y + image.objects[obj_id].height)
-                entity_bb[obj_id][3] = (image.objects[obj_id].x + image.objects[obj_id].width)
+                entity_bb[obj_id][0] = image.objects[obj_id].y / 1024.0
+                entity_bb[obj_id][1] = image.objects[obj_id].x / 1024.0
+                entity_bb[obj_id][2] = (image.objects[obj_id].y + image.objects[obj_id].height) / 1024.0
+                entity_bb[obj_id][3] = (image.objects[obj_id].x + image.objects[obj_id].width) / 1024.0
 
             relation_bb = np.zeros((len(image.objects), len(image.objects), 4))
             for sub_id in range(len(image.objects)):

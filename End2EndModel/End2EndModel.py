@@ -201,7 +201,7 @@ class End2EndModel(object):
             _, end_points = resnet_v2_50(self.image_ph, num_classes=None)
             self.output_resnet50_relation = end_points['relation_resnet50/resnet_v2_50/block4']
             N_relation = tf.slice(tf.shape(self.relation_bb_ph), [0], [1], name="N_relation")
-            relation_norm_bb = self.relation_bb_ph / tf.constant(32.0)
+            relation_norm_bb = self.relation_bb_ph
             self.relation_features = tf.image.crop_and_resize(self.output_resnet50_relation, relation_norm_bb,
                                                             tf.zeros(shape=N_relation, dtype=tf.int32), crop_size=[1, 1])
 
@@ -219,7 +219,7 @@ class End2EndModel(object):
             _, end_points = resnet_v2_50(self.image_ph, num_classes=None)
             self.output_resnet50_entity = end_points['entity_resnet50/resnet_v2_50/block4']
 
-            entity_norm_bb = self.entity_bb_ph / tf.constant(32.0)
+            entity_norm_bb = self.entity_bb_ph
             N = tf.slice(tf.shape(self.entity_bb_ph), [0], [1], name="N_entity")
             self.entity_features = tf.image.crop_and_resize(self.output_resnet50_entity, entity_norm_bb, tf.zeros(shape=N, dtype=tf.int32), crop_size=[1, 1])
 
