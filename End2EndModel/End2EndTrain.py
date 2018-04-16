@@ -202,7 +202,7 @@ class PreProcessWorker(threading.Thread):
                 new_resized_patch = None
 
                 # For mixup Jitter we need to create a new resize_img from another sample
-                if self.config.jitter.use_mixup:
+                if False: #self.config.jitter.use_mixup:
                     all_indice_without_ind = list(indices - set([ind]))
                     # Pick different index from the data with no repetition
                     new_ind = np.random.choice(all_indice_without_ind)
@@ -334,7 +334,7 @@ class PreProcessWorker(threading.Thread):
                 new_resized_patch = None
 
                 # For mixup Jitter we need to create a new resize_img from another sample
-                if self.config.jitter.use_mixup:
+                if False: #self.config.jitter.use_mixup:
                     all_indice_without_ind = list(indices - set([ind]))
                     # Pick different index from the data with no repetition
                     new_ind = np.random.choice(all_indice_without_ind)
@@ -403,7 +403,7 @@ class PreProcessWorker(threading.Thread):
                 entity_bb[obj_id][3] = (image.objects[obj_id].y + image.objects[obj_id].height) / 1200.0
 
             entity_inputs, _ = self.pre_process_entities_data(image, ind)
-            relations_inputs, _, slices_size = self.pre_process_predicates_data(image)
+            relations_inputs, _, slices_size = self.pre_process_predicates_data(image, ind)
 
             # give lower weight to negatives
             coeff_factor = np.ones(relations_neg_labels.shape)
