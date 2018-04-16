@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append("..")
 
 from random import shuffle
@@ -26,7 +27,6 @@ import numpy as np
 import os
 import inspect
 
-
 NOF_PREDICATES = 51
 NOF_OBJECTS = 150
 # save model every number of iterations
@@ -35,6 +35,7 @@ SAVE_MODEL_ITERATIONS = 10
 TEST_ITERATIONS = 1
 # Graph csv logger
 CSVLOGGER = "training.log"
+
 
 def get_csv_logger(tf_graphs_path, timestamp):
     """
@@ -50,175 +51,6 @@ def get_csv_logger(tf_graphs_path, timestamp):
     csv_writer = csv.DictWriter(csv_file, delimiter=',', fieldnames=['epoch', 'acc', 'loss', 'val_acc', 'val_loss'])
     csv_writer.writeheader()
     return csv_writer, csv_file
-
-
-def pre_process_entities_data(image, hierarchy_mapping, config):
-    """
-    This function is a generator for Object with Detections with batch-size
-    :param hierarchy_mapping: hierarchy mapping
-    :param config: the class config which contains different parameters
-    :return: This function will return numpy array of training images, numpy array of labels
-    """
-    patches = []
-    labels = []
-    url = image.image.url
-
-    # Get image
-    img = get_img(url, download=True)
-
-    if img is None:
-        Logger().log("Couldn't get the image in url {}".format(url))
-        return None, None
-
-    for entity in image.objects:
-
-        # Get the lable of object
-        label = entity.names[0]
-
-        # Check if it is a correct label
-        if label not in hierarchy_mapping.keys():
-            Logger().log("WARNING: label isn't familiar")
-            return None
-
-        # Get the label uuid
-        label_id = hierarchy_mapping[label]
-
-        # Create the y labels as a one hot vector
-        y_labels = np.eye(len(hierarchy_mapping), dtype='uint8')[label_id]
-
-        # Get the mask: a dict with {x1,x2,y1,y2}
-        mask = get_mask_from_object(entity)
-
-        # Cropping the patch from the image.
-        patch = img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
-
-        # Resize the image according the padding method
-        resized_patch = get_img_resize(patch, config.crop_width, config.crop_height,
-                                     type=config.padding_method)
-
-        # Expand dimensions - add batch dimension for the numpy
-        resized_patch = np.expand_dims(resized_patch, axis=0)
-        y_labels = np.expand_dims(y_labels, axis=0)
-
-        patches.append(np.copy(resized_patch))
-        labels.append(np.copy(y_labels))
-
-    return np.concatenate(patches, axis=0), np.concatenate(labels, axis=0)
-
-
-def pre_process_predicates_data(image, hierarchy_mapping, config):
-    """
-    This function is a generator for Predicate with Detections with batch-size
-    :param hierarchy_mapping: hierarchy mapping
-    :param config: the class config which contains different parameters
-    :return: This function will return numpy array of training images, numpy array of labels
-    """
-    patches = []
-    labels = []
-    url = image.image.url
-
-    # Create object pairs
-    entities_pairs = list(itertools.product(image.objects, repeat=2))
-
-    # Create a dict with key as pairs - (subject, object) and their values are predicates use for labels
-    relations_dict = {}
-
-    # Create a dict with key as pairs - (subject, object) and their values are relation index_id
-    relations_filtered_id_dict = {}
-    for relation in image.relationships:
-        relations_dict[(relation.subject.id, relation.object.id)] = relation.predicate
-        relations_filtered_id_dict[(relation.subject.id, relation.object.id)] = relation.filtered_id
-
-    #if len(relations_dict) != len(entity.relationships):
-    #    Logger().log("**Error in entity image {0} with number of {1} relationship and {2} of relations_dict**"
-    #                 .format(entity.image.id, len(entity.relationships), len(relations_dict)))
-
-    # Get image
-    img = get_img(url, download=True)
-
-    if img is None:
-        Logger().log("Couldn't get the image in url {}".format(url))
-        return None, None
-
-    for relation in entities_pairs:
-
-        subject = relation[0]
-        object = relation[1]
-
-        # Get the label of object
-        if (subject.id, object.id) in relations_dict:
-            label = relations_dict[(subject.id, object.id)]
-
-        else:
-            # Negative label
-            label = "neg"
-
-        # Check if it is a correct label
-        if label not in hierarchy_mapping.keys():
-            Logger().log("WARNING: label isn't familiar")
-            return None
-
-        # Get the label uuid
-        label_id = hierarchy_mapping[label]
-
-        # Create the y labels as a one hot vector
-        y_labels = np.eye(len(hierarchy_mapping), dtype='uint8')[label_id]
-
-        # Get Subject and Object boxes
-        # Subject
-        # Get the mask: a dict with {x1,x2,y1,y2}
-        subject_mask = get_mask_from_object(subject)
-        # Saves as a box
-        subject_box = np.array([subject_mask['x1'], subject_mask['y1'], subject_mask['x2'], subject_mask['y2']])
-
-        # Object
-        # Get the mask: a dict with {x1,x2,y1,y2}
-        object_mask = get_mask_from_object(object)
-        # Saves as a box
-        object_box = np.array([object_mask['x1'], object_mask['y1'], object_mask['x2'], object_mask['y2']])
-
-        # Fill HeatMap
-        heat_map_subject = np.zeros(img.shape)
-        heat_map_subject[subject_box[BOX.Y1]: subject_box[BOX.Y2], subject_box[BOX.X1]: subject_box[BOX.X2],
-        :] = 255
-        heat_map_object = np.zeros(img.shape)
-        heat_map_object[object_box[BOX.Y1]: object_box[BOX.Y2], object_box[BOX.X1]: object_box[BOX.X2],
-        :] = 255
-
-        # Get the box: a BOX (numpy array) with [x1,x2,y1,y2]
-        box = find_union_box(subject_box, object_box)
-
-        # Cropping the patch from the image.
-        patch_predicate = img[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
-        patch_heatmap_heat_map_subject = heat_map_subject[box[BOX.Y1]: box[BOX.Y2],
-                                         box[BOX.X1]: box[BOX.X2], :]
-        patch_heatmap_heat_map_object = heat_map_object[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2],
-                                        :]
-
-        # Resize the image according the padding method
-        # FIXME resized_img = get_img_resize(patch_predicate, config.crop_width, config.crop_height,
-        resized_patch = get_img_resize(patch_predicate, 112, 112,
-                                     type=config.padding_method)
-        resized_heatmap_subject = get_img_resize(patch_heatmap_heat_map_subject, 112, 112, type=config.padding_method)
-        resized_heatmap_object = get_img_resize(patch_heatmap_heat_map_object, 112, 112, type=config.padding_method)
-
-        # Concatenate the heat-map to the image in the kernel axis
-        resized_patch = np.concatenate((resized_patch, resized_heatmap_subject[:, :, :1]), axis=2)
-        resized_patch = np.concatenate((resized_patch, resized_heatmap_object[:, :, :1]), axis=2)
-
-        # Expand dimensions - add batch dimension for the numpy
-        resized_patch = np.expand_dims(resized_patch, axis=0)
-        y_labels = np.expand_dims(y_labels, axis=0)
-
-        patches.append(np.copy(resized_patch))
-        labels.append(np.copy(y_labels))
-
-    # slices sizes
-    slices_size = np.zeros((3))
-    slices_size[0] = slices_size[1] = len(entities_pairs) / 3
-    slices_size[2] = len(entities_pairs) - slices_size[0] - slices_size[1]
-
-    return np.concatenate(patches, axis=0), np.concatenate(labels, axis=0), slices_size
 
 
 def test(labels_relation, labels_entity, out_confidence_relation_val, out_confidence_entity_val):
@@ -305,7 +137,8 @@ def predicate_class_recall(labels_predicate, out_belief_predicate_val, k=5):
 
 
 class PreProcessWorker(threading.Thread):
-    def __init__(self, module, train_images, relation_neg, queue, lr, pred_pos_neg_ratio, hierarchy_mapping_objects, hierarchy_mapping_predicates, config):
+    def __init__(self, module, train_images, relation_neg, queue, lr, pred_pos_neg_ratio, hierarchy_mapping_objects,
+                 hierarchy_mapping_predicates, config, is_train):
         threading.Thread.__init__(self)
         self.train_images = train_images
         self.relation_neg = relation_neg
@@ -316,8 +149,232 @@ class PreProcessWorker(threading.Thread):
         self.hierarchy_mapping_objects = hierarchy_mapping_objects
         self.hierarchy_mapping_predicates = hierarchy_mapping_predicates
         self.config = config
+        self.is_train = is_train
+        self.size = len(train_images)
+
+    def pre_process_entities_data(self, image, ind):
+        """
+        This function is a generator for Object with Detections with batch-size
+        :param ind: index of an image of the whole images (used only for entities mixup Jitter)
+        :param image: image entity VG
+        :return: This function will return numpy array of training images, numpy array of labels
+        """
+        patches = []
+        labels = []
+        url = image.image.url
+        indices = set(range(self.size))
+
+        # Get image
+        img = get_img(url, download=True)
+
+        if img is None:
+            Logger().log("Couldn't get the image in url {}".format(url))
+            return None, None
+
+        for entity in image.objects:
+
+            # Get the lable of object
+            label = entity.names[0]
+
+            # Check if it is a correct label
+            if label not in self.hierarchy_mapping_objects.keys():
+                Logger().log("WARNING: label isn't familiar")
+                return None
+
+            # Get the label uuid
+            label_id = self.hierarchy_mapping_objects[label]
+
+            # Create the y labels as a one hot vector
+            y_labels = np.eye(len(self.hierarchy_mapping_objects), dtype='uint8')[label_id]
+
+            # Get the mask: a dict with {x1,x2,y1,y2}
+            mask = get_mask_from_object(entity)
+
+            # Cropping the patch from the image.
+            patch = img[mask['y1']: mask['y2'], mask['x1']: mask['x2'], :]
+
+            # Resize the image according the padding method
+            resized_patch = get_img_resize(patch, self.config.crop_width, self.config.crop_height,
+                                           type=self.config.padding_method)
+
+            # Augment only in training
+            if self.is_train and self.config.use_jitter:
+                new_resized_patch = None
+
+                # For mixup Jitter we need to create a new resize_img from another sample
+                if self.config.jitter.use_mixup:
+                    all_indice_without_ind = list(indices - set([ind]))
+                    # Pick different index from the data with no repetition
+                    new_ind = np.random.choice(all_indice_without_ind)
+                    new_object = self.train_images[new_ind]
+
+                    new_img = get_img(new_object.url, download=True)
+                    if new_img is None:
+                        Logger().log("Coulden't get the image")
+                        continue
+                    # Get the mask: a dict with {x1,x2,y1,y2}
+                    new_mask = get_mask_from_object(new_object)
+                    # Cropping the patch from the image.
+                    new_patch = new_img[new_mask['y1']: new_mask['y2'], new_mask['x1']: new_mask['x2'], :]
+                    # Resize the image according the padding method
+                    new_resized_patch = get_img_resize(new_patch, self.config.crop_width, self.config.crop_height,
+                                                     type=self.config.padding_method)
+
+                resized_patch = self.config.jitter.apply_jitter(resized_img=resized_patch, batchsize=self.size,
+                                                                new_resized_img=new_resized_patch)
+
+            # Expand dimensions - add batch dimension for the numpy
+            resized_patch = np.expand_dims(resized_patch, axis=0)
+            y_labels = np.expand_dims(y_labels, axis=0)
+
+            patches.append(np.copy(resized_patch))
+            labels.append(np.copy(y_labels))
+
+        return np.concatenate(patches, axis=0), np.concatenate(labels, axis=0)
+
+    def pre_process_predicates_data(self, image, ind):
+        """
+        This function is a generator for Predicate with Detections with batch-size
+        :param image: image entity VG
+        :param ind: index of an image of the whole images (used only for entities mixup Jitter)
+        :return: This function will return numpy array of training images, numpy array of labels
+        """
+        patches = []
+        labels = []
+        url = image.image.url
+        indices = set(range(self.size))
+
+        # Create object pairs
+        entities_pairs = list(itertools.product(image.objects, repeat=2))
+
+        # Create a dict with key as pairs - (subject, object) and their values are predicates use for labels
+        relations_dict = {}
+
+        # Create a dict with key as pairs - (subject, object) and their values are relation index_id
+        relations_filtered_id_dict = {}
+        for relation in image.relationships:
+            relations_dict[(relation.subject.id, relation.object.id)] = relation.predicate
+            relations_filtered_id_dict[(relation.subject.id, relation.object.id)] = relation.filtered_id
+
+        # if len(relations_dict) != len(entity.relationships):
+        #    Logger().log("**Error in entity image {0} with number of {1} relationship and {2} of relations_dict**"
+        #                 .format(entity.image.id, len(entity.relationships), len(relations_dict)))
+
+        # Get image
+        img = get_img(url, download=True)
+
+        if img is None:
+            Logger().log("Couldn't get the image in url {}".format(url))
+            return None, None
+
+        for relation in entities_pairs:
+
+            subject = relation[0]
+            object = relation[1]
+
+            # Get the label of object
+            if (subject.id, object.id) in relations_dict:
+                label = relations_dict[(subject.id, object.id)]
+
+            else:
+                # Negative label
+                label = "neg"
+
+            # Check if it is a correct label
+            if label not in self.hierarchy_mapping_predicates.keys():
+                Logger().log("WARNING: label isn't familiar")
+                return None
+
+            # Get the label uuid
+            label_id = self.hierarchy_mapping_predicates[label]
+
+            # Create the y labels as a one hot vector
+            y_labels = np.eye(len(self.hierarchy_mapping_predicates), dtype='uint8')[label_id]
+
+            # Get Subject and Object boxes
+            # Subject
+            # Get the mask: a dict with {x1,x2,y1,y2}
+            subject_mask = get_mask_from_object(subject)
+            # Saves as a box
+            subject_box = np.array([subject_mask['x1'], subject_mask['y1'], subject_mask['x2'], subject_mask['y2']])
+
+            # Object
+            # Get the mask: a dict with {x1,x2,y1,y2}
+            object_mask = get_mask_from_object(object)
+            # Saves as a box
+            object_box = np.array([object_mask['x1'], object_mask['y1'], object_mask['x2'], object_mask['y2']])
+
+            # Fill HeatMap
+            heat_map_subject = np.zeros(img.shape)
+            heat_map_subject[subject_box[BOX.Y1]: subject_box[BOX.Y2], subject_box[BOX.X1]: subject_box[BOX.X2],
+            :] = 255
+            heat_map_object = np.zeros(img.shape)
+            heat_map_object[object_box[BOX.Y1]: object_box[BOX.Y2], object_box[BOX.X1]: object_box[BOX.X2],
+            :] = 255
+
+            # Get the box: a BOX (numpy array) with [x1,x2,y1,y2]
+            box = find_union_box(subject_box, object_box)
+
+            # Cropping the patch from the image.
+            patch_predicate = img[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2], :]
+            patch_heatmap_heat_map_subject = heat_map_subject[box[BOX.Y1]: box[BOX.Y2],
+                                             box[BOX.X1]: box[BOX.X2], :]
+            patch_heatmap_heat_map_object = heat_map_object[box[BOX.Y1]: box[BOX.Y2], box[BOX.X1]: box[BOX.X2],
+                                            :]
+
+            # Resize the image according the padding method
+            # FIXME resized_img = get_img_resize(patch_predicate, config.crop_width, config.crop_height,
+            resized_patch = get_img_resize(patch_predicate, 112, 112,
+                                           type=self.config.padding_method)
+            resized_heatmap_subject = get_img_resize(patch_heatmap_heat_map_subject, 112, 112, type=self.config.padding_method)
+            resized_heatmap_object = get_img_resize(patch_heatmap_heat_map_object, 112, 112, type=self.config.padding_method)
+
+            # Augment only in training
+            if self.is_train == 'train' and self.config.use_jitter:
+                new_resized_patch = None
+
+                # For mixup Jitter we need to create a new resize_img from another sample
+                if self.config.jitter.use_mixup:
+                    all_indice_without_ind = list(indices - set([ind]))
+                    # Pick different index from the data with no repetition
+                    new_ind = np.random.choice(all_indice_without_ind)
+                    new_object = self.train_images[new_ind]
+
+                    new_img = get_img(new_object.url, download=True)
+                    if new_img is None:
+                        Logger().log("Coulden't get the image")
+                        continue
+                    # Get the mask: a dict with {x1,x2,y1,y2}
+                    new_mask = get_mask_from_object(new_object)
+                    # Cropping the patch from the image.
+                    new_patch = new_img[new_mask['y1']: new_mask['y2'], new_mask['x1']: new_mask['x2'], :]
+                    # Resize the image according the padding method
+                    new_resized_patch = get_img_resize(new_patch, self.config.crop_width, self.config.crop_height,
+                                                     type=self.config.padding_method)
+
+                resized_patch = self.config.jitter.apply_jitter(resized_img=resized_patch, batchsize=self.size,
+                                                                new_resized_img=new_resized_patch)
+
+            # Concatenate the heat-map to the image in the kernel axis
+            resized_patch = np.concatenate((resized_patch, resized_heatmap_subject[:, :, :1]), axis=2)
+            resized_patch = np.concatenate((resized_patch, resized_heatmap_object[:, :, :1]), axis=2)
+
+            # Expand dimensions - add batch dimension for the numpy
+            resized_patch = np.expand_dims(resized_patch, axis=0)
+            y_labels = np.expand_dims(y_labels, axis=0)
+
+            patches.append(np.copy(resized_patch))
+            labels.append(np.copy(y_labels))
+
+        # slices sizes
+        slices_size = np.zeros((3))
+        slices_size[0] = slices_size[1] = len(entities_pairs) / 3
+        slices_size[2] = len(entities_pairs) - slices_size[0] - slices_size[1]
+
+        return np.concatenate(patches, axis=0), np.concatenate(labels, axis=0), slices_size
 
     def run(self):
+        ind = 0
         for image in self.train_images:
 
             # filter images that fails in resize
@@ -334,7 +391,6 @@ class PreProcessWorker(threading.Thread):
             if image.predicates_labels.shape[0] > 25:
                 continue
 
-
             indices = np.arange(image.predicates_outputs_with_no_activation.shape[0])
             image.predicates_labels[indices, indices, :] = self.relation_neg
 
@@ -346,10 +402,8 @@ class PreProcessWorker(threading.Thread):
                 entity_bb[obj_id][2] = (image.objects[obj_id].x + image.objects[obj_id].width) / 1200.0
                 entity_bb[obj_id][3] = (image.objects[obj_id].y + image.objects[obj_id].height) / 1200.0
 
-
-
-            entity_inputs, _ = pre_process_entities_data(image, self.hierarchy_mapping_objects, self.config)
-            relations_inputs, _, slices_size = pre_process_predicates_data(image, self.hierarchy_mapping_predicates, self.config)
+            entity_inputs, _ = self.pre_process_entities_data(image, ind)
+            relations_inputs, _, slices_size = self.pre_process_predicates_data(image)
 
             # give lower weight to negatives
             coeff_factor = np.ones(relations_neg_labels.shape)
@@ -363,7 +417,7 @@ class PreProcessWorker(threading.Thread):
             info = [image, relations_inputs, entity_inputs, entity_bb, slices_size, coeff_factor.reshape((-1)), indices]
 
             self.queue.put(info)
-
+            ind += 1
 
         self.queue.put(None)
 
@@ -425,12 +479,12 @@ def train(name="module",
 
     # create module
     module = End2EndModel(gpi_type=gpi_type, nof_predicates=NOF_PREDICATES, nof_objects=NOF_OBJECTS,
-                    is_train=True,
-                    learning_rate=learning_rate, learning_rate_steps=learning_rate_steps,
-                    learning_rate_decay=learning_rate_decay,
-                    lr_object_coeff=lr_object_coeff,
-                    including_object=including_object,
-                    layers=layers, config=config)
+                          is_train=True,
+                          learning_rate=learning_rate, learning_rate_steps=learning_rate_steps,
+                          learning_rate_decay=learning_rate_decay,
+                          lr_object_coeff=lr_object_coeff,
+                          including_object=including_object,
+                          layers=layers, config=config)
 
     # Get timestamp
     timestamp = get_time_and_date()
@@ -470,7 +524,7 @@ def train(name="module",
         # list of train files
         train_files_list = range(2, 72)
         # train_files_list = range(0, 1)
-        #shuffle(train_files_list)
+        # shuffle(train_files_list)
 
         # Actual validation is 5 files.
         # After tunning the hyper parameters, use just 2 files for early stopping.
@@ -481,9 +535,9 @@ def train(name="module",
         relation_neg[NOF_PREDICATES - 1] = 1
 
         # object embedding
-        #embed_obj = FilesManager().load_file("language_module.word2vec.object_embeddings")
-        #embed_pred = FilesManager().load_file("language_module.word2vec.predicate_embeddings")
-        #embed_pred = np.concatenate((embed_pred, np.zeros(embed_pred[:1].shape)),
+        # embed_obj = FilesManager().load_file("language_module.word2vec.object_embeddings")
+        # embed_pred = FilesManager().load_file("language_module.word2vec.predicate_embeddings")
+        # embed_pred = np.concatenate((embed_pred, np.zeros(embed_pred[:1].shape)),
         #                            axis=0)  # concat negative representation
 
         hierarchy_mapping_predicates = FilesManager().load_file("data.visual_genome.hierarchy_mapping_predicates")
@@ -508,20 +562,24 @@ def train(name="module",
                 file_handle.close()
 
                 pre_process_image_queue = Queue(maxsize=10)
-                worker1 = PreProcessWorker(module=module, train_images=train_images[:len(train_images)/2], relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
-                                          pred_pos_neg_ratio=pred_pos_neg_ratio, hierarchy_mapping_objects=hierarchy_mapping_objects, hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                                          config=config)
-                worker2 = PreProcessWorker(module=module, train_images=train_images[len(train_images)/2:], relation_neg=relation_neg,
+                worker1 = PreProcessWorker(module=module, train_images=train_images[:len(train_images) / 2],
+                                           relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
+                                           pred_pos_neg_ratio=pred_pos_neg_ratio,
+                                           hierarchy_mapping_objects=hierarchy_mapping_objects,
+                                           hierarchy_mapping_predicates=hierarchy_mapping_predicates,
+                                           config=config, is_train=True)
+                worker2 = PreProcessWorker(module=module, train_images=train_images[len(train_images) / 2:],
+                                           relation_neg=relation_neg,
                                            queue=pre_process_image_queue, lr=lr,
                                            pred_pos_neg_ratio=pred_pos_neg_ratio,
                                            hierarchy_mapping_objects=hierarchy_mapping_objects,
                                            hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                                           config=config)
+                                           config=config, is_train=True)
                 worker1.start()
                 worker2.start()
                 none_count = 0
                 while True:
-                    #print(str(pre_process_image_queue.qsize()))
+                    # print(str(pre_process_image_queue.qsize()))
                     info = pre_process_image_queue.get()
                     if info is None:
                         none_count += 1
@@ -550,6 +608,7 @@ def train(name="module",
                     out_relation_probes_val, out_entity_probes_val, loss_val, gradients_val = \
                         sess.run([out_relation_probes, out_entity_probes, loss, gradients],
                                  feed_dict=feed_dict)
+
                     if math.isnan(loss_val):
                         print("NAN")
                         continue
@@ -628,14 +687,14 @@ def train(name="module",
                                                pred_pos_neg_ratio=pred_pos_neg_ratio,
                                                hierarchy_mapping_objects=hierarchy_mapping_objects,
                                                hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                                               config=config)
+                                               config=config, is_train=False)
                     worker2 = PreProcessWorker(module=module, train_images=validation_images[len(train_images) / 2:],
                                                relation_neg=relation_neg,
                                                queue=pre_process_image_queue, lr=lr,
                                                pred_pos_neg_ratio=pred_pos_neg_ratio,
                                                hierarchy_mapping_objects=hierarchy_mapping_objects,
                                                hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                                               config=config)
+                                               config=config, is_train=False)
                     worker1.start()
                     worker2.start()
                     none_count = 0
