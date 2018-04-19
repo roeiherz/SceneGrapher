@@ -26,6 +26,8 @@ import tensorflow as tf
 import numpy as np
 import os
 import inspect
+from tensorflow.contrib import slim
+from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
 
 NOF_PREDICATES = 51
 NOF_OBJECTS = 150
@@ -422,6 +424,13 @@ class PreProcessWorker(threading.Thread):
         self.queue.put(None)
 
 
+def name_in_checkpoint(var):
+    if "relation_resnet50" in var.op.name:
+        return var.op.name.replace("relation_resnet50/", "")
+    if "entity_resnet50" in var.op.name:
+        return var.op.name.replace("entity_resnet50/", "")
+
+
 def train(name="module",
           nof_iterations=100,
           learning_rate=0.0001,
@@ -504,20 +513,36 @@ def train(name="module",
 
     # Initialize the Computational Graph
     init = tf.global_variables_initializer()
-    # Add ops to save and restore all the variables.
-    variables = tf.contrib.slim.get_variables_to_restore()
-    variables_to_restore = variables
-    saver = tf.train.Saver(variables_to_restore)
 
     with tf.Session() as sess:
+
         # Restore variables from disk.
         module_path = filesmanager.get_file_path("sg_module.train.saver")
         module_path_load = os.path.join(module_path, load_module_name)
         if os.path.exists(module_path_load + ".index") and use_saved_module:
+            sess.run(init)
+            # Add ops to save and restore all the variables.
+            variables = tf.contrib.slim.get_variables_to_restore()
+            variables_to_restore = [var for var in variables if not "ent_direct" in var.op.name and not "rel_direct" in var.op.name]
+            saver = tf.train.Saver(variables_to_restore)
+
             saver.restore(sess, module_path_load)
             logger.log("Model restored.")
         else:
+
             sess.run(init)
+            variables_to_restore = []
+            variables_to_restore += slim.get_model_variables("relation_resnet50")
+            variables_to_restore += slim.get_model_variables("entity_resnet50")
+            #variables_to_restore = []
+            variables_to_restore = {name_in_checkpoint(var): var for var in variables_to_restore if "biases" not in var.op.name and "resnet_v2_50/logits/weights" not in var.op.name}
+            module_path = filesmanager.get_file_path("sg_module.train.saver")
+            module_path_load = os.path.join(module_path, "resnet_v2_50.ckpt")
+            #print_tensors_in_checkpoint_file(module_path_load, "", True)
+            #exit()
+            restorer = tf.train.Saver(variables_to_restore)
+
+            restorer.restore(sess, module_path_load)
 
         # train images
         vg_train_path = filesmanager.get_file_path("data.visual_genome.train")

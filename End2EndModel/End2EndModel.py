@@ -89,7 +89,7 @@ class End2EndModel(object):
             self.relation_inputs_ph = tf.placeholder(shape=[None, 112, 112, 5],
                                                      dtype=tf.float32, name="relation_inputs_ph")
             self.entity_inputs_ph = tf.placeholder(shape=[None, self.config.crop_width, self.config.crop_height, 3],
-                                                   dtype=tf.float32, name="relation_inputs_ph")
+                                                   dtype=tf.float32, name="entity_inputs_ph")
             # size of slices of image relations (to avoid from OOM error)
             self.slices_size_ph = tf.placeholder(dtype=tf.int32, shape=[3])
             self.slices = tf.split(self.relation_inputs_ph, self.slices_size_ph)
@@ -220,11 +220,17 @@ class End2EndModel(object):
         # store all the outputs of of rnn steps
         self.out_confidence_entity_lst = []
         self.out_confidence_relation_lst = []
+
+
         # rnn stage module
         confidence_relation = self.output_resnet50_relation_reshaped
         # todo: to delete - old entity confidence
         # confidence_entity = self.confidence_entity_ph
         confidence_entity = self.output_resnet50_entity_reshaped
+
+        # rnn0
+        self.out_confidence_relation_lst.append(self.nn([confidence_relation], layers=[], out=self.nof_predicates, scope_name="rel_direct"))
+        self.out_confidence_entity_lst.append(self.nn([confidence_entity], layers=[], out=self.nof_objects, scope_name="ent_direct"))
 
         # iterations of the features message
         for step in range(self.rnn_steps):
@@ -256,7 +262,7 @@ class End2EndModel(object):
 
             self.loss, self.gradients, self.grad_placeholder, self.train_step = self.module_loss()
 
-    def nn(self, features, layers, out, scope_name, seperated_layer=False, last_activation=None):
+    def nn(self, features, layers, out, scope_name, separated_layer=False, last_activation=None):
         """
         simple nn to convert features to confidence
         :param features: list of features tensor
@@ -273,7 +279,7 @@ class End2EndModel(object):
             features_h_lst = []
             index = 0
             for feature in features:
-                if seperated_layer:
+                if separated_layer:
                     in_size = feature.shape[-1]._value
                     scope = str(index)
                     h = tf.contrib.layers.fully_connected(feature, in_size, reuse=self.reuse, scope=scope,
@@ -326,6 +332,8 @@ class End2EndModel(object):
             # expand subject confidence
             self.expand_subject_features = tf.transpose(self.expand_object_features, perm=[1, 0, 2],
                                                         name="expand_subject_features")
+
+
 
             ##
             # Node Neighbours
@@ -417,7 +425,7 @@ class End2EndModel(object):
 
             loss = 0
 
-            for rnn_step in range(self.rnn_steps):
+            for rnn_step in range(self.rnn_steps + 1):
 
                 shaped_confidence_predicate = tf.reshape(self.out_confidence_relation_lst[rnn_step],
                                                          (-1, self.nof_predicates))
