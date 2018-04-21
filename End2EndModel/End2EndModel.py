@@ -1,5 +1,6 @@
 import sys
 
+from keras import Input
 from tensorflow.contrib import layers as layers_lib
 from tensorflow.contrib.framework.python.ops import add_arg_scope
 from tensorflow.contrib.framework.python.ops import arg_scope
@@ -88,14 +89,19 @@ class End2EndModel(object):
             # todo: clean
             self.relation_inputs_ph = tf.placeholder(shape=[None, 112, 112, 5],
                                                      dtype=tf.float32, name="relation_inputs_ph")
-            self.entity_inputs_ph = tf.placeholder(shape=[None, self.config.crop_width, self.config.crop_height, 3],
-                                                   dtype=tf.float32, name="entity_inputs_ph")
+            # self.entity_inputs_tensor_ph = tf.placeholder(shape=[None, self.config.crop_width, self.config.crop_height, 3],
+            #                                        dtype=tf.float32, name="entity_inputs_tensor_ph")
+            self.entity_inputs_ph = Input(shape=(self.config.crop_height, self.config.crop_width, 3), name="entity_inputs_ph")
+            #
+            # self.entity_inputs_ph = tf.contrib.keras.layers.Input(
+            #     shape=(self.config.crop_height, self.config.crop_width, 3), name="entity_inputs_ph")
+
             # size of slices of image relations (to avoid from OOM error)
             self.slices_size_ph = tf.placeholder(dtype=tf.int32, shape=[3])
             self.slices = tf.split(self.relation_inputs_ph, self.slices_size_ph)
 
             # shape to be used by feature collector
-            self.num_objects_ph = tf.placeholder(dtype=tf.int32, shape=[], name="num_of_objects_ph")
+            self.num_objects_ph = tf.placeholder(dtype=tf.int32, shape=[1], name="num_of_objects_ph")
 
             ##
             # SGP input
@@ -111,6 +117,7 @@ class End2EndModel(object):
             # self.confidence_entity_ph = tf.contrib.layers.dropout(self.confidence_entity_ph, keep_prob=0.9, is_training=self.phase_ph)
             # spatial features
             self.entity_bb_ph = tf.placeholder(dtype=tf.float32, shape=(None, 4), name="obj_bb")
+            self.relation_bb_ph = tf.placeholder(dtype=tf.float32, shape=(None, 4), name="relation_bb")
 
             # word embeddings
             # self.word_embed_entities_ph = tf.placeholder(dtype=tf.float32, shape=(self.nof_objects, self.embed_size),
@@ -196,9 +203,9 @@ class End2EndModel(object):
         """
         with tf.variable_scope(scope_name):
             self.output_resnet50_relation, end_points = resnet_v2_50(self.relation_inputs_ph, num_classes=100)
-            N = tf.slice(tf.shape(self.entity_inputs_ph), [0], [1], name="N_relation")
+            # N = tf.slice(tf.keras.backend.shape(self.entity_inputs_tensor_ph), [0], [1], name="N_relation")
             M = tf.constant([100], dtype=tf.int32, name="M_relation")
-            relations_shape = tf.concat((N, N, M), 0)
+            relations_shape = tf.concat((self.num_objects_ph, self.num_objects_ph, M), 0)
             self.output_resnet50_relation_reshaped = tf.reshape(self.output_resnet50_relation, relations_shape)
 
     def create_resnet_entity_net(self, scope_name="entity_resnet50"):
@@ -207,11 +214,27 @@ class End2EndModel(object):
         :return:
         """
         with tf.variable_scope(scope_name):
-            self.output_resnet50_entity, end_points = resnet_v2_50(self.entity_inputs_ph, num_classes=300)
-            N = tf.slice(tf.shape(self.entity_inputs_ph), [0], [1], name="N_entity")
+
+            net = ModelZoo()
+            model_resnet50 = net.resnet50_base(self.entity_inputs_ph, trainable=self.config.resnet_body_trainable)
+            self._model_resnet50_entity = model_resnet50
+            model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
+            self.output_resnet50_entity = Dense(300, kernel_initializer="he_normal", activation=None,
+                                         name='fc')(model_resnet50)
+            # self.output_resnet50_reshaped = tf.reshape(self.output_resnet50_entity, [self.num_objects_ph, self.num_objects_ph,
+            #                                                                   self.nof_predicates])
+
+            # self.output_resnet50_entity = net.resnet50_base(self.entity_inputs_ph, trainable=self.config.resnet_body_trainable)
+            # N = tf.slice(tf.shape(self.entity_inputs_tensor_ph), [0], [1], name="N_entity")
             M = tf.constant([300], dtype=tf.int32, name="M_entity")
-            relations_shape = tf.concat((N, M), 0)
+            relations_shape = tf.concat((self.num_objects_ph, M), 0)
             self.output_resnet50_entity_reshaped = tf.reshape(self.output_resnet50_entity, relations_shape)
+
+            # self.output_resnet50_entity, end_points = resnet_v2_50(self.entity_inputs_ph, num_classes=300)
+            # N = tf.slice(tf.shape(self.entity_inputs_ph), [0], [1], name="N_entity")
+            # M = tf.constant([300], dtype=tf.int32, name="M_entity")
+            # relations_shape = tf.concat((N, M), 0)
+            # self.output_resnet50_entity_reshaped = tf.reshape(self.output_resnet50_entity, relations_shape)
 
     def sgp(self):
         """
@@ -220,7 +243,6 @@ class End2EndModel(object):
         # store all the outputs of of rnn steps
         self.out_confidence_entity_lst = []
         self.out_confidence_relation_lst = []
-
 
         # rnn stage module
         confidence_relation = self.output_resnet50_relation_reshaped
@@ -332,7 +354,6 @@ class End2EndModel(object):
             # expand subject confidence
             self.expand_subject_features = tf.transpose(self.expand_object_features, perm=[1, 0, 2],
                                                         name="expand_subject_features")
-
 
 
             ##
