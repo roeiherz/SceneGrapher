@@ -531,17 +531,25 @@ def train(name="module",
         else:
             create_folder(os.path.join(module_path, timestamp))
             sess.run(init)
+
             # Load Object CNN body keras network
             model_obj = tf.contrib.keras.models.Model(inputs=module.entity_inputs_ph, outputs=module.output_resnet50_entity,
                                                   name='entity_resnet50')
             # The path for for loading Keras weights
             net_weights = "/home/roeih/SceneGrapher/objects_no_fcs.h5"
             model_obj.load_weights(net_weights, by_name=True)
-            # Load Predicates MaskCNN keras network
 
+            # Load Predicates MaskCNN keras network
+            model_rel = tf.contrib.keras.models.Model(inputs=module.relation_inputs_ph, outputs=module.output_resnet50_relation,
+                                                  name='relation_resnet50')
+            # The path for for loading Keras weights
+            net_weights = "/home/roeih/SceneGrapher/relations_no_fcs.h5"
+            model_rel.load_weights(net_weights, by_name=True)
+
+            # Save graph
             saver = tf.train.Saver()
             module_path_load = os.path.join(module_path, timestamp)
-            saver.save(sess, module_path_load + '/e2e_object_pretrained_model.ckpt', 0)
+            saver.save(sess, module_path_load + '/e2e_full_pretrained_model.ckpt', 0)
 
             # sess.run(init)
             # variables_to_restore = []
@@ -634,7 +642,6 @@ def train(name="module",
                     feed_dict = {module.relation_inputs_ph: relations_inputs,
                                  module.entity_inputs_ph: entity_inputs,
                                  module.num_objects_ph: (entity_inputs.shape[0],),
-                                 module.slices_size_ph: slices_size,
                                  module.entity_bb_ph: entity_bb, module.phase_ph: True,
                                  module.labels_relation_ph: image.predicates_labels,
                                  module.labels_entity_ph: image.objects_labels,
@@ -755,7 +762,6 @@ def train(name="module",
                         feed_dict = {module.relation_inputs_ph: relations_inputs,
                                      module.entity_inputs_ph: entity_inputs,
                                      module.num_objects_ph: (entity_inputs.shape[0],),
-                                     module.slices_size_ph: slices_size,
                                      module.entity_bb_ph: entity_bb, module.phase_ph: True,
                                      module.labels_relation_ph: image.predicates_labels,
                                      module.labels_entity_ph: image.objects_labels,
