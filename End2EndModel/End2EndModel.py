@@ -87,8 +87,9 @@ class End2EndModel(object):
         """
         with tf.variable_scope(scope_name):
             # todo: clean
-            self.relation_inputs_ph = tf.placeholder(shape=[None, 112, 112, 5],
-                                                     dtype=tf.float32, name="relation_inputs_ph")
+            # self.relation_inputs_ph = tf.placeholder(shape=[None, 112, 112, 5],
+            #                                          dtype=tf.float32, name="relation_inputs_ph")
+            self.relation_inputs_ph = Input(shape=(112, 112, 5), name="relation_inputs_ph")
             # self.entity_inputs_tensor_ph = tf.placeholder(shape=[None, self.config.crop_width, self.config.crop_height, 3],
             #                                        dtype=tf.float32, name="entity_inputs_tensor_ph")
             self.entity_inputs_ph = Input(shape=(self.config.crop_height, self.config.crop_width, 3), name="entity_inputs_ph")
@@ -96,9 +97,9 @@ class End2EndModel(object):
             # self.entity_inputs_ph = tf.contrib.keras.layers.Input(
             #     shape=(self.config.crop_height, self.config.crop_width, 3), name="entity_inputs_ph")
 
-            # size of slices of image relations (to avoid from OOM error)
-            self.slices_size_ph = tf.placeholder(dtype=tf.int32, shape=[3])
-            self.slices = tf.split(self.relation_inputs_ph, self.slices_size_ph)
+            # # size of slices of image relations (to avoid from OOM error)
+            # self.slices_size_ph = tf.placeholder(dtype=tf.int32, shape=[3])
+            # self.slices = tf.split(self.relation_inputs_ph, self.slices_size_ph)
 
             # shape to be used by feature collector
             self.num_objects_ph = tf.placeholder(dtype=tf.int32, shape=[1], name="num_of_objects_ph")
@@ -177,7 +178,6 @@ class End2EndModel(object):
     #         mask = tf.transpose(
     #             tf.matrix_diag(tf.ones_like(tf.transpose(self.output_resnet50_relation_reshaped[0])))) * -1 + 1
     #         self.output_resnet50_relation_reshaped = tf.multiply(self.output_resnet50_relation_reshaped, mask)
-
     # def create_vgg_detection_net(self):
     #     output_slices = []
     #     reuse = None
@@ -196,19 +196,27 @@ class End2EndModel(object):
     #     relations_shape = tf.concat((N, N, M), 0)
     #     self.output_resnet50_relation_reshaped = tf.reshape(self.output_resnet50_relation, relations_shape)
 
-    def create_resnet_relation_net(self, scope_name="relation_resnet50"):
+    def create_resnet_relation_net(self, scope_name="relation_resnet50", features_size=100):
         """
         This function creates the resnet50 relation network
         :return:
         """
         with tf.variable_scope(scope_name):
-            self.output_resnet50_relation, end_points = resnet_v2_50(self.relation_inputs_ph, num_classes=100)
+            # self.output_resnet50_relation, end_points = resnet_v2_50(self.relation_inputs_ph, num_classes=100)
             # N = tf.slice(tf.keras.backend.shape(self.entity_inputs_tensor_ph), [0], [1], name="N_relation")
-            M = tf.constant([100], dtype=tf.int32, name="M_relation")
+
+            net = ModelZoo()
+            model_resnet50 = net.resnet50_with_masking_dual(self.relation_inputs_ph, trainable=self.config.resnet_body_trainable)
+            self._model_resnet50_reltaion = model_resnet50
+            model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
+            self.output_resnet50_relation = Dense(features_size, kernel_initializer="he_normal", activation=None,
+                                         name='fc')(model_resnet50)
+
+            M = tf.constant([features_size], dtype=tf.int32, name="M_relation")
             relations_shape = tf.concat((self.num_objects_ph, self.num_objects_ph, M), 0)
             self.output_resnet50_relation_reshaped = tf.reshape(self.output_resnet50_relation, relations_shape)
 
-    def create_resnet_entity_net(self, scope_name="entity_resnet50"):
+    def create_resnet_entity_net(self, scope_name="entity_resnet50", features_size=300):
         """
         This function creates the resnet50 entity network
         :return:
@@ -217,16 +225,15 @@ class End2EndModel(object):
 
             net = ModelZoo()
             model_resnet50 = net.resnet50_base(self.entity_inputs_ph, trainable=self.config.resnet_body_trainable)
-            self._model_resnet50_entity = model_resnet50
             model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
-            self.output_resnet50_entity = Dense(300, kernel_initializer="he_normal", activation=None,
+            self.output_resnet50_entity = Dense(features_size, kernel_initializer="he_normal", activation=None,
                                          name='fc')(model_resnet50)
             # self.output_resnet50_reshaped = tf.reshape(self.output_resnet50_entity, [self.num_objects_ph, self.num_objects_ph,
             #                                                                   self.nof_predicates])
 
             # self.output_resnet50_entity = net.resnet50_base(self.entity_inputs_ph, trainable=self.config.resnet_body_trainable)
             # N = tf.slice(tf.shape(self.entity_inputs_tensor_ph), [0], [1], name="N_entity")
-            M = tf.constant([300], dtype=tf.int32, name="M_entity")
+            M = tf.constant([features_size], dtype=tf.int32, name="M_entity")
             relations_shape = tf.concat((self.num_objects_ph, M), 0)
             self.output_resnet50_entity_reshaped = tf.reshape(self.output_resnet50_entity, relations_shape)
 
