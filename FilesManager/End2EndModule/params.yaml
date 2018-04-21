@@ -3,11 +3,12 @@ nof_iterations: 10000
 learning_rate: 0.0001
 learning_rate_steps: 1000
 learning_rate_decay: 0.5
-load_model_name: "gpi_e2e_fast_do_jitter_best_module.ckpt"
+#load_model_name: "gpi_e2e_fast_do_jitter_best_module.ckpt"
+load_model_name: "e2e_object_pretrained_model.ckpt-0"
 use_saved_model: True
-batch_size: 5
+batch_size: 1
 predicate_pos_neg_ratio: 10
 lr_object_coeff: 4
 layers: [250, 250]
-gpu: 0
+gpu: 1
 
