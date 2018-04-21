@@ -529,20 +529,31 @@ def train(name="module",
             saver.restore(sess, module_path_load)
             logger.log("Model restored.")
         else:
-
+            create_folder(os.path.join(module_path, timestamp))
             sess.run(init)
-            variables_to_restore = []
-            variables_to_restore += slim.get_model_variables("relation_resnet50")
-            variables_to_restore += slim.get_model_variables("entity_resnet50")
-            #variables_to_restore = []
-            variables_to_restore = {name_in_checkpoint(var): var for var in variables_to_restore if "biases" not in var.op.name and "resnet_v2_50/logits/weights" not in var.op.name}
-            module_path = filesmanager.get_file_path("sg_module.train.saver")
-            module_path_load = os.path.join(module_path, "resnet_v2_50.ckpt")
-            #print_tensors_in_checkpoint_file(module_path_load, "", True)
-            #exit()
-            restorer = tf.train.Saver(variables_to_restore)
+            # Load Object CNN body keras network
+            model_obj = tf.contrib.keras.models.Model(inputs=module.entity_inputs_ph, outputs=module.output_resnet50_entity,
+                                                  name='entity_resnet50')
+            # The path for for loading Keras weights
+            net_weights = "/home/roeih/SceneGrapher/objects_no_fcs.h5"
+            model_obj.load_weights(net_weights, by_name=True)
+            # Load Predicates MaskCNN keras network
 
-            restorer.restore(sess, module_path_load)
+            saver = tf.train.Saver()
+            module_path_load = os.path.join(module_path, timestamp)
+            saver.save(sess, module_path_load + '/e2e_object_pretrained_model.ckpt', 0)
+
+            # sess.run(init)
+            # variables_to_restore = []
+            # variables_to_restore += slim.get_model_variables("relation_resnet50")
+            # variables_to_restore += slim.get_model_variables("entity_resnet50")
+            # variables_to_restore = {name_in_checkpoint(var): var for var in variables_to_restore if "biases" not in var.op.name and "resnet_v2_50/logits/weights" not in var.op.name}
+            # module_path = filesmanager.get_file_path("sg_module.train.saver")
+            # module_path_load = os.path.join(module_path, "resnet_v2_50.ckpt")
+            # #print_tensors_in_checkpoint_file(module_path_load, "", True)
+            # #exit()
+            # restorer = tf.train.Saver(variables_to_restore)
+            # restorer.restore(sess, module_path_load)
 
         # train images
         vg_train_path = filesmanager.get_file_path("data.visual_genome.train")
@@ -622,6 +633,7 @@ def train(name="module",
 
                     feed_dict = {module.relation_inputs_ph: relations_inputs,
                                  module.entity_inputs_ph: entity_inputs,
+                                 module.num_objects_ph: (entity_inputs.shape[0],),
                                  module.slices_size_ph: slices_size,
                                  module.entity_bb_ph: entity_bb, module.phase_ph: True,
                                  module.labels_relation_ph: image.predicates_labels,
@@ -742,6 +754,7 @@ def train(name="module",
 
                         feed_dict = {module.relation_inputs_ph: relations_inputs,
                                      module.entity_inputs_ph: entity_inputs,
+                                     module.num_objects_ph: (entity_inputs.shape[0],),
                                      module.slices_size_ph: slices_size,
                                      module.entity_bb_ph: entity_bb, module.phase_ph: True,
                                      module.labels_relation_ph: image.predicates_labels,
