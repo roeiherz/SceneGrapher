@@ -14,7 +14,7 @@ from tensorflow.contrib.slim.python.slim.nets.resnet_v2 import resnet_v2_50, bot
 
 sys.path.append("..")
 
-from keras.layers import GlobalAveragePooling2D, Dense
+from keras.layers import GlobalAveragePooling2D, Dense, TimeDistributed
 
 from FeaturesExtraction.Lib.Zoo import ModelZoo
 from FilesManager.FilesManager import FilesManager
@@ -87,6 +87,7 @@ class End2EndModel(object):
         """
         with tf.variable_scope(scope_name):
             # todo: clean
+            self.image_ph = Input(shape=(1024, 1024, 3), name="image_inputs_ph")
             # self.relation_inputs_ph = tf.placeholder(shape=[None, 112, 112, 5],
             #                                          dtype=tf.float32, name="relation_inputs_ph")
             self.relation_inputs_ph = Input(shape=(112, 112, 5), name="relation_inputs_ph")
@@ -207,6 +208,7 @@ class End2EndModel(object):
 
             net = ModelZoo()
             model_resnet50 = net.resnet50_with_masking_dual(self.relation_inputs_ph, trainable=self.config.resnet_body_trainable)
+            # model_resnet50 = net.resnet50_with_masking_dual(self.relation_inputs_ph, trainable=self.config.resnet_body_trainable)
             self._model_resnet50_reltaion = model_resnet50
             model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
             self.output_resnet50_relation = Dense(features_size, kernel_initializer="he_normal", activation=None,
@@ -224,24 +226,37 @@ class End2EndModel(object):
         with tf.variable_scope(scope_name):
 
             net = ModelZoo()
-            model_resnet50 = net.resnet50_base(self.entity_inputs_ph, trainable=self.config.resnet_body_trainable)
-            model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
+            model_resnet50, layers_for_fpn = net.resnet50_base(self.image_ph,
+                                                               trainable=self.config.resnet_body_trainable, use_fpn=True)
+            # model_resnet50 = net.resnet50_base(self.entity_inputs_ph, trainable=self.config.resnet_body_trainable)
+            # model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
             self.output_resnet50_entity = Dense(features_size, kernel_initializer="he_normal", activation=None,
                                          name='fc')(model_resnet50)
-            # self.output_resnet50_reshaped = tf.reshape(self.output_resnet50_entity, [self.num_objects_ph, self.num_objects_ph,
-            #                                                                   self.nof_predicates])
 
-            # self.output_resnet50_entity = net.resnet50_base(self.entity_inputs_ph, trainable=self.config.resnet_body_trainable)
-            # N = tf.slice(tf.shape(self.entity_inputs_tensor_ph), [0], [1], name="N_entity")
+            # FPN
+            fpn_feature_maps = net.feature_pyramid_pooling(layers_for_fpn)
+            model_fpn_classifier = net.fpn_classifier(self.entity_bb_ph, fpn_feature_maps, [1024, 1024, 3], 7)
+            self.output_fpn_entity = TimeDistributed(Dense(features_size), name='fc')(model_fpn_classifier)
+
             M = tf.constant([features_size], dtype=tf.int32, name="M_entity")
             relations_shape = tf.concat((self.num_objects_ph, M), 0)
-            self.output_resnet50_entity_reshaped = tf.reshape(self.output_resnet50_entity, relations_shape)
+            self.output_resnet50_entity_reshaped = tf.reshape(self.output_fpn_entity, relations_shape)
 
             # self.output_resnet50_entity, end_points = resnet_v2_50(self.entity_inputs_ph, num_classes=300)
             # N = tf.slice(tf.shape(self.entity_inputs_ph), [0], [1], name="N_entity")
             # M = tf.constant([300], dtype=tf.int32, name="M_entity")
             # relations_shape = tf.concat((N, M), 0)
             # self.output_resnet50_entity_reshaped = tf.reshape(self.output_resnet50_entity, relations_shape)
+
+            # _, end_points = resnet_v2_50(self.image_ph, num_classes=None)
+            # self.output_resnet50_entity = end_points['entity_resnet50/resnet_v2_50/block4']
+            # entity_norm_bb = self.entity_bb_ph
+            # N = tf.slice(tf.shape(self.entity_bb_ph), [0], [1], name="N_entity")
+            # self.entity_features = tf.image.crop_and_resize(self.output_resnet50_entity, entity_norm_bb, tf.zeros(shape=N, dtype=tf.int32), crop_size=[1, 1])
+            # M = tf.constant([2048], dtype=tf.int32, name="M_entity")
+            # entities_shape = tf.concat((N, M), 0)
+            # self.output_resnet50_entity_reshaped = tf.reshape(self.entity_features, entities_shape)
+
 
     def sgp(self):
         """

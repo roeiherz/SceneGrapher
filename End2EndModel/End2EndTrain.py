@@ -154,7 +154,7 @@ class PreProcessWorker(threading.Thread):
         self.is_train = is_train
         self.size = len(train_images)
 
-    def pre_process_entities_data(self, image, ind):
+    def pre_process_entities_data(self, image, ind, img):
         """
         This function is a generator for Object with Detections with batch-size
         :param ind: index of an image of the whole images (used only for entities mixup Jitter)
@@ -165,9 +165,6 @@ class PreProcessWorker(threading.Thread):
         labels = []
         url = image.image.url
         indices = set(range(self.size))
-
-        # Get image
-        img = get_img(url, download=True)
 
         if img is None:
             Logger().log("Couldn't get the image in url {}".format(url))
@@ -234,7 +231,7 @@ class PreProcessWorker(threading.Thread):
 
         return np.concatenate(patches, axis=0), np.concatenate(labels, axis=0)
 
-    def pre_process_predicates_data(self, image, ind):
+    def pre_process_predicates_data(self, image, ind, img):
         """
         This function is a generator for Predicate with Detections with batch-size
         :param image: image entity VG
@@ -245,6 +242,10 @@ class PreProcessWorker(threading.Thread):
         labels = []
         url = image.image.url
         indices = set(range(self.size))
+
+        if img is None:
+            Logger().log("Couldn't get the image in url {}".format(url))
+            return None, None
 
         # Create object pairs
         entities_pairs = list(itertools.product(image.objects, repeat=2))
@@ -257,17 +258,6 @@ class PreProcessWorker(threading.Thread):
         for relation in image.relationships:
             relations_dict[(relation.subject.id, relation.object.id)] = relation.predicate
             relations_filtered_id_dict[(relation.subject.id, relation.object.id)] = relation.filtered_id
-
-        # if len(relations_dict) != len(entity.relationships):
-        #    Logger().log("**Error in entity image {0} with number of {1} relationship and {2} of relations_dict**"
-        #                 .format(entity.image.id, len(entity.relationships), len(relations_dict)))
-
-        # Get image
-        img = get_img(url, download=True)
-
-        if img is None:
-            Logger().log("Couldn't get the image in url {}".format(url))
-            return None, None
 
         for relation in entities_pairs:
 
@@ -404,8 +394,12 @@ class PreProcessWorker(threading.Thread):
                 entity_bb[obj_id][2] = (image.objects[obj_id].x + image.objects[obj_id].width) / 1200.0
                 entity_bb[obj_id][3] = (image.objects[obj_id].y + image.objects[obj_id].height) / 1200.0
 
-            entity_inputs, _ = self.pre_process_entities_data(image, ind)
-            relations_inputs, _, slices_size = self.pre_process_predicates_data(image, ind)
+            # Get image
+            img_input = get_img(image.image.url, download=True)
+            img_input = np.expand_dims(img_input, axis=0)
+
+            entity_inputs, _ = self.pre_process_entities_data(image, ind, img_input)
+            relations_inputs, _, slices_size = self.pre_process_predicates_data(image, ind, img_input)
 
             # give lower weight to negatives
             coeff_factor = np.ones(relations_neg_labels.shape)
@@ -416,7 +410,8 @@ class PreProcessWorker(threading.Thread):
             coeff_factor[indices, indices] = 0
 
             # create the feed dictionary
-            info = [image, relations_inputs, entity_inputs, entity_bb, slices_size, coeff_factor.reshape((-1)), indices]
+            info = [image, relations_inputs, entity_inputs, entity_bb, slices_size, coeff_factor.reshape((-1)), indices,
+                    img_input]
 
             self.queue.put(info)
             ind += 1
@@ -532,12 +527,13 @@ def train(name="module",
             create_folder(os.path.join(module_path, timestamp))
             sess.run(init)
 
-            # Load Object CNN body keras network
-            model_obj = tf.contrib.keras.models.Model(inputs=module.entity_inputs_ph, outputs=module.output_resnet50_entity,
-                                                  name='entity_resnet50')
-            # The path for for loading Keras weights
-            net_weights = "/home/roeih/SceneGrapher/objects_no_fcs.h5"
-            model_obj.load_weights(net_weights, by_name=True)
+            # # Load Object CNN body keras network
+            # model_obj = tf.contrib.keras.models.Model(inputs=module.entity_inputs_ph,
+            #                                           outputs=module.output_resnet50_entity_reshaped,
+            #                                           name='entity_resnet50')
+            # # The path for for loading Keras weights
+            # net_weights = "/home/roeih/SceneGrapher/objects_no_fcs.h5"
+            # model_obj.load_weights(net_weights, by_name=True)
 
             # Load Predicates MaskCNN keras network
             model_rel = tf.contrib.keras.models.Model(inputs=module.relation_inputs_ph, outputs=module.output_resnet50_relation,
@@ -549,7 +545,7 @@ def train(name="module",
             # Save graph
             saver = tf.train.Saver()
             module_path_load = os.path.join(module_path, timestamp)
-            saver.save(sess, module_path_load + '/e2e_full_pretrained_model.ckpt', 0)
+            saver.save(sess, module_path_load + '/e2e_fpn_model.ckpt', 0)
 
             # sess.run(init)
             # variables_to_restore = []
@@ -566,8 +562,9 @@ def train(name="module",
         # train images
         vg_train_path = filesmanager.get_file_path("data.visual_genome.train")
         # list of train files
-        train_files_list = range(2, 72)
-        # train_files_list = range(0, 1)
+        # todo: debug
+        # train_files_list = range(2, 72)
+        train_files_list = range(0, 1)
         # shuffle(train_files_list)
 
         # Actual validation is 5 files.
@@ -604,23 +601,23 @@ def train(name="module",
                 file_handle = open(file_path, "rb")
                 train_images = cPickle.load(file_handle)
                 file_handle.close()
-
+                train_images = train_images[:1]
                 pre_process_image_queue = Queue(maxsize=10)
-                worker1 = PreProcessWorker(module=module, train_images=train_images[:len(train_images) / 2],
+                worker1 = PreProcessWorker(module=module, train_images=train_images,
                                            relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
                                            pred_pos_neg_ratio=pred_pos_neg_ratio,
                                            hierarchy_mapping_objects=hierarchy_mapping_objects,
                                            hierarchy_mapping_predicates=hierarchy_mapping_predicates,
                                            config=config, is_train=True)
-                worker2 = PreProcessWorker(module=module, train_images=train_images[len(train_images) / 2:],
-                                           relation_neg=relation_neg,
-                                           queue=pre_process_image_queue, lr=lr,
-                                           pred_pos_neg_ratio=pred_pos_neg_ratio,
-                                           hierarchy_mapping_objects=hierarchy_mapping_objects,
-                                           hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                                           config=config, is_train=True)
+                # worker2 = PreProcessWorker(module=module, train_images=train_images[len(train_images) / 2:],
+                #                            relation_neg=relation_neg,
+                #                            queue=pre_process_image_queue, lr=lr,
+                #                            pred_pos_neg_ratio=pred_pos_neg_ratio,
+                #                            hierarchy_mapping_objects=hierarchy_mapping_objects,
+                #                            hierarchy_mapping_predicates=hierarchy_mapping_predicates,
+                #                            config=config, is_train=True)
                 worker1.start()
-                worker2.start()
+                # worker2.start()
                 none_count = 0
                 while True:
                     # print(str(pre_process_image_queue.qsize()))
@@ -638,8 +635,10 @@ def train(name="module",
                     slices_size = info[4]
                     coeff_factor = info[5]
                     indices = info[6]
+                    img_pixel = info[7]
 
-                    feed_dict = {module.relation_inputs_ph: relations_inputs,
+                    feed_dict = {module.image_ph: img_pixel,
+                                 module.relation_inputs_ph: relations_inputs,
                                  module.entity_inputs_ph: entity_inputs,
                                  module.num_objects_ph: (entity_inputs.shape[0],),
                                  module.entity_bb_ph: entity_bb, module.phase_ph: True,

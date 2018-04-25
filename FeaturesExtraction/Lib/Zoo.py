@@ -7,10 +7,12 @@ from keras.models import Model
 from keras.models import Sequential
 from keras.layers import ZeroPadding2D, Convolution2D, MaxPooling2D, Flatten, Dense, Dropout, Lambda, \
     BatchNormalization, \
-    Activation, Merge, merge, AveragePooling2D, TimeDistributed, Conv2D, concatenate
+    Activation, Merge, merge, AveragePooling2D, TimeDistributed, Conv2D, concatenate, Add, UpSampling2D
 from keras.optimizers import SGD
 from DesignPatterns.Singleton import Singleton
 from FeaturesExtraction.Layers.FixedBatchNormalization import FixedBatchNormalization
+from FeaturesExtraction.Layers.BatchNorm import BatchNorm
+from FeaturesExtraction.Layers.PyramidROIAlign import PyramidROIAlign
 from FeaturesExtraction.Layers.RoiPoolingConv import RoiPoolingConv
 from keras.layers import add
 
@@ -335,9 +337,10 @@ class ModelZoo(object):
 
         return [out_class, out_regr]
 
-    def resnet50_base(self, input_tensor, trainable=True):
+    def resnet50_base(self, input_tensor, trainable=True, use_fpn=False):
         """
         This function defines resnet50 base+rpn+classifier as in faster-rcnn
+        :param use_fpn: FPN will returns also list of 5 layers for upsampling
         :param input_tensor: image Input used to instantiate a keras tensor
         :param trainable: "freeze" a layer - exclude it from training
         :return: full model
@@ -456,28 +459,30 @@ class ModelZoo(object):
         x = Conv2D(64, (7, 7), strides=(2, 2), name='conv1', trainable=trainable)(x)
         x = FixedBatchNormalization(trainable=False, axis=bn_axis, name='bn_conv1')(x)
         x = Activation('relu')(x)
-        x = MaxPooling2D((3, 3), strides=(2, 2))(x)
+        C1 = x = MaxPooling2D((3, 3), strides=(2, 2), padding="same")(x)
 
         x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1), trainable=trainable)
         x = identity_block(x, 3, [64, 64, 256], stage=2, block='b', trainable=trainable)
-        x = identity_block(x, 3, [64, 64, 256], stage=2, block='c', trainable=trainable)
+        C2 = x = identity_block(x, 3, [64, 64, 256], stage=2, block='c', trainable=trainable)
 
         x = conv_block(x, 3, [128, 128, 512], stage=3, block='a', trainable=trainable)
         x = identity_block(x, 3, [128, 128, 512], stage=3, block='b', trainable=trainable)
         x = identity_block(x, 3, [128, 128, 512], stage=3, block='c', trainable=trainable)
-        x = identity_block(x, 3, [128, 128, 512], stage=3, block='d', trainable=trainable)
+        C3 = x = identity_block(x, 3, [128, 128, 512], stage=3, block='d', trainable=trainable)
 
         x = conv_block(x, 3, [256, 256, 1024], stage=4, block='a', trainable=trainable)
         x = identity_block(x, 3, [256, 256, 1024], stage=4, block='b', trainable=trainable)
         x = identity_block(x, 3, [256, 256, 1024], stage=4, block='c', trainable=trainable)
         x = identity_block(x, 3, [256, 256, 1024], stage=4, block='d', trainable=trainable)
         x = identity_block(x, 3, [256, 256, 1024], stage=4, block='e', trainable=trainable)
-        x = identity_block(x, 3, [256, 256, 1024], stage=4, block='f', trainable=trainable)
+        C4 = x = identity_block(x, 3, [256, 256, 1024], stage=4, block='f', trainable=trainable)
 
         x = conv_block(x, 3, [512, 512, 2048], stage=5, block='a', trainable=trainable)
         x = identity_block(x, 3, [512, 512, 2048], stage=5, block='b', trainable=trainable)
-        x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c', trainable=trainable)
+        C5 = x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c', trainable=trainable)
 
+        if use_fpn:
+            return x, [C1, C2, C3, C4, C5]
         return x
 
     def resnet50_with_masking(self, input_tensor, trainable=True):
@@ -1201,6 +1206,50 @@ class ModelZoo(object):
         x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c', trainable=trainable,
                            kernel_initializer=kernel_initializer, kernel_regularizer=kernel_regularizer)
 
+        return x
+
+    def feature_pyramid_pooling(self, layers):
+        """
+        This function will create FPN networks
+        :param layers: layers that have been taken from the ResNet network
+        :return: features_maps
+        """
+        # Returns a list of the last layers of each stage of the ResNet, 5 in total.
+        _, C2, C3, C4, C5 = layers[0], layers[1], layers[2], layers[3], layers[4]
+
+        P5 =Conv2D(256, (1, 1), name='fpn_c5p5')(C5)
+        P4 =Add(name="fpn_p4add")([UpSampling2D(size=(2, 2), name="fpn_p5upsampled")(P5),
+                                   Conv2D(256, (1, 1), name='fpn_c4p4')(C4)])
+        P3 =Add(name="fpn_p3add")([UpSampling2D(size=(2, 2), name="fpn_p4upsampled")(P4),
+                                   Conv2D(256, (1, 1), name='fpn_c3p3')(C3)])
+        P2 =Add(name="fpn_p2add")([UpSampling2D(size=(2, 2), name="fpn_p3upsampled")(P3),
+                                   Conv2D(256, (1, 1), name='fpn_c2p2')(C2)])
+        # Attach 3x3 conv to all P layers to get the final feature maps.
+        P2 = Conv2D(256, (3, 3), padding="SAME", name="fpn_p2")(P2)
+        P3 = Conv2D(256, (3, 3), padding="SAME", name="fpn_p3")(P3)
+        P4 = Conv2D(256, (3, 3), padding="SAME", name="fpn_p4")(P4)
+        P5 = Conv2D(256, (3, 3), padding="SAME", name="fpn_p5")(P5)
+
+        return [P2, P3, P4, P5]
+
+    def fpn_classifier(self, boxes, features, image_shape, pool_size=7):
+        """
+        This function implements the Feature Pyramid Classifier
+        :param boxes: numpy array of boxes [x1, y1, x2, y2] in normalized coordinates
+        :param features: List of feature maps from different layers of the pyramid [P2, P3, P4, P5]
+        :param image_shape: [height, width, depth]
+        :param pool_size: The width of the square feature map generated from ROI Pooling
+        :return:
+        """
+        x = PyramidROIAlign([pool_size, pool_size], image_shape, name="pyramid_roi_align_classifier")([boxes] + features)
+        # Two 1024 FC layers (implemented with Conv2D for consistency)
+        x = TimeDistributed(Conv2D(1024, (pool_size, pool_size), padding="valid"), name="fpn_class_conv1")(x)
+        x = TimeDistributed(BatchNorm(axis=3), name='fpn_class_bn1')(x)
+        x = Activation('relu')(x)
+        x = TimeDistributed(Conv2D(1024, (1, 1)), name="fpn_class_conv2")(x)
+        x = TimeDistributed(BatchNorm(axis=3), name='fpn_class_bn2')(x)
+        x = Activation('relu')(x)
+        x = Lambda(lambda x: K.squeeze(K.squeeze(x, 3), 2), name="pool_squeeze")(x)
         return x
 
 if __name__ == "__main__":
