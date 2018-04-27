@@ -566,8 +566,8 @@ def train(name="module",
         # train images
         vg_train_path = filesmanager.get_file_path("data.visual_genome.train")
         # list of train files
-        train_files_list = range(2, 72)
-        # train_files_list = range(0, 1)
+        # train_files_list = range(2, 72)
+        train_files_list = range(0, 1)
         # shuffle(train_files_list)
 
         # Actual validation is 5 files.
@@ -590,6 +590,7 @@ def train(name="module",
         # train module
         lr = learning_rate
         best_test_loss = -1
+        iter = 0
         for epoch in xrange(1, nof_iterations):
             accum_results = None
             total_loss = 0
@@ -638,6 +639,10 @@ def train(name="module",
                     slices_size = info[4]
                     coeff_factor = info[5]
                     indices = info[6]
+
+                    num_objects = entity_inputs.shape[0]
+                    if num_objects > 15:
+                        continue
 
                     feed_dict = {module.relation_inputs_ph: relations_inputs,
                                  module.entity_inputs_ph: entity_inputs,
@@ -689,6 +694,9 @@ def train(name="module",
                         feed_grad_apply_dict[module.lr_ph] = lr
                         sess.run([train_step], feed_dict=feed_grad_apply_dict)
                         steps = []
+
+                        iter += 1
+                        # print("Number of iterations:{}".format(iter))
                 # print stat - per file just for the first epoch
                 if epoch == 1:
                     obj_accuracy = float(accum_results['entity_correct']) / accum_results['entity_total']
