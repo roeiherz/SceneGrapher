@@ -697,7 +697,7 @@ def train(name="module",
 
                         iter += 1
                         # print("Number of iterations:{}".format(iter))
-                # print stat - per file just for the first epoch
+                # print stat -per file just for the first epoch
                 if epoch == 1:
                     obj_accuracy = float(accum_results['entity_correct']) / accum_results['entity_total']
                     predicate_pos_accuracy = float(accum_results['relations_pos_correct']) / accum_results[
