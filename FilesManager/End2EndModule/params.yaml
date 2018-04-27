@@ -1,4 +1,4 @@
-name: gpi_e2e_fast_do_jitter_multiloss2
+name: e2e_full_pretrained_model
 nof_iterations: 10000
 learning_rate: 0.0001
 learning_rate_steps: 1000
