@@ -43,7 +43,7 @@ class PyramidROIAlign(Layer):
         feature_maps = inputs[1:]
 
         # Assign each ROI to a level in the pyramid based on the ROI area.
-        x1, y1, x2, y2 = tf.split(boxes, 4, axis=1)
+        y1, x1, y2, x2 = tf.split(boxes, 4, axis=1)
         h = y2 - y1
         w = x2 - x1
         # Equation 1 in the Feature Pyramid Networks paper. Account for
@@ -63,7 +63,9 @@ class PyramidROIAlign(Layer):
             level_boxes = tf.gather_nd(boxes, ix)
 
             # Box indicies for crop_and_resize.
-            box_indices = tf.cast(ix[:, 0], tf.int32)
+            # box_indices = tf.cast(ix[:, 0], tf.int32)
+            N = tf.slice(tf.shape(level_boxes), [0], [1], name="N_entity")
+            box_indices = tf.zeros(shape=N, dtype=tf.int32)
 
             # Keep track of which box is mapped to which level
             box_to_level.append(ix)
@@ -81,9 +83,8 @@ class PyramidROIAlign(Layer):
             # Here we use the simplified approach of a single value per bin,
             # which is how it's done in tf.crop_and_resize()
             # Result: [batch * num_boxes, pool_height, pool_width, channels]
-            pooled.append(tf.image.crop_and_resize(
-                feature_maps[i], level_boxes, box_indices, self.pool_shape,
-                method="bilinear"))
+            pooled.append(tf.image.crop_and_resize(feature_maps[i], level_boxes, box_indices, self.pool_shape, method="bilinear"))
+
 
         # Pack pooled features into one tensor
         pooled = tf.concat(pooled, axis=0)

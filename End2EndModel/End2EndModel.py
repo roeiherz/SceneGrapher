@@ -146,57 +146,6 @@ class End2EndModel(object):
         self.create_resnet_relation_net()
         self.create_resnet_entity_net()
 
-    # todo: delete all
-    # def create_detection_net(self, scope_name="detector"):
-    #     """
-    #     This function creates weights and biases for the detection architecture unit
-    #     """
-    #     with tf.variable_scope(scope_name):
-    #         # Define ResNet50 model With Top
-    #         net = ModelZoo()
-    #         model_resnet50 = net.resnet50_with_masking_dual(self.relation_inputs_ph,
-    #                                                         trainable=self.config.resnet_body_trainable)
-    #         model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
-    #         self.output_resnet50_relation = Dense(self.nof_predicates, kernel_initializer="he_normal", activation=None,
-    #                                               name='fc')(model_resnet50)
-    #         self.output_resnet50_relation_reshaped = tf.reshape(self.output_resnet50_relation,
-    #                                                             [self.num_objects_ph, self.num_objects_ph,
-    #                                                              self.nof_predicates])
-    #         # todo: clean didn't succeed
-    #         # # Set negative predicate in diagonal
-    #         # self.try1 = tf.constant([[[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    #         #                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    #         #                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    #         #                            0.0, 0.0, 1.0]]])
-    #         # self.try4 = tf.constant([[[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    #         #                            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    #         #                            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    #         #                            1.0, 1.0, 0.0]]])
-    #         # self.try2 = tf.matrix_set_diag(self.belief_masked, tf.ones([6, 6]))
-    #         # self.try3 = tf.tile(self.try1, [self.num_objects_ph, 1])
-    #         # # mask = tf.transpose(tf.matrix_diag(tf.ones_like(tf.transpose(self.output_resnet50_reshaped)))) * -1 + 1
-    #         # # mask = tf.less(self.output_resnet50, 0.0001 * tf.ones_like(original_tensor))
-    #         mask = tf.transpose(
-    #             tf.matrix_diag(tf.ones_like(tf.transpose(self.output_resnet50_relation_reshaped[0])))) * -1 + 1
-    #         self.output_resnet50_relation_reshaped = tf.multiply(self.output_resnet50_relation_reshaped, mask)
-    # def create_vgg_detection_net(self):
-    #     output_slices = []
-    #     reuse = None
-    #     # for slice in self.slices:
-    #     #    relation_net = vgg16(slice, reuse=reuse)
-    #     #    reuse = True
-    #     #    output_slices.append(relation_net.features)
-    #
-    #     # self.output_resnet50 = tf.concat(output_slices, 0)
-    #
-    #     relation_net = vgg16(self.relation_inputs_ph)
-    #     self.output_resnet50_relation = relation_net.features
-    #
-    #     N = tf.slice(tf.shape(self.confidence_entity_ph), [0], [1], name="N")
-    #     M = tf.constant([50], dtype=tf.int32)
-    #     relations_shape = tf.concat((N, N, M), 0)
-    #     self.output_resnet50_relation_reshaped = tf.reshape(self.output_resnet50_relation, relations_shape)
-
     def create_resnet_relation_net(self, scope_name="relation_resnet50", features_size=100):
         """
         This function creates the resnet50 relation network
@@ -234,8 +183,26 @@ class End2EndModel(object):
             #                              name='fc')(model_resnet50)
 
             # FPN
-            fpn_feature_maps = net.feature_pyramid_pooling(layers_for_fpn)
-            model_fpn_classifier = net.fpn_classifier(self.entity_bb_ph, fpn_feature_maps, [1024, 1024, 3], 7)
+            self.fpn_feature_maps = net.feature_pyramid_pooling(layers_for_fpn)
+
+            # def log2_graph(x):
+            #     """Implementatin of Log2. TF doesn't have a native implemenation."""
+            #     return tf.log(x) / tf.log(2.0)
+            #
+            # # Assign each ROI to a level in the pyramid based on the ROI area.
+            # y1, x1, y2, x2 = tf.split(self.entity_bb_ph, 4, axis=1)
+            # h = y2 - y1
+            # w = x2 - x1
+            # # Equation 1 in the Feature Pyramid Networks paper. Account for
+            # # the fact that our coordinates are normalized here.
+            # # e.g. a 224x224 ROI (in pixels) maps to P4
+            # image_area = tf.cast(
+            #     1024 * 1024, tf.float32)
+            # roi_level = log2_graph(tf.sqrt(h * w) / (224.0 / tf.sqrt(image_area)))
+            # roi_level = tf.minimum(5, tf.maximum(2, 4 + tf.cast(tf.round(roi_level), tf.int32)))
+            # self.roi_level = tf.squeeze(roi_level, axis=1)
+
+            model_fpn_classifier = net.fpn_classifier(self.entity_bb_ph, self.fpn_feature_maps, [1024, 1024, 3], 7)
             self.output_fpn_entity = TimeDistributed(Dense(features_size), name='fc')(model_fpn_classifier)
 
             M = tf.constant([features_size], dtype=tf.int32, name="M_entity")
