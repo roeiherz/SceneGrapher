@@ -457,7 +457,7 @@ def get_workers(nb_workers, images, relation_neg, pre_process_image_queue, lr, p
         chunk_size = size / nb_workers + 1
 
     for i in range(0, size, chunk_size):
-        print("Debug - train images: {0}:{1}".format(i, i + chunk_size))
+        # print("Debug - train images: {0}:{1}".format(i, i + chunk_size))
         worker = PreProcessWorker(module=module, train_images=images[i: i + chunk_size],
                                   relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
                                   pred_pos_neg_ratio=pred_pos_neg_ratio,
@@ -673,9 +673,10 @@ def train(name="module",
                 while True:
                     # print(str(pre_process_image_queue.qsize()))
                     info = pre_process_image_queue.get()
+                    # Queue is empty
                     if info is None:
                         none_count += 1
-                        if none_count == 2:
+                        if none_count == nb_workers:
                             break
                         continue
 
@@ -787,28 +788,30 @@ def train(name="module",
 
                     dummy = [worker.start() for worker in workers_lst]
 
-                    worker1 = PreProcessWorker(module=module, train_images=validation_images[:len(train_images) / 2],
-                                               relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
-                                               pred_pos_neg_ratio=pred_pos_neg_ratio,
-                                               hierarchy_mapping_objects=hierarchy_mapping_objects,
-                                               hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                                               config=config, is_train=False)
-                    worker2 = PreProcessWorker(module=module, train_images=validation_images[len(train_images) / 2:],
-                                               relation_neg=relation_neg,
-                                               queue=pre_process_image_queue, lr=lr,
-                                               pred_pos_neg_ratio=pred_pos_neg_ratio,
-                                               hierarchy_mapping_objects=hierarchy_mapping_objects,
-                                               hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                                               config=config, is_train=False)
-                    worker1.start()
-                    worker2.start()
+                    # worker1 = PreProcessWorker(module=module, train_images=validation_images[:len(train_images) / 2],
+                    #                            relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
+                    #                            pred_pos_neg_ratio=pred_pos_neg_ratio,
+                    #                            hierarchy_mapping_objects=hierarchy_mapping_objects,
+                    #                            hierarchy_mapping_predicates=hierarchy_mapping_predicates,
+                    #                            config=config, is_train=False)
+                    # worker2 = PreProcessWorker(module=module, train_images=validation_images[len(train_images) / 2:],
+                    #                            relation_neg=relation_neg,
+                    #                      if num_objects > 15:
+                        continue      queue=pre_process_image_queue, lr=lr,
+                    #                            pred_pos_neg_ratio=pred_pos_neg_ratio,
+                    #                            hierarchy_mapping_objects=hierarchy_mapping_objects,
+                    #                            hierarchy_mapping_predicates=hierarchy_mapping_predicates,
+                    #                            config=config, is_train=False)
+                    # worker1.start()
+                    # worker2.start()
                     none_count = 0
                     while True:
                         # print(str(pre_process_image_queue.qsize()))
                         info = pre_process_image_queue.get()
+                        # Queue is empty
                         if info is None:
                             none_count += 1
-                            if none_count == 2:
+                            if none_count == nb_workers:
                                 break
                             continue
 
@@ -820,6 +823,10 @@ def train(name="module",
                         coeff_factor = info[5]
                         indices = info[6]
 
+                        num_objects = entity_inputs.shape[0]
+                        if num_objects > 15:
+                            continue
+
                         feed_dict = {module.relation_inputs_ph: relations_inputs,
                                      module.entity_inputs_ph: entity_inputs,
                                      module.num_objects_ph: (entity_inputs.shape[0],),
@@ -828,6 +835,7 @@ def train(name="module",
                                      module.labels_entity_ph: image.objects_labels,
                                      module.labels_coeff_loss_ph: coeff_factor,
                                      module.lr_ph: lr}
+
                         # run the network
                         out_relation_probes_val, out_entity_probes_val, loss_val = sess.run(
                             [out_relation_probes, out_entity_probes, loss],
