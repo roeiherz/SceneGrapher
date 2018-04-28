@@ -1,5 +1,4 @@
 import sys
-
 sys.path.append("..")
 
 from random import shuffle
@@ -29,6 +28,7 @@ import inspect
 from tensorflow.contrib import slim
 from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
 
+QUEUE_SIZE = 100
 NOF_PREDICATES = 51
 NOF_OBJECTS = 150
 # save model every number of iterations
@@ -431,6 +431,43 @@ def name_in_checkpoint(var):
         return var.op.name.replace("entity_resnet50/", "")
 
 
+def get_workers(nb_workers, images, relation_neg, pre_process_image_queue, lr, pred_pos_neg_ratio,
+                hierarchy_mapping_objects, hierarchy_mapping_predicates, config, module, is_train=False):
+    """
+    This function returns workers_lst for parallelism
+    :param is_train: is train flag
+    :param nb_workers: nb_workers: number of workers to feed the Queue with data
+    :param images: list of images
+    :param relation_neg: negative relation factor
+    :param pre_process_image_queue: queue
+    :param lr: learning rate
+    :param pred_pos_neg_ratio: positive negative ratio for predicates 
+    :param hierarchy_mapping_objects: hierarchy_mapping
+    :param hierarchy_mapping_predicates: hierarchy_mapping
+    :param config: config
+    :param module: Model
+    :return: workers_lst of PreProcessWorker class
+    """
+    workers_lst = []
+    size = len(images)
+
+    if size % nb_workers == 0:
+        chunk_size = size / nb_workers
+    else:
+        chunk_size = size / nb_workers + 1
+
+    for i in range(0, size, chunk_size):
+        print("Debug - train images: {0}:{1}".format(i, i + chunk_size))
+        worker = PreProcessWorker(module=module, train_images=images[i: i + chunk_size],
+                                  relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
+                                  pred_pos_neg_ratio=pred_pos_neg_ratio,
+                                  hierarchy_mapping_objects=hierarchy_mapping_objects,
+                                  hierarchy_mapping_predicates=hierarchy_mapping_predicates,
+                                  config=config, is_train=is_train)
+        workers_lst.append(worker)
+    return workers_lst
+
+
 def train(name="module",
           nof_iterations=100,
           learning_rate=0.0001,
@@ -442,7 +479,8 @@ def train(name="module",
           pred_pos_neg_ratio=10,
           lr_object_coeff=1,
           layers=[500, 500, 500],
-          gpu=0):
+          gpu=0,
+          nb_workers=2):
     """
     Train SGP module given train parameters and module hyper-parameters
     :param name: name of the train session
@@ -457,6 +495,7 @@ def train(name="module",
     :param lr_object_coeff: Set the loss ratio between objects and predicates
     :param layers: list of sizes of the hidden layer of the predicate and object classifier
     :param gpu: gpu number to use for the training
+    :param nb_workers: number of workers to feed the Queue with data
     :return: nothing
     """
     gpi_type = "FeatureAttention"
@@ -566,8 +605,9 @@ def train(name="module",
         # train images
         vg_train_path = filesmanager.get_file_path("data.visual_genome.train")
         # list of train files
-        # train_files_list = range(2, 72)
-        train_files_list = range(0, 1)
+        train_files_list = range(2, 72)
+        # todo: delete only for debug
+        # train_files_list = range(0, 1)
         # shuffle(train_files_list)
 
         # Actual validation is 5 files.
@@ -606,22 +646,29 @@ def train(name="module",
                 train_images = cPickle.load(file_handle)
                 file_handle.close()
 
-                pre_process_image_queue = Queue(maxsize=10)
-                worker1 = PreProcessWorker(module=module, train_images=train_images[:len(train_images) / 2],
-                                           relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
-                                           pred_pos_neg_ratio=pred_pos_neg_ratio,
-                                           hierarchy_mapping_objects=hierarchy_mapping_objects,
-                                           hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                                           config=config, is_train=True)
-                worker2 = PreProcessWorker(module=module, train_images=train_images[len(train_images) / 2:],
-                                           relation_neg=relation_neg,
-                                           queue=pre_process_image_queue, lr=lr,
-                                           pred_pos_neg_ratio=pred_pos_neg_ratio,
-                                           hierarchy_mapping_objects=hierarchy_mapping_objects,
-                                           hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                                           config=config, is_train=True)
-                worker1.start()
-                worker2.start()
+                pre_process_image_queue = Queue(maxsize=QUEUE_SIZE)
+
+                workers_lst = get_workers(nb_workers, train_images, relation_neg, pre_process_image_queue, lr,
+                                          pred_pos_neg_ratio,  hierarchy_mapping_objects, hierarchy_mapping_predicates,
+                                          config, module, is_train=True)
+
+                dummy = [worker.start() for worker in workers_lst]
+
+                # worker1 = PreProcessWorker(module=module, train_images=train_images,
+                #                            relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
+                #                            pred_pos_neg_ratio=pred_pos_neg_ratio,
+                #                            hierarchy_mapping_objects=hierarchy_mapping_objects,
+                #                            hierarchy_mapping_predicates=hierarchy_mapping_predicates,
+                #                            config=config, is_train=True)
+                # worker2 = PreProcessWorker(module=module, train_images=train_images[len(train_images) / 2:],
+                #                            relation_neg=relation_neg,
+                #                            queue=pre_process_image_queue, lr=lr,
+                #                            pred_pos_neg_ratio=pred_pos_neg_ratio,
+                #                            hierarchy_mapping_objects=hierarchy_mapping_objects,
+                #                            hierarchy_mapping_predicates=hierarchy_mapping_predicates,
+                #                            config=config, is_train=True)
+                # worker1.start()
+                # worker2.start()
                 none_count = 0
                 while True:
                     # print(str(pre_process_image_queue.qsize()))
@@ -733,7 +780,13 @@ def train(name="module",
                     validation_images = cPickle.load(file_handle)
                     file_handle.close()
 
-                    pre_process_image_queue = Queue(maxsize=10)
+                    pre_process_image_queue = Queue(maxsize=QUEUE_SIZE)
+
+                    workers_lst = get_workers(nb_workers, validation_images, relation_neg, pre_process_image_queue, lr,
+                          pred_pos_neg_ratio,  hierarchy_mapping_objects, hierarchy_mapping_predicates, config, module, is_train=False)
+
+                    dummy = [worker.start() for worker in workers_lst]
+
                     worker1 = PreProcessWorker(module=module, train_images=validation_images[:len(train_images) / 2],
                                                relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
                                                pred_pos_neg_ratio=pred_pos_neg_ratio,
@@ -848,7 +901,8 @@ if __name__ == "__main__":
     lr_object_coeff = params["lr_object_coeff"]
     layers = params["layers"]
     gpu = params["gpu"]
+    nb_workers = params['nb_workers']
 
     train(name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
           use_saved_model, batch_size, predicate_pos_neg_ratio, lr_object_coeff, layers,
-          gpu)
+          gpu, nb_workers)
