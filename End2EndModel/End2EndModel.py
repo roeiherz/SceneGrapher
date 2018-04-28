@@ -93,7 +93,7 @@ class End2EndModel(object):
             self.relation_inputs_ph = Input(shape=(112, 112, 5), name="relation_inputs_ph")
             # self.entity_inputs_tensor_ph = tf.placeholder(shape=[None, self.config.crop_width, self.config.crop_height, 3],
             #                                        dtype=tf.float32, name="entity_inputs_tensor_ph")
-            self.entity_inputs_ph = Input(shape=(self.config.crop_height, self.config.crop_width, 3), name="entity_inputs_ph")
+            # self.entity_inputs_ph = Input(shape=(self.config.crop_height, self.config.crop_width, 3), name="entity_inputs_ph")
             #
             # self.entity_inputs_ph = tf.contrib.keras.layers.Input(
             #     shape=(self.config.crop_height, self.config.crop_width, 3), name="entity_inputs_ph")
@@ -230,8 +230,8 @@ class End2EndModel(object):
                                                                trainable=self.config.resnet_body_trainable, use_fpn=True)
             # model_resnet50 = net.resnet50_base(self.entity_inputs_ph, trainable=self.config.resnet_body_trainable)
             # model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
-            self.output_resnet50_entity = Dense(features_size, kernel_initializer="he_normal", activation=None,
-                                         name='fc')(model_resnet50)
+            # self.output_resnet50_entity = Dense(features_size, kernel_initializer="he_normal", activation=None,
+            #                              name='fc')(model_resnet50)
 
             # FPN
             fpn_feature_maps = net.feature_pyramid_pooling(layers_for_fpn)
@@ -434,8 +434,8 @@ class End2EndModel(object):
 
             pred_delta = self.nn(features=self.relation_all_features, layers=self.layers, out=self.nof_predicates,
                                  scope_name="nn_pred")
-            pred_forget_gate = self.nn(features=self.relation_all_features, layers=[], out=1,
-                                       scope_name="nn_pred_forgate", last_activation=tf.nn.sigmoid)
+            # pred_forget_gate = self.nn(features=self.relation_all_features, layers=[], out=1,
+            #                            scope_name="nn_pred_forgate", last_activation=tf.nn.sigmoid)
             out_confidence_relation = pred_delta# + pred_forget_gate * relation_features
 
             ##
@@ -445,8 +445,8 @@ class End2EndModel(object):
                 self.object_all_features = [entity_features, expand_graph[0], self.object_ngbrs_phi_all]
                 obj_delta = self.nn(features=self.object_all_features, layers=self.layers, out=self.nof_objects,
                                     scope_name="nn_obj")
-                obj_forget_gate = self.nn(features=self.object_all_features, layers=[], out=self.nof_objects,
-                                          scope_name="nn_obj_forgate", last_activation=tf.nn.sigmoid)
+                # obj_forget_gate = self.nn(features=self.object_all_features, layers=[], out=self.nof_objects,
+                #                           scope_name="nn_obj_forgate", last_activation=tf.nn.sigmoid)
                 out_confidence_object = obj_delta# + obj_forget_gate * orig_entity_features
             else:
                 out_confidence_object = orig_entity_features
@@ -492,10 +492,10 @@ class End2EndModel(object):
 
                     loss += self.lr_object_coeff * tf.reduce_sum(self.object_ce_loss)
 
-            # reg
-            trainable_vars = tf.trainable_variables()
-            lossL2 = tf.add_n([tf.nn.l2_loss(v) for v in trainable_vars]) * self.reg_factor
-            loss += lossL2
+            # # reg
+            # trainable_vars = tf.trainable_variables()
+            # lossL2 = tf.add_n([tf.nn.l2_loss(v) for v in trainable_vars]) * self.reg_factor
+            # loss += lossL2
 
             # minimize
             # opt = tf.train.GradientDescentOptimizer(self.lr_ph)
