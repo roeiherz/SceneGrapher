@@ -28,7 +28,7 @@ import inspect
 from tensorflow.contrib import slim
 from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
 
-QUEUE_SIZE = 500
+QUEUE_SIZE = 200
 NOF_PREDICATES = 51
 NOF_OBJECTS = 150
 # save model every number of iterations
