@@ -734,7 +734,7 @@ def train(name="module",
                         sess.run([train_step], feed_dict=feed_grad_apply_dict)
                         steps = []
                 # print stat - per file just for the first epoch
-                if epoch == 1:
+                if epoch > 0:
                     obj_accuracy = float(accum_results['entity_correct']) / accum_results['entity_total']
                     predicate_pos_accuracy = float(accum_results['relations_pos_correct']) / accum_results[
                         'relations_pos_total']
