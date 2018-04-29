@@ -794,7 +794,7 @@ def train(name="module",
                         indices = info[6]
 
                         feed_dict = {module.relation_inputs_ph: relations_inputs,
-                                     module.entity_inputs_ph: entity_inputs,
+                                     # module.entity_inputs_ph: entity_inputs,
                                      module.num_objects_ph: (entity_inputs.shape[0],),
                                      module.entity_bb_ph: entity_bb, module.phase_ph: True,
                                      module.labels_relation_ph: image.predicates_labels,
