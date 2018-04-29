@@ -16,10 +16,10 @@ class Config:
 
         # Do we continuing to train or start from fresh
         self.loading_model = True
-        self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Fri_Oct_27_22:41:05_2017"
-        self.loading_model_token = "scene_graph_base_module.visual_module.predicate_mask_dual_cnn_finetuned_from_27oct"
-        # self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Thu_Nov__9_14:39:14_2017"
-        # self.loading_model_token = "scene_graph_base_module.visual_module.object_cnn_aug_cutoff"
+        # self.loading_model_folder = "FilesManager/FeaturesExtraction/PredicatesMaskCNN/Fri_Oct_27_22:41:05_2017"
+        # self.loading_model_token = "scene_graph_base_module.visual_module.predicate_mask_dual_cnn_finetuned_from_27oct"
+        self.loading_model_folder = "FilesManager/FeaturesExtraction/ObjectsCNN/Thu_Nov__9_14:39:14_2017"
+        self.loading_model_token = "scene_graph_base_module.visual_module.object_cnn_aug_cutoff"
         self.model_weights_name = 'model_vg_resnet50.hdf5'
         # Get the cached data-sets and cached hierarchy mapping and class counting
         self.use_cache_dir = False

@@ -29,6 +29,7 @@ import inspect
 from tensorflow.contrib import slim
 from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
 
+QUEUE_SIZE = 10
 NOF_PREDICATES = 51
 NOF_OBJECTS = 150
 # save model every number of iterations
@@ -201,7 +202,7 @@ class PreProcessWorker(threading.Thread):
                 new_resized_patch = None
 
                 # For mixup Jitter we need to create a new resize_img from another sample
-                if False: #self.config.jitter.use_mixup:
+                if False:  # self.config.jitter.use_mixup:
                     all_indice_without_ind = list(indices - set([ind]))
                     # Pick different index from the data with no repetition
                     new_ind = np.random.choice(all_indice_without_ind)
@@ -217,7 +218,7 @@ class PreProcessWorker(threading.Thread):
                     new_patch = new_img[new_mask['y1']: new_mask['y2'], new_mask['x1']: new_mask['x2'], :]
                     # Resize the image according the padding method
                     new_resized_patch = get_img_resize(new_patch, self.config.crop_width, self.config.crop_height,
-                                                     type=self.config.padding_method)
+                                                       type=self.config.padding_method)
 
                 resized_patch = self.config.jitter.apply_jitter(resized_img=resized_patch, batchsize=self.size,
                                                                 new_resized_img=new_resized_patch)
@@ -318,15 +319,17 @@ class PreProcessWorker(threading.Thread):
             # FIXME resized_img = get_img_resize(patch_predicate, config.crop_width, config.crop_height,
             resized_patch = get_img_resize(patch_predicate, 112, 112,
                                            type=self.config.padding_method)
-            resized_heatmap_subject = get_img_resize(patch_heatmap_heat_map_subject, 112, 112, type=self.config.padding_method)
-            resized_heatmap_object = get_img_resize(patch_heatmap_heat_map_object, 112, 112, type=self.config.padding_method)
+            resized_heatmap_subject = get_img_resize(patch_heatmap_heat_map_subject, 112, 112,
+                                                     type=self.config.padding_method)
+            resized_heatmap_object = get_img_resize(patch_heatmap_heat_map_object, 112, 112,
+                                                    type=self.config.padding_method)
 
             # Augment only in training
             if self.is_train == 'train' and self.config.use_jitter:
                 new_resized_patch = None
 
                 # For mixup Jitter we need to create a new resize_img from another sample
-                if False: #self.config.jitter.use_mixup:
+                if False:  # self.config.jitter.use_mixup:
                     all_indice_without_ind = list(indices - set([ind]))
                     # Pick different index from the data with no repetition
                     new_ind = np.random.choice(all_indice_without_ind)
@@ -342,7 +345,7 @@ class PreProcessWorker(threading.Thread):
                     new_patch = new_img[new_mask['y1']: new_mask['y2'], new_mask['x1']: new_mask['x2'], :]
                     # Resize the image according the padding method
                     new_resized_patch = get_img_resize(new_patch, self.config.crop_width, self.config.crop_height,
-                                                     type=self.config.padding_method)
+                                                       type=self.config.padding_method)
 
                 resized_patch = self.config.jitter.apply_jitter(resized_img=resized_patch, batchsize=self.size,
                                                                 new_resized_img=new_resized_patch)
@@ -389,16 +392,16 @@ class PreProcessWorker(threading.Thread):
             # spatial features
             entity_bb = np.zeros((len(image.objects), 4))
             for obj_id in range(len(image.objects)):
-                entity_bb[obj_id][0] = image.objects[obj_id].x / 1200.0
-                entity_bb[obj_id][1] = image.objects[obj_id].y / 1200.0
-                entity_bb[obj_id][2] = (image.objects[obj_id].x + image.objects[obj_id].width) / 1200.0
-                entity_bb[obj_id][3] = (image.objects[obj_id].y + image.objects[obj_id].height) / 1200.0
+                entity_bb[obj_id][1] = image.objects[obj_id].x / 1024.0
+                entity_bb[obj_id][0] = image.objects[obj_id].y / 1024.0
+                entity_bb[obj_id][3] = (image.objects[obj_id].x + image.objects[obj_id].width) / 1024.0
+                entity_bb[obj_id][2] = (image.objects[obj_id].y + image.objects[obj_id].height) / 1024.0
 
             # Get image
             img_input = get_img(image.image.url, download=True)
-            img_input = np.expand_dims(img_input, axis=0)
 
-            entity_inputs, _ = self.pre_process_entities_data(image, ind, img_input)
+            # entity_inputs, _ = self.pre_process_entities_data(image, ind, img_input)
+            entity_inputs = None
             relations_inputs, _, slices_size = self.pre_process_predicates_data(image, ind, img_input)
 
             # give lower weight to negatives
@@ -408,6 +411,9 @@ class PreProcessWorker(threading.Thread):
             coeff_factor[relations_neg_labels == 1] *= factor
 
             coeff_factor[indices, indices] = 0
+
+            # Add batch size for image
+            img_input = np.expand_dims(img_input, axis=0)
 
             # create the feed dictionary
             info = [image, relations_inputs, entity_inputs, entity_bb, slices_size, coeff_factor.reshape((-1)), indices,
@@ -426,6 +432,43 @@ def name_in_checkpoint(var):
         return var.op.name.replace("entity_resnet50/", "")
 
 
+def get_workers(nb_workers, images, relation_neg, pre_process_image_queue, lr, pred_pos_neg_ratio,
+                hierarchy_mapping_objects, hierarchy_mapping_predicates, config, module, is_train=False):
+    """
+    This function returns workers_lst for parallelism
+    :param is_train: is train flag
+    :param nb_workers: nb_workers: number of workers to feed the Queue with data
+    :param images: list of images
+    :param relation_neg: negative relation factor
+    :param pre_process_image_queue: queue
+    :param lr: learning rate
+    :param pred_pos_neg_ratio: positive negative ratio for predicates 
+    :param hierarchy_mapping_objects: hierarchy_mapping
+    :param hierarchy_mapping_predicates: hierarchy_mapping
+    :param config: config
+    :param module: Model
+    :return: workers_lst of PreProcessWorker class
+    """
+    workers_lst = []
+    size = len(images)
+
+    if size % nb_workers == 0:
+        chunk_size = size / nb_workers
+    else:
+        chunk_size = size / nb_workers + 1
+
+    for i in range(0, size, chunk_size):
+        # print("Debug - train images: {0}:{1}".format(i, i + chunk_size))
+        worker = PreProcessWorker(module=module, train_images=images[i: i + chunk_size],
+                                  relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
+                                  pred_pos_neg_ratio=pred_pos_neg_ratio,
+                                  hierarchy_mapping_objects=hierarchy_mapping_objects,
+                                  hierarchy_mapping_predicates=hierarchy_mapping_predicates,
+                                  config=config, is_train=is_train)
+        workers_lst.append(worker)
+    return workers_lst
+
+
 def train(name="module",
           nof_iterations=100,
           learning_rate=0.0001,
@@ -437,7 +480,8 @@ def train(name="module",
           pred_pos_neg_ratio=10,
           lr_object_coeff=1,
           layers=[500, 500, 500],
-          gpu=0):
+          gpu=0,
+          nb_workers=2):
     """
     Train SGP module given train parameters and module hyper-parameters
     :param name: name of the train session
@@ -452,6 +496,7 @@ def train(name="module",
     :param lr_object_coeff: Set the loss ratio between objects and predicates
     :param layers: list of sizes of the hidden layer of the predicate and object classifier
     :param gpu: gpu number to use for the training
+    :param nb_workers: number of workers to feed the Queue with data
     :return: nothing
     """
     gpi_type = "FeatureAttention"
@@ -518,7 +563,8 @@ def train(name="module",
             sess.run(init)
             # Add ops to save and restore all the variables.
             variables = tf.contrib.slim.get_variables_to_restore()
-            variables_to_restore = [var for var in variables if not "ent_direct" in var.op.name and not "rel_direct" in var.op.name]
+            variables_to_restore = [var for var in variables if
+                                    not "ent_direct" in var.op.name and not "rel_direct" in var.op.name]
             saver = tf.train.Saver(variables_to_restore)
 
             saver.restore(sess, module_path_load)
@@ -528,7 +574,7 @@ def train(name="module",
             sess.run(init)
 
             # # Load Object CNN body keras network
-            # model_obj = tf.contrib.keras.models.Model(inputs=module.entity_inputs_ph,
+            # model_obj = tf.contribnb_workers.keras.models.Model(inputs=module.entity_inputs_ph,
             #                                           outputs=module.output_resnet50_entity_reshaped,
             #                                           name='entity_resnet50')
             # # The path for for loading Keras weights
@@ -536,16 +582,17 @@ def train(name="module",
             # model_obj.load_weights(net_weights, by_name=True)
 
             # Load Predicates MaskCNN keras network
-            model_rel = tf.contrib.keras.models.Model(inputs=module.relation_inputs_ph, outputs=module.output_resnet50_relation,
-                                                  name='relation_resnet50')
+            model_rel = tf.contrib.keras.models.Model(inputs=module.relation_inputs_ph,
+                                                      outputs=module.output_resnet50_relation,
+                                                      name='relation_resnet50')
             # The path for for loading Keras weights
-            net_weights = "/home/roeih/SceneGrapher/relations_no_fcs.h5"
+            net_weights = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/relations_no_fcs.h5"
             model_rel.load_weights(net_weights, by_name=True)
 
             # Save graph
             saver = tf.train.Saver()
             module_path_load = os.path.join(module_path, timestamp)
-            saver.save(sess, module_path_load + '/e2e_fpn_model.ckpt', 0)
+            saver.save(sess, module_path_load + '/e2e_fpn_fixed_model.ckpt', 0)
 
             # sess.run(init)
             # variables_to_restore = []
@@ -600,31 +647,25 @@ def train(name="module",
                 file_path = os.path.join(vg_train_path, str(file_name) + ".p")
                 file_handle = open(file_path, "rb")
                 train_images = cPickle.load(file_handle)
-                file_handle.close()
                 train_images = train_images[:1]
-                pre_process_image_queue = Queue(maxsize=10)
-                worker1 = PreProcessWorker(module=module, train_images=train_images,
-                                           relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
-                                           pred_pos_neg_ratio=pred_pos_neg_ratio,
-                                           hierarchy_mapping_objects=hierarchy_mapping_objects,
-                                           hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                                           config=config, is_train=True)
-                # worker2 = PreProcessWorker(module=module, train_images=train_images[len(train_images) / 2:],
-                #                            relation_neg=relation_neg,
-                #                            queue=pre_process_image_queue, lr=lr,
-                #                            pred_pos_neg_ratio=pred_pos_neg_ratio,
-                #                            hierarchy_mapping_objects=hierarchy_mapping_objects,
-                #                            hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                #                            config=config, is_train=True)
-                worker1.start()
-                # worker2.start()
+                file_handle.close()
+
+                pre_process_image_queue = Queue(maxsize=QUEUE_SIZE)
+
+                workers_lst = get_workers(nb_workers, train_images, relation_neg, pre_process_image_queue, lr,
+                                          pred_pos_neg_ratio,  hierarchy_mapping_objects, hierarchy_mapping_predicates,
+                                          config, module, is_train=True)
+
+                dummy = [worker.start() for worker in workers_lst]
+
                 none_count = 0
                 while True:
                     # print(str(pre_process_image_queue.qsize()))
                     info = pre_process_image_queue.get()
+                    # Queue is empty
                     if info is None:
                         none_count += 1
-                        if none_count == 2:
+                        if none_count == nb_workers:
                             break
                         continue
 
@@ -637,10 +678,14 @@ def train(name="module",
                     indices = info[6]
                     img_pixel = info[7]
 
+                    num_objects = entity_bb.shape[0]
+                    if num_objects > 15:
+                        continue
+
                     feed_dict = {module.image_ph: img_pixel,
                                  module.relation_inputs_ph: relations_inputs,
-                                 module.entity_inputs_ph: entity_inputs,
-                                 module.num_objects_ph: (entity_inputs.shape[0],),
+                                 # module.entity_inputs_ph: entity_inputs,
+                                 module.num_objects_ph: (num_objects,),
                                  module.entity_bb_ph: entity_bb, module.phase_ph: True,
                                  module.labels_relation_ph: image.predicates_labels,
                                  module.labels_entity_ph: image.objects_labels,
@@ -724,29 +769,19 @@ def train(name="module",
                     validation_images = cPickle.load(file_handle)
                     file_handle.close()
 
-                    pre_process_image_queue = Queue(maxsize=10)
-                    worker1 = PreProcessWorker(module=module, train_images=validation_images[:len(train_images) / 2],
-                                               relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
-                                               pred_pos_neg_ratio=pred_pos_neg_ratio,
-                                               hierarchy_mapping_objects=hierarchy_mapping_objects,
-                                               hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                                               config=config, is_train=False)
-                    worker2 = PreProcessWorker(module=module, train_images=validation_images[len(train_images) / 2:],
-                                               relation_neg=relation_neg,
-                                               queue=pre_process_image_queue, lr=lr,
-                                               pred_pos_neg_ratio=pred_pos_neg_ratio,
-                                               hierarchy_mapping_objects=hierarchy_mapping_objects,
-                                               hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                                               config=config, is_train=False)
-                    worker1.start()
-                    worker2.start()
+                    pre_process_image_queue = Queue(maxsize=QUEUE_SIZE)
+
+                    workers_lst = get_workers(nb_workers, validation_images, relation_neg, pre_process_image_queue, lr,
+                          pred_pos_neg_ratio,  hierarchy_mapping_objects, hierarchy_mapping_predicates, config, module, is_train=False)
+                    dummy = [worker.start() for worker in workers_lst]
+
                     none_count = 0
                     while True:
                         # print(str(pre_process_image_queue.qsize()))
                         info = pre_process_image_queue.get()
                         if info is None:
                             none_count += 1
-                            if none_count == 2:
+                            if none_count == nb_workers:
                                 break
                             continue
 
@@ -839,7 +874,8 @@ if __name__ == "__main__":
     lr_object_coeff = params["lr_object_coeff"]
     layers = params["layers"]
     gpu = params["gpu"]
+    nb_workers = params['nb_workers']
 
     train(name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
           use_saved_model, batch_size, predicate_pos_neg_ratio, lr_object_coeff, layers,
-          gpu)
+          gpu, nb_workers)
