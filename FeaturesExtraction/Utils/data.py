@@ -1,5 +1,5 @@
 from __future__ import print_function
-from graphviz import Digraph
+# from graphviz import Digraph
 import os
 import cPickle
 import json
