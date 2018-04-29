@@ -13,4 +13,4 @@ predicate_pos_neg_ratio: 10
 lr_object_coeff: 4
 layers: [250, 250]
 gpu: 0
-nb_workers: 40
+nb_workers: 20
