@@ -678,6 +678,9 @@ def train(name="module",
                     indices = info[6]
                     img_pixel = info[7]
 
+                    if img_pixel.shape != (1, 1024, 1024, 3):
+                        print("Error image_id {0}, image_url {1} is not 1024x1024".format(image.image.id, image.image.url))
+
                     num_objects = entity_bb.shape[0]
                     if num_objects > 15:
                         continue
@@ -793,6 +796,9 @@ def train(name="module",
                         coeff_factor = info[5]
                         indices = info[6]
                         img_pixel = info[7]
+
+                        if img_pixel.shape != (1, 1024, 1024, 3):
+                            print("Error image_id {0}, image_url {1} is not 1024x1024".format(image.image.id, image.image.url))
 
                         num_objects = entity_bb.shape[0]
                         if num_objects > 15:
