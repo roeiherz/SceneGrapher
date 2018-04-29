@@ -1,4 +1,4 @@
-name: End2EndTrain_pretrained_queues1000_workers40
+name: End2EndTrain_pretrained_queues200_workers20
 nof_iterations: 10000
 learning_rate: 0.0001
 learning_rate_steps: 1000
