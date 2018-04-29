@@ -792,12 +792,14 @@ def train(name="module",
                         slices_size = info[4]
                         coeff_factor = info[5]
                         indices = info[6]
+                        img_pixel = info[7]
 
                         num_objects = entity_bb.shape[0]
                         if num_objects > 15:
                             continue
 
-                        feed_dict = {module.relation_inputs_ph: relations_inputs,
+                        feed_dict = {module.image_ph: img_pixel,
+                                     module.relation_inputs_ph: relations_inputs,
                                      # module.entity_inputs_ph: entity_inputs,
                                      module.num_objects_ph: (num_objects,),
                                      module.entity_bb_ph: entity_bb, module.phase_ph: True,
