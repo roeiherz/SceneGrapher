@@ -386,7 +386,7 @@ class PreProcessWorker(threading.Thread):
                 continue
 
             # filter images with more than 25 entities to avoid from OOM (just for train)
-            if image.predicates_labels.shape[0] > 25:
+            if image.predicates_labels.shape[0] > 15:
                 continue
 
             indices = np.arange(image.predicates_outputs_with_no_activation.shape[0])
@@ -595,7 +595,7 @@ def train(name="module",
             # Save graph
             saver = tf.train.Saver()
             module_path_load = os.path.join(module_path, timestamp)
-            saver.save(sess, module_path_load + '/e2e_fpn_roi_fixed_model.ckpt', 0)
+            saver.save(sess, module_path_load + '/e2e_fpn_roi_fc_fixed_model.ckpt', 0)
 
             # sess.run(init)
             # variables_to_restore = []
@@ -685,8 +685,8 @@ def train(name="module",
                         print("Error image_id {0}, image_url {1} is not 1024x1024".format(image.image.id, image.image.url))
 
                     num_objects = entity_bb.shape[0]
-                    if num_objects > 15:
-                        continue
+                    # if num_objects > 15:
+                    #     continue
 
                     feed_dict = {module.image_ph: img_pixel,
                                  module.relation_inputs_ph: relations_inputs,
@@ -804,8 +804,8 @@ def train(name="module",
                             print("Error image_id {0}, image_url {1} is not 1024x1024".format(image.image.id, image.image.url))
 
                         num_objects = entity_bb.shape[0]
-                        if num_objects > 15:
-                            continue
+                        # if num_objects > 15:
+                        #     continue
 
                         feed_dict = {module.image_ph: img_pixel,
                                      module.relation_inputs_ph: relations_inputs,

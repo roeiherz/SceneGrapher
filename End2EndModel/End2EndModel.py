@@ -144,8 +144,6 @@ class End2EndModel(object):
         This function creates weights and biases for the Feature Extractor
         """
         # Create First part
-        # self.create_detection_net()
-        # self.create_vgg_detection_net()
         self.create_resnet_relation_net()
         self.create_resnet_entity_net()
 
@@ -155,12 +153,9 @@ class End2EndModel(object):
         :return:
         """
         with tf.variable_scope(scope_name):
-            # self.output_resnet50_relation, end_points = resnet_v2_50(self.relation_inputs_ph, num_classes=100)
-            # N = tf.slice(tf.keras.backend.shape(self.entity_inputs_tensor_ph), [0], [1], name="N_relation")
 
             net = ModelZoo()
             model_resnet50 = net.resnet50_with_masking_dual(self.relation_inputs_ph, trainable=self.config.resnet_body_trainable)
-            # model_resnet50 = net.resnet50_with_masking_dual(self.relation_inputs_ph, trainable=self.config.resnet_body_trainable)
             self._model_resnet50_reltaion = model_resnet50
             model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
             self.output_resnet50_relation = Dense(features_size, kernel_initializer="he_normal", activation=None,
@@ -180,71 +175,16 @@ class End2EndModel(object):
             net = ModelZoo()
             model_resnet50, layers_for_fpn = net.resnet50_base(self.image_ph,
                                                                trainable=self.config.resnet_body_trainable, use_fpn=True)
-            # model_resnet50 = net.resnet50_base(self.entity_inputs_ph, trainable=self.config.resnet_body_trainable)
-            # model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
-            # self.output_resnet50_entity = Dense(features_size, kernel_initializer="he_normal", activation=None,
-            #                              name='fc')(model_resnet50)
 
             # FPN
-            self.fpn_feature_maps = net.feature_pyramid_pooling(layers_for_fpn)
-
-            # def log2_graph(x):
-            #     """Implementatin of Log2. TF doesn't have a native implemenation."""
-            #     return tf.log(x) / tf.log(2.0)
-            #
-            # # Assign each ROI to a level in the pyramid based on the ROI area.
-            # y1, x1, y2, x2 = tf.split(self.entity_bb_ph, 4, axis=1)
-            # h = y2 - y1
-            # w = x2 - x1
-            # # Equation 1 in the Feature Pyramid Networks paper. Account for
-            # # the fact that our coordinates are normalized here.
-            # # e.g. a 224x224 ROI (in pixels) maps to P4
-            # image_area = tf.cast(
-            #     1024 * 1024, tf.float32)
-            # roi_level = log2_graph(tf.sqrt(h * w) / (224.0 /
-            # tf.sqrt(image_area)))
-            # roi_level = tf.minimum(5, tf.maximum(2, 4 + tf.cast(tf.round(roi_level), tf.int32)))
-            # self.roi_level = tf.squeeze(roi_level, axis=1)
-
-            # self.x = PyramidROIAlign([7, 7], [1024, 1024, 3], name="pyramid_roi_align_classifier")([self.entity_bb_ph] + self.fpn_feature_maps)
-            # # Two 1024 FC layers (implemented with Conv2D for consistency)
-            # self.x1 = TimeDistributed(Conv2D(1024, (7, 7), padding="valid"), name="fpn_class_conv1")(self.x)
-            # self.x2 = TimeDistributed(BatchNorm(axis=3), name='fpn_class_bn1')(self.x1)
-            # self.x3 = Activation('relu')(self.x2)
-            # self.x5 = TimeDistributed(Conv2D(1024, (1, 1)), name="fpn_class_conv2")(self.x3)
-            # self.x6 = TimeDistributed(BatchNorm(axis=3), name='fpn_class_bn2')(self.x5)
-            # self.x7 = Activation('relu')(self.x6)
-            # self.x8 = Lambda(lambda x: K.squeeze(K.squeeze(x, 3), 2), name="pool_squeeze")(self.x7)
-            # self.output_fpn_entity = TimeDistributed(Dense(features_size), name='fc')(self.x8)
-
-            self.model_fpn_classifier = net.fpn_classifier(self.entity_bb_ph, self.fpn_feature_maps, [1024, 1024, 3], 7)
-            self.output_fpn_entity = tf.reshape(self.model_fpn_classifier, (-1, 7*7*256))
+            fpn_feature_maps = net.feature_pyramid_pooling(layers_for_fpn)
+            model_fpn_classifier = net.fpn_classifier(self.entity_bb_ph, fpn_feature_maps, [1024, 1024, 3], 7)
+            output_fpn_entity = tf.reshape(model_fpn_classifier, (-1, 7*7*256))
             M = tf.constant([7*7*256], dtype=tf.int32, name="M_entity")
             relations_shape = tf.concat((self.num_objects_ph, M), 0)
-            self.output_resnet50_entity_reshaped = tf.reshape(self.output_fpn_entity, relations_shape)
-
-
-            # self.output_fpn_entity = TimeDistributed(Dense(features_size), name='fc')(model_fpn_classifier)
-
-            # M = tf.constant([features_size], dtype=tf.int32, name="M_entity")
-            # relations_shape = tf.concat((self.num_objects_ph, M), 0)
-            # self.output_resnet50_entity_reshaped = tf.reshape(self.output_fpn_entity, relations_shape)
-
-            # self.output_resnet50_entity, end_points = resnet_v2_50(self.entity_inputs_ph, num_classes=300)
-            # N = tf.slice(tf.shape(self.entity_inputs_ph), [0], [1], name="N_entity")
-            # M = tf.constant([300], dtype=tf.int32, name="M_entity")
-            # relations_shape = tf.concat((N, M), 0)
-            # self.output_resnet50_entity_reshaped = tf.reshape(self.output_resnet50_entity, relations_shape)
-
-            # _, end_points = resnet_v2_50(self.image_ph, num_classes=None)
-            # self.output_resnet50_entity = end_points['entity_resnet50/resnet_v2_50/block4']
-            # entity_norm_bb = self.entity_bb_ph
-            # N = tf.slice(tf.shape(self.entity_bb_ph), [0], [1], name="N_entity")
-            # self.entity_features = tf.image.crop_and_resize(self.output_resnet50_entity, entity_norm_bb, tf.zeros(shape=N, dtype=tf.int32), crop_size=[1, 1])
-            # M = tf.constant([2048], dtype=tf.int32, name="M_entity")
-            # entities_shape = tf.concat((N, M), 0)
-            # self.output_resnet50_entity_reshaped = tf.reshape(self.entity_features, entities_shape)
-
+            output_fpn_entity_reshaped = tf.reshape(output_fpn_entity, relations_shape)
+            self.output_resnet50_entity_reshaped = tf.layers.dense(inputs=output_fpn_entity_reshaped,
+                                                                   units=features_size, activation=self.activation_fn)
 
     def sgp(self):
         """
