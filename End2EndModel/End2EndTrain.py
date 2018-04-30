@@ -29,7 +29,7 @@ import inspect
 from tensorflow.contrib import slim
 from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
 
-QUEUE_SIZE = 10
+QUEUE_SIZE = 100
 NOF_PREDICATES = 51
 NOF_OBJECTS = 150
 # save model every number of iterations
@@ -613,8 +613,8 @@ def train(name="module",
         vg_train_path = filesmanager.get_file_path("data.visual_genome.train")
         # list of train files
         # todo: debug
-        # train_files_list = range(2, 72)
-        train_files_list = range(0, 1)
+        train_files_list = range(2, 72)
+        # train_files_list = range(0, 1)
         # shuffle(train_files_list)
 
         # Actual validation is 5 files.
@@ -650,7 +650,7 @@ def train(name="module",
                 file_path = os.path.join(vg_train_path, str(file_name) + ".p")
                 file_handle = open(file_path, "rb")
                 train_images = cPickle.load(file_handle)
-                train_images = train_images[:1]
+                # train_images = train_images[:1]
                 file_handle.close()
 
                 pre_process_image_queue = Queue(maxsize=QUEUE_SIZE)
@@ -685,8 +685,6 @@ def train(name="module",
                         print("Error image_id {0}, image_url {1} is not 1024x1024".format(image.image.id, image.image.url))
 
                     num_objects = entity_bb.shape[0]
-                    # if num_objects > 15:
-                    #     continue
 
                     feed_dict = {module.image_ph: img_pixel,
                                  module.relation_inputs_ph: relations_inputs,
