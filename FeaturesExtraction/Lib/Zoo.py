@@ -1235,21 +1235,23 @@ class ModelZoo(object):
     def fpn_classifier(self, boxes, features, image_shape, pool_size=7):
         """
         This function implements the Feature Pyramid Classifier
-        :param boxes: numpy array of boxes [x1, y1, x2, y2] in normalized coordinates
+        :param boxes: numpy array of boxes [y1, x1, y2, x2] in normalized coordinates
         :param features: List of feature maps from different layers of the pyramid [P2, P3, P4, P5]
         :param image_shape: [height, width, depth]
         :param pool_size: The width of the square feature map generated from ROI Pooling
         :return:
         """
         x = PyramidROIAlign([pool_size, pool_size], image_shape, name="pyramid_roi_align_classifier")([boxes] + features)
-        # Two 1024 FC layers (implemented with Conv2D for consistency)
-        x = TimeDistributed(Conv2D(1024, (pool_size, pool_size), padding="valid"), name="fpn_class_conv1")(x)
-        x = TimeDistributed(BatchNorm(axis=3), name='fpn_class_bn1')(x)
-        x = Activation('relu')(x)
-        x = TimeDistributed(Conv2D(1024, (1, 1)), name="fpn_class_conv2")(x)
-        x = TimeDistributed(BatchNorm(axis=3), name='fpn_class_bn2')(x)
-        x = Activation('relu')(x)
-        x = Lambda(lambda x: K.squeeze(K.squeeze(x, 3), 2), name="pool_squeeze")(x)
+        # # Two 1024 FC layers (implemented with Conv2D for consistency)
+        # x = TimeDistributed(Conv2D(1024, (pool_size, pool_size), padding="valid"), name="fpn_class_conv1")(x)
+        # x = TimeDistributed(BatchNorm(axis=3), name='fpn_class_bn1')(x)
+        # x = Activation('relu')(x)
+        # x = TimeDistributed(Conv2D(1024, (1, 1)), name="fpn_class_conv2")(x)
+        # x = TimeDistributed(BatchNorm(axis=3), name='fpn_class_bn2')(x)
+        # x = Activation('relu')(x)
+        # x = Lambda(lambda x: K.squeeze(K.squeeze(x, 3), 2), name="pool_squeeze")(x)
+
+        # Reshape
         return x
 
 if __name__ == "__main__":
