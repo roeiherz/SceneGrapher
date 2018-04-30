@@ -372,6 +372,9 @@ class PreProcessWorker(threading.Thread):
         ind = 0
         for image in self.train_images:
 
+            # if image.image.id != 2408198:
+            #     continue
+
             # filter images that fails in resize
             if image.image.id in [2379987, 2374549, 2351430, 2387196, 2403903, 2387505]:
                 continue
@@ -586,13 +589,13 @@ def train(name="module",
                                                       outputs=module.output_resnet50_relation,
                                                       name='relation_resnet50')
             # The path for for loading Keras weights
-            net_weights = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/relations_no_fcs.h5"
+            net_weights = "/home/roeih/SceneGrapher/relations_no_fcs.h5"
             model_rel.load_weights(net_weights, by_name=True)
 
             # Save graph
             saver = tf.train.Saver()
             module_path_load = os.path.join(module_path, timestamp)
-            saver.save(sess, module_path_load + '/e2e_fpn_fixed_model.ckpt', 0)
+            saver.save(sess, module_path_load + '/e2e_fpn_roi_fixed_model.ckpt', 0)
 
             # sess.run(init)
             # variables_to_restore = []

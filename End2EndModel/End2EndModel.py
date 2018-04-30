@@ -12,9 +12,12 @@ from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import variable_scope
 from tensorflow.contrib.slim.python.slim.nets.resnet_v2 import resnet_v2_50, bottleneck, resnet_v2, resnet_v2_block
 
+from FeaturesExtraction.Layers.BatchNorm import BatchNorm
+from FeaturesExtraction.Layers.PyramidROIAlign import PyramidROIAlign
+
 sys.path.append("..")
 
-from keras.layers import GlobalAveragePooling2D, Dense, TimeDistributed
+from keras.layers import GlobalAveragePooling2D, Dense, TimeDistributed, Lambda, Activation, Conv2D, K, Reshape
 
 from FeaturesExtraction.Lib.Zoo import ModelZoo
 from FilesManager.FilesManager import FilesManager
@@ -198,16 +201,34 @@ class End2EndModel(object):
             # # e.g. a 224x224 ROI (in pixels) maps to P4
             # image_area = tf.cast(
             #     1024 * 1024, tf.float32)
-            # roi_level = log2_graph(tf.sqrt(h * w) / (224.0 / tf.sqrt(image_area)))
+            # roi_level = log2_graph(tf.sqrt(h * w) / (224.0 /
+            # tf.sqrt(image_area)))
             # roi_level = tf.minimum(5, tf.maximum(2, 4 + tf.cast(tf.round(roi_level), tf.int32)))
             # self.roi_level = tf.squeeze(roi_level, axis=1)
 
-            model_fpn_classifier = net.fpn_classifier(self.entity_bb_ph, self.fpn_feature_maps, [1024, 1024, 3], 7)
-            self.output_fpn_entity = TimeDistributed(Dense(features_size), name='fc')(model_fpn_classifier)
+            # self.x = PyramidROIAlign([7, 7], [1024, 1024, 3], name="pyramid_roi_align_classifier")([self.entity_bb_ph] + self.fpn_feature_maps)
+            # # Two 1024 FC layers (implemented with Conv2D for consistency)
+            # self.x1 = TimeDistributed(Conv2D(1024, (7, 7), padding="valid"), name="fpn_class_conv1")(self.x)
+            # self.x2 = TimeDistributed(BatchNorm(axis=3), name='fpn_class_bn1')(self.x1)
+            # self.x3 = Activation('relu')(self.x2)
+            # self.x5 = TimeDistributed(Conv2D(1024, (1, 1)), name="fpn_class_conv2")(self.x3)
+            # self.x6 = TimeDistributed(BatchNorm(axis=3), name='fpn_class_bn2')(self.x5)
+            # self.x7 = Activation('relu')(self.x6)
+            # self.x8 = Lambda(lambda x: K.squeeze(K.squeeze(x, 3), 2), name="pool_squeeze")(self.x7)
+            # self.output_fpn_entity = TimeDistributed(Dense(features_size), name='fc')(self.x8)
 
-            M = tf.constant([features_size], dtype=tf.int32, name="M_entity")
+            self.model_fpn_classifier = net.fpn_classifier(self.entity_bb_ph, self.fpn_feature_maps, [1024, 1024, 3], 7)
+            self.output_fpn_entity = tf.reshape(self.model_fpn_classifier, (-1, 7*7*256))
+            M = tf.constant([7*7*256], dtype=tf.int32, name="M_entity")
             relations_shape = tf.concat((self.num_objects_ph, M), 0)
             self.output_resnet50_entity_reshaped = tf.reshape(self.output_fpn_entity, relations_shape)
+
+
+            # self.output_fpn_entity = TimeDistributed(Dense(features_size), name='fc')(model_fpn_classifier)
+
+            # M = tf.constant([features_size], dtype=tf.int32, name="M_entity")
+            # relations_shape = tf.concat((self.num_objects_ph, M), 0)
+            # self.output_resnet50_entity_reshaped = tf.reshape(self.output_fpn_entity, relations_shape)
 
             # self.output_resnet50_entity, end_points = resnet_v2_50(self.entity_inputs_ph, num_classes=300)
             # N = tf.slice(tf.shape(self.entity_inputs_ph), [0], [1], name="N_entity")
@@ -354,14 +375,14 @@ class End2EndModel(object):
             if self.gpi_type == "FeatureAttention":
                 self.object_ngbrs_scores = self.nn(features=self.object_ngbrs, layers=[], out=500,
                                                    scope_name="nn_phi_atten")
-                self.object_ngbrs_weights = tf.nn.softmax(self.object_ngbrs_scores, dim=1)
+                self.object_ngbrs_weights = tf.nn.softmax(self.object_ngbrs_scores, axis=1)
                 self.object_ngbrs_phi_all = tf.reduce_sum(tf.multiply(self.object_ngbrs_phi, self.object_ngbrs_weights),
                                                           axis=1)
 
             elif self.gpi_type == "NeighbourAttention":
                 self.object_ngbrs_scores = self.nn(features=self.object_ngbrs, layers=[], out=1,
                                                    scope_name="nn_phi_atten")
-                self.object_ngbrs_weights = tf.nn.softmax(self.object_ngbrs_scores, dim=1)
+                self.object_ngbrs_weights = tf.nn.softmax(self.object_ngbrs_scores, axis=1)
                 self.object_ngbrs_phi_all = tf.reduce_sum(tf.multiply(self.object_ngbrs_phi, self.object_ngbrs_weights),
                                                           axis=1)
             else:
@@ -376,7 +397,7 @@ class End2EndModel(object):
             if self.gpi_type == "FeatureAttention":
                 self.object_ngbrs2_scores = self.nn(features=self.object_ngbrs2, layers=[], out=500,
                                                     scope_name="nn_phi2_atten")
-                self.object_ngbrs2_weights = tf.nn.softmax(self.object_ngbrs2_scores, dim=0)
+                self.object_ngbrs2_weights = tf.nn.softmax(self.object_ngbrs2_scores, axis=0)
                 self.object_ngbrs2_alpha_all = tf.reduce_sum(
                     tf.multiply(self.object_ngbrs2_alpha, self.object_ngbrs2_weights), axis=0)
             elif self.gpi_type == "NeighbourAttention":
