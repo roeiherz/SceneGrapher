@@ -28,7 +28,6 @@ import inspect
 from tensorflow.contrib import slim
 from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
 
-QUEUE_SIZE = 200
 NOF_PREDICATES = 51
 NOF_OBJECTS = 150
 # save model every number of iterations
@@ -389,8 +388,8 @@ class PreProcessWorker(threading.Thread):
                     relations_neg_labels) == 0:
                 continue
 
-            # filter images with more than 25 entities to avoid from OOM (just for train)
-            if image.predicates_labels.shape[0] > 25:
+            # filter images with more than 15 entities to avoid from OOM (just for train)
+            if image.predicates_labels.shape[0] > 15:
                 continue
 
             indices = np.arange(image.predicates_outputs_with_no_activation.shape[0])
@@ -480,9 +479,11 @@ def train(name="module",
           lr_object_coeff=1,
           layers=[500, 500, 500],
           gpu=0,
-          nb_workers=2):
+          nb_workers=2,
+          queue_size=10):
     """
     Train SGP module given train parameters and module hyper-parameters
+    :param queue_size: queue size
     :param name: name of the train session
     :param nof_iterations: number of epochs
     :param learning_rate:
@@ -588,7 +589,7 @@ def train(name="module",
             # Save graph
             saver = tf.train.Saver()
             module_path_load = os.path.join(module_path, timestamp)
-            saver.save(sess, module_path_load + '/e2e_full_pretrained_model.ckpt', 0)
+            saver.save(sess, module_path_load + '/e2e_full_pretrained_freeze.ckpt', 0)
 
             # sess.run(init)
             # variables_to_restore = []
@@ -646,7 +647,7 @@ def train(name="module",
                 train_images = cPickle.load(file_handle)
                 file_handle.close()
 
-                pre_process_image_queue = Queue(maxsize=QUEUE_SIZE)
+                pre_process_image_queue = Queue(maxsize=queue_size)
 
                 workers_lst = get_workers(nb_workers, train_images, relation_neg, pre_process_image_queue, lr,
                                           pred_pos_neg_ratio,  hierarchy_mapping_objects, hierarchy_mapping_predicates,
@@ -654,21 +655,6 @@ def train(name="module",
 
                 dummy = [worker.start() for worker in workers_lst]
 
-                # worker1 = PreProcessWorker(module=module, train_images=train_images,
-                #                            relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
-                #                            pred_pos_neg_ratio=pred_pos_neg_ratio,
-                #                            hierarchy_mapping_objects=hierarchy_mapping_objects,
-                #                            hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                #                            config=config, is_train=True)
-                # worker2 = PreProcessWorker(module=module, train_images=train_images[len(train_images) / 2:],
-                #                            relation_neg=relation_neg,
-                #                            queue=pre_process_image_queue, lr=lr,
-                #                            pred_pos_neg_ratio=pred_pos_neg_ratio,
-                #                            hierarchy_mapping_objects=hierarchy_mapping_objects,
-                #                            hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                #                            config=config, is_train=True)
-                # worker1.start()
-                # worker2.start()
                 none_count = 0
                 while True:
                     # print(str(pre_process_image_queue.qsize()))
@@ -687,14 +673,11 @@ def train(name="module",
                     slices_size = info[4]
                     coeff_factor = info[5]
                     indices = info[6]
-
                     num_objects = entity_inputs.shape[0]
-                    if num_objects > 15:
-                        continue
 
                     feed_dict = {module.relation_inputs_ph: relations_inputs,
                                  module.entity_inputs_ph: entity_inputs,
-                                 module.num_objects_ph: (entity_inputs.shape[0],),
+                                 module.num_objects_ph: (num_objects,),
                                  module.entity_bb_ph: entity_bb, module.phase_ph: True,
                                  module.labels_relation_ph: image.predicates_labels,
                                  module.labels_entity_ph: image.objects_labels,
@@ -781,30 +764,13 @@ def train(name="module",
                     validation_images = cPickle.load(file_handle)
                     file_handle.close()
 
-                    pre_process_image_queue = Queue(maxsize=QUEUE_SIZE)
+                    pre_process_image_queue = Queue(maxsize=queue_size)
 
                     workers_lst = get_workers(nb_workers, validation_images, relation_neg, pre_process_image_queue, lr,
                           pred_pos_neg_ratio,  hierarchy_mapping_objects, hierarchy_mapping_predicates, config, module, is_train=False)
 
                     dummy = [worker.start() for worker in workers_lst]
 
-                    # worker1 = PreProcessWorker(module=module, train_images=validation_images[:len(train_images) / 2],
-                    #                            relation_neg=relation_neg, queue=pre_process_image_queue, lr=lr,
-                    #                            pred_pos_neg_ratio=pred_pos_neg_ratio,
-                    #                            hierarchy_mapping_objects=hierarchy_mapping_objects,
-                    #                            hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                    #                            config=config, is_train=False)
-                    # worker2 = PreProcessWorker(module=module, train_images=validation_images[len(train_images) / 2:],
-                    #                            relation_neg=relation_neg,
-                    #                      if num_objects > 15:
-                    #     continue      queue=pre_process_image_queue, lr=lr,
-                    #                            pred_pos_neg_ratio=pred_pos_neg_ratio,
-                    #                            pred_pos_neg_ratio=pred_pos_neg_ratio,
-                    #                            hierarchy_mapping_objects=hierarchy_mapping_objects,
-                    #                            hierarchy_mapping_predicates=hierarchy_mapping_predicates,
-                    #                            config=config, is_train=False)
-                    # worker1.start()
-                    # worker2.start()
                     none_count = 0
                     while True:
                         # print(str(pre_process_image_queue.qsize()))
@@ -823,14 +789,11 @@ def train(name="module",
                         slices_size = info[4]
                         coeff_factor = info[5]
                         indices = info[6]
-
                         num_objects = entity_inputs.shape[0]
-                        if num_objects > 15:
-                            continue
 
                         feed_dict = {module.relation_inputs_ph: relations_inputs,
                                      module.entity_inputs_ph: entity_inputs,
-                                     module.num_objects_ph: (entity_inputs.shape[0],),
+                                     module.num_objects_ph: (num_objects,),
                                      module.entity_bb_ph: entity_bb, module.phase_ph: True,
                                      module.labels_relation_ph: image.predicates_labels,
                                      module.labels_entity_ph: image.objects_labels,
@@ -911,7 +874,8 @@ if __name__ == "__main__":
     layers = params["layers"]
     gpu = params["gpu"]
     nb_workers = params['nb_workers']
+    queue_size = params['queue_size']
 
     train(name, nof_iterations, learning_rate, learning_rate_steps, learning_rate_decay, load_model_name,
           use_saved_model, batch_size, predicate_pos_neg_ratio, lr_object_coeff, layers,
-          gpu, nb_workers)
+          gpu, nb_workers, queue_size)
