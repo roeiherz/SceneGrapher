@@ -385,7 +385,7 @@ class PreProcessWorker(threading.Thread):
                     relations_neg_labels) == 0:
                 continue
 
-            # filter images with more than 25 entities to avoid from OOM (just for train)
+            # filter images with more than 15 entities to avoid from OOM (just for train)
             if image.predicates_labels.shape[0] > 15:
                 continue
 
@@ -576,26 +576,28 @@ def train(name="module",
             create_folder(os.path.join(module_path, timestamp))
             sess.run(init)
 
-            # # Load Object CNN body keras network
-            # model_obj = tf.contribnb_workers.keras.models.Model(inputs=module.entity_inputs_ph,
-            #                                           outputs=module.output_resnet50_entity_reshaped,
-            #                                           name='entity_resnet50')
-            # # The path for for loading Keras weights
+            # Load Object CNN body keras network
+            model_obj = tf.contrib.keras.models.Model(inputs=module.image_ph,
+                                                      outputs=module.output_resnet50_entity,
+                                                      name='entity_resnet50')
+            # The path for for loading Keras weights
             # net_weights = "/home/roeih/SceneGrapher/objects_no_fcs.h5"
-            # model_obj.load_weights(net_weights, by_name=True)
+            net_weights = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/ObjectsCNN/Thu_Nov__9_14:39:14_2017/model_vg_resnet50.hdf5"
+            model_obj.load_weights(net_weights, by_name=True)
 
             # Load Predicates MaskCNN keras network
             model_rel = tf.contrib.keras.models.Model(inputs=module.relation_inputs_ph,
                                                       outputs=module.output_resnet50_relation,
                                                       name='relation_resnet50')
             # The path for for loading Keras weights
-            net_weights = "/home/roeih/SceneGrapher/relations_no_fcs.h5"
-            model_rel.load_weights(net_weights, by_name=True)
+            # net_weights = "/home/roeih/SceneGrapher/relations_no_fcs.h5"
+            net_weights = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Fri_Oct_27_22:41:05_2017/model_vg_resnet50.hdf5"
+            model_rel.load_weights(net_weights, by_name=False)
 
             # Save graph
             saver = tf.train.Saver()
             module_path_load = os.path.join(module_path, timestamp)
-            saver.save(sess, module_path_load + '/e2e_fpn_roi_fc_fixed_model.ckpt', 0)
+            saver.save(sess, module_path_load + '/e2e_fpn_model_singelton_module_full_pretrained.ckpt', 0)
 
             # sess.run(init)
             # variables_to_restore = []
@@ -656,7 +658,7 @@ def train(name="module",
                 pre_process_image_queue = Queue(maxsize=QUEUE_SIZE)
 
                 workers_lst = get_workers(nb_workers, train_images, relation_neg, pre_process_image_queue, lr,
-                                          pred_pos_neg_ratio,  hierarchy_mapping_objects, hierarchy_mapping_predicates,
+                                          pred_pos_neg_ratio, hierarchy_mapping_objects, hierarchy_mapping_predicates,
                                           config, module, is_train=True)
 
                 dummy = [worker.start() for worker in workers_lst]
@@ -682,7 +684,8 @@ def train(name="module",
                     img_pixel = info[7]
 
                     if img_pixel.shape != (1, 1024, 1024, 3):
-                        print("Error image_id {0}, image_url {1} is not 1024x1024".format(image.image.id, image.image.url))
+                        print(
+                        "Error image_id {0}, image_url {1} is not 1024x1024".format(image.image.id, image.image.url))
 
                     num_objects = entity_bb.shape[0]
 
@@ -776,7 +779,8 @@ def train(name="module",
                     pre_process_image_queue = Queue(maxsize=QUEUE_SIZE)
 
                     workers_lst = get_workers(nb_workers, validation_images, relation_neg, pre_process_image_queue, lr,
-                          pred_pos_neg_ratio,  hierarchy_mapping_objects, hierarchy_mapping_predicates, config, module, is_train=False)
+                                              pred_pos_neg_ratio, hierarchy_mapping_objects,
+                                              hierarchy_mapping_predicates, config, module, is_train=False)
                     dummy = [worker.start() for worker in workers_lst]
 
                     none_count = 0
@@ -799,7 +803,8 @@ def train(name="module",
                         img_pixel = info[7]
 
                         if img_pixel.shape != (1, 1024, 1024, 3):
-                            print("Error image_id {0}, image_url {1} is not 1024x1024".format(image.image.id, image.image.url))
+                            print("Error image_id {0}, image_url {1} is not 1024x1024".format(image.image.id,
+                                                                                              image.image.url))
 
                         num_objects = entity_bb.shape[0]
                         # if num_objects > 15:
