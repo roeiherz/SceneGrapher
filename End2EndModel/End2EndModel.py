@@ -175,16 +175,15 @@ class End2EndModel(object):
             model_resnet50, layers_for_fpn = net.resnet50_base(self.image_ph,
                                                                trainable=self.config.resnet_body_trainable,
                                                                use_fpn=True)
-            self.output_resnet50_entity = model_resnet50
-
             # FPN
             fpn_feature_maps = net.feature_pyramid_pooling(layers_for_fpn)
             model_fpn_classifier = net.fpn_classifier(self.entity_bb_ph, fpn_feature_maps, [1024, 1024, 3], 7)
-            output_fpn_entity = tf.reshape(model_fpn_classifier, (-1, 7 * 7 * 256))
-            M = tf.constant([7 * 7 * 256], dtype=tf.int32, name="M_entity")
-            relations_shape = tf.concat((self.num_objects_ph, M), 0)
-            output_fpn_entity_reshaped = tf.reshape(output_fpn_entity, relations_shape)
-            self.output_resnet50_entity_reshaped = tf.layers.dense(inputs=output_fpn_entity_reshaped,
+            # Resize to [num_boxes, 7 * 7 * 256] - we assume batch is 1
+            self.output_fpn_entity = tf.reshape(model_fpn_classifier, (-1, 7 * 7 * 256))
+            # M = tf.constant([7 * 7 * 256], dtype=tf.int32, name="M_entity")
+            # relations_shape = tf.concat((self.num_objects_ph, M), 0)
+            # self.output_fpn_entity_reshaped = tf.reshape(self.output_fpn_entity, relations_shape)
+            self.output_resnet50_entity_reshaped = tf.layers.dense(inputs=self.output_fpn_entity,
                                                                    units=features_size, activation=self.activation_fn)
 
     def sgp(self):

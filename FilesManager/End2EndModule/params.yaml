@@ -1,4 +1,4 @@
-name: e2e_fpn_model_singelton_module_full_pretrained_new
+name: e2e_fpn_model_singelton_module_pretrained_relations_batchsize7
 nof_iterations: 10000
 learning_rate: 0.0001
 learning_rate_steps: 1000
@@ -10,11 +10,13 @@ learning_rate_decay: 0.5
 #load_model_name: "e2e_fpn_roi_fixed_model.ckpt-0"
 #load_model_name: "e2e_fpn_roi_fc_fixed_model.ckpt-0"
 #load_model_name: "e2e_fpn_model_fix_roi_fc_new_best_module.ckpt"
-load_model_name: "e2e_fpn_model_singelton_module_full_pretrained.ckpt-0"
+#load_model_name: "e2e_fpn_model_singelton_module_best_module.ckpt"
+load_model_name: "e2e_fpn_model_singelton_module_best_module.ckpt (copy)"
+#load_model_name: "e2e_fpn_model_singelton_module_full_pretrained.ckpt-0"
 use_saved_model: True
-batch_size: 1
-predicate_pos_neg_ratio: 10
-lr_object_coeff: 4
+batch_size: 7
+predicate_pos_neg_ratio: 3
+lr_object_coeff: 1
 layers: [250, 250]
 gpu: 0
 nb_workers: 20
