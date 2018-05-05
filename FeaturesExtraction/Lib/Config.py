@@ -35,13 +35,13 @@ class Config:
         self.only_pos = False
 
         # Train or not Only ResNet50 Body
-        self.resnet_body_trainable = False
+        self.resnet_body_trainable = True
 
         # Use all objects data
         self.use_all_objects_data = True
 
         # Use of Jitter
-        self.use_jitter = True
+        self.use_jitter = False
         self.use_keras_jitter = True
         self.use_mixup_jitter = False
 

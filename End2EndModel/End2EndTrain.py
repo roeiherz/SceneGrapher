@@ -573,23 +573,27 @@ def train(name="module",
             sess.run(init)
 
             # Load Object CNN body keras network
-            model_obj = tf.contrib.keras.models.Model(inputs=module.entity_inputs_ph, outputs=module.output_resnet50_entity,
+            model_obj = tf.contrib.keras.models.Model(inputs=module.entity_inputs_ph,
+                                                      outputs=module.output_resnet50_entity,
                                                   name='entity_resnet50')
             # The path for for loading Keras weights
-            net_weights = "/home/roeih/SceneGrapher/objects_no_fcs.h5"
+            # net_weights = "/home/roeih/SceneGrapher/objects_no_fcs.h5"
+            net_weights = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/ObjectsCNN/Thu_Nov__9_14:39:14_2017/model_vg_resnet50.hdf5"
             model_obj.load_weights(net_weights, by_name=True)
 
             # Load Predicates MaskCNN keras network
-            model_rel = tf.contrib.keras.models.Model(inputs=module.relation_inputs_ph, outputs=module.output_resnet50_relation,
+            model_rel = tf.contrib.keras.models.Model(inputs=module.relation_inputs_ph,
+                                                      outputs=module.output_resnet50_relation,
                                                   name='relation_resnet50')
             # The path for for loading Keras weights
-            net_weights = "/home/roeih/SceneGrapher/relations_no_fcs.h5"
-            model_rel.load_weights(net_weights, by_name=True)
+            # net_weights = "/home/roeih/SceneGrapher/relations_no_fcs.h5"
+            net_weights = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Fri_Oct_27_22:41:05_2017/model_vg_resnet50.hdf5"
+            model_rel.load_weights(net_weights, by_name=False)
 
             # Save graph
             saver = tf.train.Saver()
             module_path_load = os.path.join(module_path, timestamp)
-            saver.save(sess, module_path_load + '/e2e_full_pretrained_freeze.ckpt', 0)
+            saver.save(sess, module_path_load + '/patches_pretrained_patch_nosgp.ckpt', 0)
 
             # sess.run(init)
             # variables_to_restore = []

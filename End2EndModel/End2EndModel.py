@@ -30,7 +30,7 @@ class End2EndModel(object):
     the belief of predicates and objects. The E2E Module outputs an improved belief for predicates and objects
     """
 
-    def __init__(self, gpi_type="FeatureAttention", nof_predicates=51, nof_objects=150, rnn_steps=1, is_train=True,
+    def __init__(self, gpi_type="FeatureAttention", nof_predicates=51, nof_objects=150, rnn_steps=0, is_train=True,
                  learning_rate=0.0001,
                  learning_rate_steps=1000, learning_rate_decay=0.5,
                  including_object=False, layers=[500, 500, 500], reg_factor=0.0, lr_object_coeff=4, config=None):
@@ -90,8 +90,10 @@ class End2EndModel(object):
             # self.image_ph = Input(shape=(1024, 1024, 3), name="image_inputs_ph")
             # self.relation_inputs_ph = tf.placeholder(shape=[None, 112, 112, 5],
             #                                          dtype=tf.float32, name="relation_inputs_ph")
-            self.relation_inputs_ph = Input(shape=(self.config.crop_height / 2, self.config.crop_width / 2, 5), name="relation_inputs_ph")
-            self.entity_inputs_ph = Input(shape=(self.config.crop_height, self.config.crop_width, 3), name="entity_inputs_ph")
+            self.relation_inputs_ph = Input(shape=(self.config.crop_height / 2, self.config.crop_width / 2, 5),
+                                            name="relation_inputs_ph")
+            self.entity_inputs_ph = Input(shape=(self.config.crop_height, self.config.crop_width, 3),
+                                          name="entity_inputs_ph")
 
             # # size of slices of image relations (to avoid from OOM error)
             # self.slices_size_ph = tf.placeholder(dtype=tf.int32, shape=[3])
@@ -139,7 +141,7 @@ class End2EndModel(object):
         self.create_resnet_relation_net()
         self.create_resnet_entity_net()
 
-    def create_resnet_relation_net(self, scope_name="relation_resnet50", features_size=100):
+    def create_resnet_relation_net(self, scope_name="relation_resnet50", features_size=51):
         """
         This function creates the resnet50 relation network
         :return:
@@ -149,18 +151,19 @@ class End2EndModel(object):
             # N = tf.slice(tf.keras.backend.shape(self.entity_inputs_tensor_ph), [0], [1], name="N_relation")
 
             net = ModelZoo()
-            model_resnet50 = net.resnet50_with_masking_dual(self.relation_inputs_ph, trainable=self.config.resnet_body_trainable)
+            model_resnet50 = net.resnet50_with_masking_dual(self.relation_inputs_ph,
+                                                            trainable=self.config.resnet_body_trainable)
             # model_resnet50 = net.resnet50_with_masking_dual(self.relation_inputs_ph, trainable=self.config.resnet_body_trainable)
             self._model_resnet50_reltaion = model_resnet50
             model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
             self.output_resnet50_relation = Dense(features_size, kernel_initializer="he_normal", activation=None,
-                                         name='fc')(model_resnet50)
+                                                  name='fc')(model_resnet50)
 
             M = tf.constant([features_size], dtype=tf.int32, name="M_relation")
             relations_shape = tf.concat((self.num_objects_ph, self.num_objects_ph, M), 0)
             self.output_resnet50_relation_reshaped = tf.reshape(self.output_resnet50_relation, relations_shape)
 
-    def create_resnet_entity_net(self, scope_name="entity_resnet50", features_size=300):
+    def create_resnet_entity_net(self, scope_name="entity_resnet50", features_size=150):
         """
         This function creates the resnet50 entity network
         :return:
@@ -170,7 +173,7 @@ class End2EndModel(object):
             model_resnet50 = net.resnet50_base(self.entity_inputs_ph, trainable=self.config.resnet_body_trainable)
             model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
             self.output_resnet50_entity = Dense(features_size, kernel_initializer="he_normal", activation=None,
-                                         name='fc')(model_resnet50)
+                                                name='fc')(model_resnet50)
             M = tf.constant([features_size], dtype=tf.int32, name="M_entity")
             relations_shape = tf.concat((self.num_objects_ph, M), 0)
             self.output_resnet50_entity_reshaped = tf.reshape(self.output_resnet50_entity, relations_shape)
@@ -189,12 +192,16 @@ class End2EndModel(object):
         # confidence_entity = self.confidence_entity_ph
         confidence_entity = self.output_resnet50_entity_reshaped
 
+        self.out_confidence_relation_lst.append(confidence_relation)
+        self.out_confidence_entity_lst.append(confidence_entity)
+
         # rnn0
-        self.out_confidence_relation_lst.append(self.nn([confidence_relation], layers=[], out=self.nof_predicates, scope_name="rel_direct"))
-        self.out_confidence_entity_lst.append(self.nn([confidence_entity], layers=[], out=self.nof_objects, scope_name="ent_direct"))
+        # self.out_confidence_relation_lst.append(self.nn([confidence_relation], layers=[], out=self.nof_predicates, scope_name="rel_direct"))
+        # self.out_confidence_entity_lst.append(self.nn([confidence_entity], layers=[], out=self.nof_objects, scope_name="ent_direct"))
 
         # iterations of the features message
-        for step in range(self.rnn_steps):
+        # for step in range(self.rnn_steps):
+        for step in []:
             confidence_relation, confidence_entity_temp = \
                 self.sgp_cell(relation_features=confidence_relation,
                               entity_features=confidence_entity,
@@ -293,7 +300,6 @@ class End2EndModel(object):
             self.expand_subject_features = tf.transpose(self.expand_object_features, perm=[1, 0, 2],
                                                         name="expand_subject_features")
 
-
             ##
             # Node Neighbours
             self.object_ngbrs = [self.expand_object_features, self.expand_subject_features, relation_features]
@@ -303,14 +309,14 @@ class End2EndModel(object):
             if self.gpi_type == "FeatureAttention":
                 self.object_ngbrs_scores = self.nn(features=self.object_ngbrs, layers=[], out=500,
                                                    scope_name="nn_phi_atten")
-                self.object_ngbrs_weights = tf.nn.softmax(self.object_ngbrs_scores, dim=1)
+                self.object_ngbrs_weights = tf.nn.softmax(self.object_ngbrs_scores, axis=1)
                 self.object_ngbrs_phi_all = tf.reduce_sum(tf.multiply(self.object_ngbrs_phi, self.object_ngbrs_weights),
                                                           axis=1)
 
             elif self.gpi_type == "NeighbourAttention":
                 self.object_ngbrs_scores = self.nn(features=self.object_ngbrs, layers=[], out=1,
                                                    scope_name="nn_phi_atten")
-                self.object_ngbrs_weights = tf.nn.softmax(self.object_ngbrs_scores, dim=1)
+                self.object_ngbrs_weights = tf.nn.softmax(self.object_ngbrs_scores, axis=1)
                 self.object_ngbrs_phi_all = tf.reduce_sum(tf.multiply(self.object_ngbrs_phi, self.object_ngbrs_weights),
                                                           axis=1)
             else:
@@ -325,7 +331,7 @@ class End2EndModel(object):
             if self.gpi_type == "FeatureAttention":
                 self.object_ngbrs2_scores = self.nn(features=self.object_ngbrs2, layers=[], out=500,
                                                     scope_name="nn_phi2_atten")
-                self.object_ngbrs2_weights = tf.nn.softmax(self.object_ngbrs2_scores, dim=0)
+                self.object_ngbrs2_weights = tf.nn.softmax(self.object_ngbrs2_scores, axis=0)
                 self.object_ngbrs2_alpha_all = tf.reduce_sum(
                     tf.multiply(self.object_ngbrs2_alpha, self.object_ngbrs2_weights), axis=0)
             elif self.gpi_type == "NeighbourAttention":
@@ -353,7 +359,7 @@ class End2EndModel(object):
             # todo: delete forget gates
             # pred_forget_gate = self.nn(features=self.relation_all_features, layers=[], out=1,
             #                            scope_name="nn_pred_forgate", last_activation=tf.nn.sigmoid)
-            out_confidence_relation = pred_delta# + pred_forget_gate * relation_features
+            out_confidence_relation = pred_delta  # + pred_forget_gate * relation_features
 
             ##
             # rho entity (entity prediction)
@@ -365,7 +371,7 @@ class End2EndModel(object):
                 # todo: delete forget gates
                 # obj_forget_gate = self.nn(features=self.object_all_features, layers=[], out=self.nof_objects,
                 #                           scope_name="nn_obj_forgate", last_activation=tf.nn.sigmoid)
-                out_confidence_object = obj_delta# + obj_forget_gate * orig_entity_features
+                out_confidence_object = obj_delta  # + obj_forget_gate * orig_entity_features
             else:
                 out_confidence_object = orig_entity_features
 
@@ -410,9 +416,8 @@ class End2EndModel(object):
 
                     loss += self.lr_object_coeff * tf.reduce_sum(self.object_ce_loss)
 
-            self.debug_loss = loss
-            # reg
-            trainable_vars = tf.trainable_variables()
+            # # reg
+            # trainable_vars = tf.trainable_variables()
             # lossL2 = tf.add_n([tf.nn.l2_loss(v) for v in trainable_vars]) * self.reg_factor
             # self.debug_loss2 = lossL2
             # loss += lossL2
