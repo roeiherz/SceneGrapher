@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append("..")
 
 from random import shuffle
@@ -203,7 +204,7 @@ class PreProcessWorker(threading.Thread):
                 new_resized_patch = None
 
                 # For mixup Jitter we need to create a new resize_img from another sample
-                if False: #self.config.jitter.use_mixup:
+                if False:  # self.config.jitter.use_mixup:
                     all_indice_without_ind = list(indices - set([ind]))
                     # Pick different index from the data with no repetition
                     new_ind = np.random.choice(all_indice_without_ind)
@@ -219,7 +220,7 @@ class PreProcessWorker(threading.Thread):
                     new_patch = new_img[new_mask['y1']: new_mask['y2'], new_mask['x1']: new_mask['x2'], :]
                     # Resize the image according the padding method
                     new_resized_patch = get_img_resize(new_patch, self.config.crop_width, self.config.crop_height,
-                                                     type=self.config.padding_method)
+                                                       type=self.config.padding_method)
 
                 resized_patch = self.config.jitter.apply_jitter(resized_img=resized_patch, batchsize=self.size,
                                                                 new_resized_img=new_resized_patch)
@@ -327,15 +328,17 @@ class PreProcessWorker(threading.Thread):
             # FIXME resized_img = get_img_resize(patch_predicate, config.crop_width, config.crop_height,
             resized_patch = get_img_resize(patch_predicate, 112, 112,
                                            type=self.config.padding_method)
-            resized_heatmap_subject = get_img_resize(patch_heatmap_heat_map_subject, 112, 112, type=self.config.padding_method)
-            resized_heatmap_object = get_img_resize(patch_heatmap_heat_map_object, 112, 112, type=self.config.padding_method)
+            resized_heatmap_subject = get_img_resize(patch_heatmap_heat_map_subject, 112, 112,
+                                                     type=self.config.padding_method)
+            resized_heatmap_object = get_img_resize(patch_heatmap_heat_map_object, 112, 112,
+                                                    type=self.config.padding_method)
 
             # Augment only in training
             if self.is_train == 'train' and self.config.use_jitter:
                 new_resized_patch = None
 
                 # For mixup Jitter we need to create a new resize_img from another sample
-                if False: #self.config.jitter.use_mixup:
+                if False:  # self.config.jitter.use_mixup:
                     all_indice_without_ind = list(indices - set([ind]))
                     # Pick different index from the data with no repetition
                     new_ind = np.random.choice(all_indice_without_ind)
@@ -351,7 +354,7 @@ class PreProcessWorker(threading.Thread):
                     new_patch = new_img[new_mask['y1']: new_mask['y2'], new_mask['x1']: new_mask['x2'], :]
                     # Resize the image according the padding method
                     new_resized_patch = get_img_resize(new_patch, self.config.crop_width, self.config.crop_height,
-                                                     type=self.config.padding_method)
+                                                       type=self.config.padding_method)
 
                 resized_patch = self.config.jitter.apply_jitter(resized_img=resized_patch, batchsize=self.size,
                                                                 new_resized_img=new_resized_patch)
@@ -563,7 +566,8 @@ def train(name="module",
             sess.run(init)
             # Add ops to save and restore all the variables.
             variables = tf.contrib.slim.get_variables_to_restore()
-            variables_to_restore = [var for var in variables if not "ent_direct" in var.op.name and not "rel_direct" in var.op.name]
+            variables_to_restore = [var for var in variables if
+                                    not "ent_direct" in var.op.name and not "rel_direct" in var.op.name]
             saver = tf.train.Saver(variables_to_restore)
 
             saver.restore(sess, module_path_load)
@@ -575,7 +579,7 @@ def train(name="module",
             # Load Object CNN body keras network
             model_obj = tf.contrib.keras.models.Model(inputs=module.entity_inputs_ph,
                                                       outputs=module.output_resnet50_entity,
-                                                  name='entity_resnet50')
+                                                      name='entity_resnet50')
             # The path for for loading Keras weights
             # net_weights = "/home/roeih/SceneGrapher/objects_no_fcs.h5"
             net_weights = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/ObjectsCNN/Thu_Nov__9_14:39:14_2017/model_vg_resnet50.hdf5"
@@ -584,7 +588,7 @@ def train(name="module",
             # Load Predicates MaskCNN keras network
             model_rel = tf.contrib.keras.models.Model(inputs=module.relation_inputs_ph,
                                                       outputs=module.output_resnet50_relation,
-                                                  name='relation_resnet50')
+                                                      name='relation_resnet50')
             # The path for for loading Keras weights
             # net_weights = "/home/roeih/SceneGrapher/relations_no_fcs.h5"
             net_weights = "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/FeaturesExtraction/PredicatesMaskCNN/Fri_Oct_27_22:41:05_2017/model_vg_resnet50.hdf5"
@@ -654,7 +658,7 @@ def train(name="module",
                 pre_process_image_queue = Queue(maxsize=queue_size)
 
                 workers_lst = get_workers(nb_workers, train_images, relation_neg, pre_process_image_queue, lr,
-                                          pred_pos_neg_ratio,  hierarchy_mapping_objects, hierarchy_mapping_predicates,
+                                          pred_pos_neg_ratio, hierarchy_mapping_objects, hierarchy_mapping_predicates,
                                           config, module, is_train=True)
 
                 dummy = [worker.start() for worker in workers_lst]
@@ -771,7 +775,8 @@ def train(name="module",
                     pre_process_image_queue = Queue(maxsize=queue_size)
 
                     workers_lst = get_workers(nb_workers, validation_images, relation_neg, pre_process_image_queue, lr,
-                          pred_pos_neg_ratio,  hierarchy_mapping_objects, hierarchy_mapping_predicates, config, module, is_train=False)
+                                              pred_pos_neg_ratio, hierarchy_mapping_objects,
+                                              hierarchy_mapping_predicates, config, module, is_train=False)
 
                     dummy = [worker.start() for worker in workers_lst]
 
