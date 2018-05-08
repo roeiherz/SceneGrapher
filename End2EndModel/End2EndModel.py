@@ -147,43 +147,43 @@ class End2EndModel(object):
         self.create_resnet_relation_net()
         self.create_resnet_entity_net()
 
-    def create_resnet_relation_net(self, scope_name="relation_resnet50", features_size=100):
+    def create_resnet_relation_net(self, scope_name="relation_resnet50", features_size=51):
         """
         This function creates the resnet50 relation network
         :return:
         """
         with tf.variable_scope(scope_name):
-
             net = ModelZoo()
-            model_resnet50 = net.resnet50_with_masking_dual(self.relation_inputs_ph, trainable=self.config.resnet_body_trainable)
-            self._model_resnet50_reltaion = model_resnet50
+            model_resnet50 = net.resnet50_with_masking_dual(self.relation_inputs_ph,
+                                                            trainable=self.config.resnet_body_trainable)
             model_resnet50 = GlobalAveragePooling2D(name='global_avg_pool')(model_resnet50)
             self.output_resnet50_relation = Dense(features_size, kernel_initializer="he_normal", activation=None,
-                                         name='fc')(model_resnet50)
+                                                  name='fc')(model_resnet50)
 
             M = tf.constant([features_size], dtype=tf.int32, name="M_relation")
             relations_shape = tf.concat((self.num_objects_ph, self.num_objects_ph, M), 0)
             self.output_resnet50_relation_reshaped = tf.reshape(self.output_resnet50_relation, relations_shape)
 
-    def create_resnet_entity_net(self, scope_name="entity_resnet50", features_size=300):
+    def create_resnet_entity_net(self, scope_name="entity_resnet50", features_size=150):
         """
         This function creates the resnet50 entity network
         :return:
         """
         with tf.variable_scope(scope_name):
-
             net = ModelZoo()
             model_resnet50, layers_for_fpn = net.resnet50_base(self.image_ph,
-                                                               trainable=self.config.resnet_body_trainable, use_fpn=True)
+                                                               trainable=self.config.resnet_body_trainable,
+                                                               use_fpn=True)
 
             # FPN
             fpn_feature_maps = net.feature_pyramid_pooling(layers_for_fpn)
             model_fpn_classifier = net.fpn_classifier(self.entity_bb_ph, fpn_feature_maps, [1024, 1024, 3], 7)
-            output_fpn_entity = tf.reshape(model_fpn_classifier, (-1, 7*7*256))
-            M = tf.constant([7*7*256], dtype=tf.int32, name="M_entity")
-            relations_shape = tf.concat((self.num_objects_ph, M), 0)
-            output_fpn_entity_reshaped = tf.reshape(output_fpn_entity, relations_shape)
-            self.output_resnet50_entity_reshaped = tf.layers.dense(inputs=output_fpn_entity_reshaped,
+            # Resize to [num_boxes, 7 * 7 * 256] - we assume batch is 1
+            self.output_fpn_entity = tf.reshape(model_fpn_classifier, (-1, 7 * 7 * 256))
+            # M = tf.constant([7 * 7 * 256], dtype=tf.int32, name="M_entity")
+            # relations_shape = tf.concat((self.num_objects_ph, M), 0)
+            # self.output_fpn_entity_reshaped = tf.reshape(self.output_fpn_entity, relations_shape)
+            self.output_resnet50_entity_reshaped = tf.layers.dense(inputs=self.output_fpn_entity,
                                                                    units=features_size, activation=self.activation_fn)
 
     def sgp(self):
@@ -201,8 +201,10 @@ class End2EndModel(object):
         confidence_entity = self.output_resnet50_entity_reshaped
 
         # rnn0
-        self.out_confidence_relation_lst.append(self.nn([confidence_relation], layers=[], out=self.nof_predicates, scope_name="rel_direct"))
-        self.out_confidence_entity_lst.append(self.nn([confidence_entity], layers=[], out=self.nof_objects, scope_name="ent_direct"))
+        self.out_confidence_relation_lst.append(
+            self.nn([confidence_relation], layers=[], out=self.nof_predicates, scope_name="rel_direct"))
+        self.out_confidence_entity_lst.append(
+            self.nn([confidence_entity], layers=[], out=self.nof_objects, scope_name="ent_direct"))
 
         # iterations of the features message
         for step in range(self.rnn_steps):
@@ -305,7 +307,6 @@ class End2EndModel(object):
             self.expand_subject_features = tf.transpose(self.expand_object_features, perm=[1, 0, 2],
                                                         name="expand_subject_features")
 
-
             ##
             # Node Neighbours
             self.object_ngbrs = [self.expand_object_features, self.expand_subject_features, relation_features]
@@ -364,7 +365,7 @@ class End2EndModel(object):
                                  scope_name="nn_pred")
             # pred_forget_gate = self.nn(features=self.relation_all_features, layers=[], out=1,
             #                            scope_name="nn_pred_forgate", last_activation=tf.nn.sigmoid)
-            out_confidence_relation = pred_delta# + pred_forget_gate * relation_features
+            out_confidence_relation = pred_delta  # + pred_forget_gate * relation_features
 
             ##
             # rho entity (entity prediction)
@@ -375,7 +376,7 @@ class End2EndModel(object):
                                     scope_name="nn_obj")
                 # obj_forget_gate = self.nn(features=self.object_all_features, layers=[], out=self.nof_objects,
                 #                           scope_name="nn_obj_forgate", last_activation=tf.nn.sigmoid)
-                out_confidence_object = obj_delta# + obj_forget_gate * orig_entity_features
+                out_confidence_object = obj_delta  # + obj_forget_gate * orig_entity_features
             else:
                 out_confidence_object = orig_entity_features
 
