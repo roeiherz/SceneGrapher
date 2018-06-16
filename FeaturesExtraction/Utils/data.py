@@ -710,6 +710,10 @@ def get_module_filter_data_referring(entities_file_name="full_entities.p", creat
     entity_curr = 0
     for entity in entities:
         img_id = entity.image.id
+
+        if '{}.jpg'.format(img_id) not in annotations:
+            continue
+
         objects_filtered = []
 
         for object in entity.objects:
