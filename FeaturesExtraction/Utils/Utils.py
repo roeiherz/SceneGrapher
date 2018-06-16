@@ -53,6 +53,10 @@ EXTRACTED_DATA_SPLIT_PATH = "FilesManager/Data/VisualGenome/ExtractedData"
 WEIGHTS_NAME = 'model_vg_resnet50.hdf5'
 DATA = "data"
 VISUAL_GENOME = "visual_genome"
+OBJECTS_REFERRING_LIST = "object_referring_list"
+PREDICATES_REFERRING_LIST = "predicate_referring_list"
+ANNOTATIONS_REFERRING_TRAIN = "annotaions_train"
+ANNOTATIONS_REFERRING_TEST = "annotaions_test"
 POSITIVE_NEGATIVE_RATIO = 3
 
 

@@ -27,7 +27,7 @@ from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE,
 from TrainCNN import preprocessing_objects
 from Utils.Utils import create_folder
 from FeaturesExtraction.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data, \
-    visualize_detections, process_to_detections
+    visualize_detections, process_to_detections, get_module_filter_data_referring
 from PredictVisualModel import get_resize_images_array, load_full_detections, get_model
 from FeaturesExtraction.Utils.Utils import VG_VisualModule_PICKLES_PATH
 from FeaturesExtraction.Lib.Config import Config
@@ -1337,9 +1337,15 @@ if __name__ == '__main__':
     file_manager = FilesManager()
     logger = Logger()
 
-    # load_NYU_dataset(file_path="splits.mat")
-    vis_entities()
+    # # Referring Relationships
+    # Filter the data
+    get_module_filter_data_referring(entities_file_name="full_entities.p", create_negative=True,
+                                     positive_negative_ratio=POSITIVE_NEGATIVE_RATIO)
     exit()
+
+    # # load_NYU_dataset(file_path="splits.mat")
+    # vis_entities()
+    # exit()
 
     # get_corpus_from_image_captioning()
 

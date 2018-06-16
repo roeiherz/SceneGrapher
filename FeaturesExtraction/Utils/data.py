@@ -10,13 +10,14 @@ import operator
 from Data.VisualGenome.local import GetSceneGraph
 from Data.VisualGenome.models import Relationship, RelationshipMapping
 from FeaturesExtraction.Lib.PascalVoc import PascalVoc
-from FeaturesExtraction.Utils.Boxes import find_union_box
+from FeaturesExtraction.Utils.Boxes import find_union_box, boxes_overlap
 from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, DATA_PATH, CLASSES_MAPPING_FILE, CLASSES_COUNT_FILE, \
     TRAIN_IMGS_P, VAL_IMGS_P, VisualGenome_PICKLES_PATH, ENTITIES_FILE, HIERARCHY_MAPPING, PascalVoc_PICKLES_PATH, \
     VALIDATION_DATA_SET, TEST_DATA_SET, TRAIN_DATA_SET, VG_VisualModule_PICKLES_PATH, get_mask_from_object, \
     MINI_VG_DATASET_PATH, MINI_IMDB, get_time_and_date, VG_PICKLES_FOLDER_PATH, VisualGenome_DATASETS_PICKLES_PATH, \
     get_img, POSITIVE_NEGATIVE_RATIO, OBJECTS_ALIAS, PREDICATES_ALIAS, PREDICATES_LIST, OBJECTS_LIST, \
-    DATA, VISUAL_GENOME, OUTPUTS_PATH, get_bad_urls
+    DATA, VISUAL_GENOME, OUTPUTS_PATH, get_bad_urls, OBJECTS_REFERRING_LIST, PREDICATES_REFERRING_LIST, \
+    ANNOTATIONS_REFERRING_TRAIN, ANNOTATIONS_REFERRING_TEST
 from DesignPatterns.Detections import Detections
 from FeaturesExtraction.Utils.Visualizer import VisualizerDrawer, CvColor
 import cv2
@@ -569,6 +570,301 @@ def preprocess_entities_by_mapping(entities, objects_alias_mapping, predicates_a
                 relation.predicate = candidate_predicate
 
 
+def match_candidate_relation(relation, candidates, threshold=0.9):
+    """
+    This function find match between the candidate and relation by compare overlap greater than threshold
+    :param threshold: threshold of the overlap
+    :param relation: relationship from entity
+    :param candidates: candidate from JSON file
+    :return: True if we finds a match or False otherwise.
+    """
+
+    for candidate in candidates:
+
+        # Get Subject mask from candidate
+        x1_sub_cand = candidate['subject']['bbox'][2]
+        y1_sub_cand = candidate['subject']['bbox'][0]
+        x2_sub_cand = candidate['subject']['bbox'][3]
+        y2_sub_cand = candidate['subject']['bbox'][1]
+        sub_cand_mask = np.array([x1_sub_cand, y1_sub_cand, x2_sub_cand, y2_sub_cand])
+
+        # Get Object mask from candidate
+        x1_obj_cand = candidate['object']['bbox'][2]
+        y1_obj_cand = candidate['object']['bbox'][0]
+        x2_obj_cand = candidate['object']['bbox'][3]
+        y2_obj_cand = candidate['object']['bbox'][1]
+        obj_cand_mask = np.array([x1_obj_cand, y1_obj_cand, x2_obj_cand, y2_obj_cand])
+
+        # Get Subject mask from relation
+        subject_mask = get_mask_from_object(relation.subject)
+        subject_box = np.array([subject_mask['x1'], subject_mask['y1'], subject_mask['x2'], subject_mask['y2']])
+
+        # Get Object mask from relation
+        object_mask = get_mask_from_object(relation.object)
+        object_box = np.array([object_mask['x1'], object_mask['y1'], object_mask['x2'], object_mask['y2']])
+
+        # Check overlap between the mask and the candidate
+        if boxes_overlap(sub_cand_mask, subject_box)[0] > threshold \
+                and boxes_overlap(obj_cand_mask, object_box)[0] > threshold:
+            return True
+
+    return False
+
+
+def get_module_filter_data_referring(entities_file_name="full_entities.p", create_negative=False,
+                                     positive_negative_ratio=POSITIVE_NEGATIVE_RATIO):
+    """
+    This function filtered the entities data by top num of objects and top number of predicates 
+    :return: filtered_module_data which is a dict with entities, hierarchy mapping of objects and hierarchy mapping of 
+                predicates
+    """
+
+    filemanager = FilesManager()
+
+    # region Loading
+
+    # # Load Objects alias
+    objects_alias_filename = filemanager.get_file_path(
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(OBJECTS_ALIAS)))
+    objects_alias_mapping, objects_alias_words_target = make_alias_dict(objects_alias_filename)
+
+    # # Load Predicates alias
+    predicates_alias_filename = filemanager.get_file_path(
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(PREDICATES_ALIAS)))
+    predicates_alias_mapping, predicates_alias_words_target = make_alias_dict(predicates_alias_filename)
+
+    # # Load Objects list - Referring
+    objects_to_be_used = filemanager.load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, OBJECTS_REFERRING_LIST))
+
+    objects_to_be_used_aliased = [objects_alias_mapping[object.lower()]
+                                  if object.lower() in objects_alias_mapping else object.lower()
+                                  for object in objects_to_be_used]
+
+    objects_to_be_used = set(objects_to_be_used_aliased)
+
+    # # Load Predicates list - Referring
+    predicates_to_be_used = filemanager.load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, PREDICATES_REFERRING_LIST))
+
+    predicates_to_be_used_aliased = [predicates_alias_mapping[predicate.lower()]
+                                     if predicate.lower() in predicates_alias_mapping else predicate.lower()
+                                     for predicate in predicates_to_be_used]
+
+    predicates_to_be_used = set(predicates_to_be_used_aliased)
+
+    # Load entities
+    entities = np.array(filemanager.load_file(
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(entities_file_name))))
+
+    # Load annotations
+    annotations_train = filemanager.load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, ANNOTATIONS_REFERRING_TRAIN))
+    annotations_test = filemanager.load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, ANNOTATIONS_REFERRING_TEST))
+
+    # Merge between the train and test
+    annotations = annotations_train.copy()
+    annotations.update(annotations_test)
+
+    # @todo: for debbuging
+    entities = entities[:1000]
+
+    # endregion
+
+    # region Mappings
+    object_ids = {}
+    id = 0
+    for object in objects_to_be_used:
+        object_ids[object] = id
+        id += 1
+
+    predicate_ids = {}
+    id = 0
+    for predicate in predicates_to_be_used:
+        predicate_ids[predicate] = id
+        id += 1
+
+    # Add negative id
+    predicate_ids[u'neg'] = id
+
+    # Save objects hierarchy mappings
+    filemanager.save_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "hierarchy_mapping_referring_objects"),
+                          object_ids)
+
+    # Save predicates hierarchy mappings
+    filemanager.save_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "hierarchy_mapping_referring_predicates"),
+                          predicate_ids)
+
+    # endregion
+
+    # region PreProcess Objects by Mapping
+    preprocess_entities_by_mapping(entities, objects_alias_mapping, predicates_alias_mapping)
+    # endregion
+
+    # region Create Entities Data
+
+    # Counts index for relationship id
+    relation_ind = 0
+    object_ind = 0
+    total_object = 0
+    total_relations = 0
+    total_negatives = 0
+    relation_id = 10000000
+    entity_curr = 0
+    for entity in entities:
+        img_id = entity.image.id
+        objects_filtered = []
+
+        for object in entity.objects:
+            total_object += 1
+            # Filter out object
+            if not object.names[0] in objects_to_be_used:
+                continue
+
+            objects_filtered.append(object)
+            object_ind += 1
+
+        # Rewrite objects
+        entity.objects = objects_filtered[:]
+
+        relationship_filtered = []
+        candidates = annotations['{}.jpg'.format(img_id)]
+        for relation in entity.relationships:
+
+            # Filter out object
+            if not relation.subject.names[0] in objects_to_be_used:
+                continue
+            if not relation.object.names[0] in objects_to_be_used:
+                continue
+
+            # Filter out predicate
+            if not relation.predicate in predicates_to_be_used:
+                continue
+
+            # Filter out predicate that not belongs to the queries of Referring
+            if not match_candidate_relation(relation, candidates):
+                continue
+
+            # New filtered Id
+            relation.filtered_id = relation_ind
+            # Increment id
+            relation_ind += 1
+            relationship_filtered.append(relation)
+
+        # Rewrite relations - the slice is for copy the list
+        entity.relationships = relationship_filtered[:]
+        # Increment
+        entity_curr += 1
+
+        # Check the relationship_filtered list is not empty
+        if create_negative and relationship_filtered:
+            # Create Negatives
+            negative_relations, relation_ind, relation_id = create_negative_relations(entity, relation_id, relation_ind,
+                                                                                      positive_negative_ratio=positive_negative_ratio)
+            # Rewrite relationships
+            entity.relationships += negative_relations
+            total_negatives += len(negative_relations)
+            # Print
+            print("Number of (negatives, positive) relations ({0}, {1}) in Entity number: {2}".format(
+                len(negative_relations), len(relationship_filtered), entity_curr))
+        else:
+            print("Warning: No relations in Entity: {}".format(entity_curr))
+
+        ## Add GT to entities
+        # Queries GT labeling - [num queries, num_objects, 3]
+        queries_gt = []
+
+        # Relations One Hot GT - shape [num_objects, 100 + 100 + 70]
+        one_hot_relations_gt = []
+
+        # Save relation_id to img_id mapping
+
+        for relation in entity.relationships:
+
+            ## Queries GT
+            # Mark every objects as negative
+            objects_hot = np.zeros((len(entity.objects), 3))
+            objects_hot[:, 2] = 1
+
+            # Object
+            obj = relation.object
+            # obj_id = mapping_obj_to_id[obj.id]
+            obj_id = entity.objects.index(obj)
+            # Mark object and cancel the negative
+            objects_hot[obj_id, 2] = 0
+            objects_hot[obj_id, 1] = 1
+
+            # Subject
+            sub = relation.subject
+            # sub_id = mapping_obj_to_id[sub.id]
+            sub_id = entity.objects.index(sub)
+            # Mark subject and cancel the negative
+            objects_hot[sub_id, 2] = 0
+            objects_hot[sub_id, 0] = 1
+            queries_gt.append(objects_hot)
+
+            ## Relations one hot GT
+            # Object
+            obj_one_hot_vector = np.zeros(len(object_ids), dtype='uint8')
+            obj_label = obj.names[0]
+            obj_one_hot_vector[object_ids[obj_label]] = 1
+
+            # Subject
+            sub_one_hot_vector = np.zeros(len(object_ids), dtype='uint8')
+            sub_label = sub.names[0]
+            sub_one_hot_vector[object_ids[sub_label]] = 1
+
+            # Predicate
+            pred_one_hot_vector = np.zeros(len(predicate_ids), dtype='uint8')
+            pred_label = relation.predicate
+            pred_one_hot_vector[predicate_ids[pred_label]] = 1
+
+            # Concatenate hot vectors
+            one_hot_relation = np.hstack([sub_one_hot_vector, obj_one_hot_vector, pred_one_hot_vector])
+            one_hot_relations_gt.append(one_hot_relation)
+
+        # Save queries_gt - [num queries, num_objects, 3]
+        entity.queries_gt = np.array(queries_gt)
+        # Save one_hot_relation_gt - [num queries, 96 + 96 + 43]
+        entity.one_hot_relations_gt = np.array(one_hot_relations_gt)
+
+        total_relations += len(entity.relationships)
+
+    print("Number of filtered relations: {}".format(relation_ind))
+    print("Number of filtered objects: {}".format(object_ind))
+    print("Number of total objects: {}".format(total_object))
+    print("Number of total relations: {}".format(total_relations))
+    print("Number of total negatives: {}".format(total_negatives))
+
+    # endregion
+
+    # region Splitting Entities Train and Test
+    img_id_to_split = FilesManager().load_file("data.visual_genome.img_id_to_split")
+
+    # Split and sort the dataset
+    train_entities_lst = []
+    test_entities_lst = []
+
+    for entity in entities:
+        img_id = entity.image.id
+
+        # Filter out img_id that not in the annotations
+
+        # Train entities
+        if "{}.jpg".format(img_id) in annotations_train:
+            train_entities_lst.append(entity)
+
+        # Test entities
+        if "{}.jpg".format(img_id) in annotations_test:
+            test_entities_lst.append(entity)
+
+    # endregion
+
+    # region Save the train and test
+    filemanager.save_file(
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "filtered_data_referring_train"), train_entities_lst)
+    filemanager.save_file(
+        "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, "filtered_data_referring_test"), test_entities_lst)
+    # endregion
+
+
 def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entities_file_name="full_entities.p",
                            predicates_count_file_name="mini_predicates_count.p", nof_objects=150, nof_predicates=50,
                            create_negative=False, positive_negative_ratio=POSITIVE_NEGATIVE_RATIO):
@@ -580,22 +876,22 @@ def get_module_filter_data(objects_count_file_name="mini_classes_count.p", entit
 
     filemanager = FilesManager()
 
-    # Load Objects alias
+    # # Load Objects alias
     objects_alias_filename = filemanager.get_file_path(
         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(OBJECTS_ALIAS)))
     objects_alias_mapping, objects_alias_words_target = make_alias_dict(objects_alias_filename)
 
-    # Load Predicates alias
+    # # Load Predicates alias
     predicates_alias_filename = filemanager.get_file_path(
         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(PREDICATES_ALIAS)))
     predicates_alias_mapping, predicates_alias_words_target = make_alias_dict(predicates_alias_filename)
 
-    # Load Objects list
+    # Load Objects list - SgCls and PredCls
     objects_list_filename = filemanager.get_file_path(
         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(OBJECTS_LIST)))
     objects_to_be_used = make_list(objects_list_filename)
 
-    # Load Predicates list
+    # Load Predicates list - SgCls and PredCls
     predicates_list_filename = filemanager.get_file_path(
         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(PREDICATES_LIST)))
     predicates_to_be_used = make_list(predicates_list_filename)

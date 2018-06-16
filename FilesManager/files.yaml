@@ -5,6 +5,48 @@ logs:
     doc: "default folder for logs"
 data:
     visual_genome:
+
+        # Referring
+        predicate_referring_list:
+            name: "Data/VisualGenome/Referring/predicates.json"
+            type: "json"
+            doc:  "70 predicates labels"
+        object_referring_list:
+            name: "Data/VisualGenome/Referring/objects.json"
+            type: "json"
+            doc:  "100 objects labels"
+
+        hierarchy_mapping_referring_objects:
+            name: "Data/VisualGenome/Referring/hierarchy_mapping_referring_objects.p"
+            type: "pickle"
+            doc: "dictionary mapping supported object labels to object ids"
+
+        hierarchy_mapping_referring_predicates:
+            name: "Data/VisualGenome/Referring/hierarchy_mapping_referring_predicates.p"
+            type: "pickle"
+            doc: "dictionary mapping supported object labels to predicate ids"
+
+        annotaions_train:
+            name: "Data/VisualGenome/Referring/annotations_train.json"
+            type: "json"
+            doc: "dictionary mapping img ids to training annotations of Referring"
+
+        annotaions_test:
+            name: "Data/VisualGenome/Referring/annotations_test.json"
+            type: "json"
+            doc: "dictionary mapping img ids to testing annotations of Referring"
+
+        filtered_data_referring_train:
+            name: "Data/VisualGenome/Referring/filtered_data_referring_train.p"
+            type: "pickle"
+            doc: "List of entities for training in Referring"
+
+        filtered_data_referring_test:
+            name: "Data/VisualGenome/Referring/filtered_data_referring_test.p"
+            type: "pickle"
+            doc: "List of entities for testing in Referring"
+
+        # SgCls and PredCls
         train:
             name: "../End2EndModel/data/train"
             type: "dir"
