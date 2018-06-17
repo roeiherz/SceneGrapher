@@ -23,7 +23,7 @@ from FeaturesExtraction.Utils.Visualizer import VisualizerDrawer, CvColor
 import cv2
 import h5py
 import sys
-
+import itertools
 from FilesManager.FilesManager import FilesManager
 
 __author__ = 'roeih'
@@ -778,7 +778,9 @@ def get_module_filter_data_referring(entities_file_name="full_entities.p", creat
         # Relations One Hot GT - shape [num_objects, 100 + 100 + 70]
         one_hot_relations_gt = []
 
-        # Save relation_id to img_id mapping
+        # Predicate labels GT
+        # Create a dict with key as pairs - (subject, object) and their values are predicates use for labels
+        relations_dict = {}
 
         for relation in entity.relationships:
 
@@ -824,11 +826,36 @@ def get_module_filter_data_referring(entities_file_name="full_entities.p", creat
             one_hot_relation = np.hstack([sub_one_hot_vector, obj_one_hot_vector, pred_one_hot_vector])
             one_hot_relations_gt.append(one_hot_relation)
 
+            if (relation.subject.id, relation.object.id) in relations_dict:
+                print("**Error in entity image {0} in relations_dict the tuple ({1}, {2}) is already in!**"
+                             .format(entity.image.id, relation.subject.id, relation.object.id))
+            relations_dict[(relation.subject.id, relation.object.id)] = relation.predicate
+
         # Save queries_gt - [num queries, num_objects, 3]
         entity.queries_gt = np.array(queries_gt)
         # Save one_hot_relation_gt - [num queries, 96 + 96 + 43]
         entity.one_hot_relations_gt = np.array(one_hot_relations_gt)
 
+        # # Save Object labels
+        # Get the GT labels - [len(objects), ]
+        index_labels_per_gt_sample = np.array([object_ids[object.names[0]] for object in entity.objects])
+        # Get the object labels on hot vector per object [len(objects), 150]
+        entity.objects_labels = np.eye(len(object_ids), dtype='uint8')[index_labels_per_gt_sample.reshape(-1)]
+
+        # # Save Predicate labels
+        # Create object pairs
+        objects_pairs = list(itertools.product(entity.objects, repeat=2))
+
+        # Get the GT mapping labels - [ len(objects_pairs), ]
+        index_labels_per_gt_sample = np.array([predicate_ids[relations_dict[(pair[0].id, pair[1].id)]]
+                                               if (pair[0].id, pair[1].id) in relations_dict
+                                               else predicate_ids['neg']
+                                               for pair in objects_pairs])
+        # Get the object labels on hot vector per object [len(objects), 51]
+        predicates_labels = np.eye(len(predicate_ids), dtype='uint8')[index_labels_per_gt_sample.reshape(-1)]
+        # Save predicate label
+        entity.predicates_labels = predicates_labels.reshape(
+            (len(entity.objects), len(entity.objects), len(predicate_ids)))
         total_relations += len(entity.relationships)
 
     print("Number of filtered relations: {}".format(relation_ind))
@@ -840,7 +867,6 @@ def get_module_filter_data_referring(entities_file_name="full_entities.p", creat
     # endregion
 
     # region Splitting Entities Train and Test
-    img_id_to_split = FilesManager().load_file("data.visual_genome.img_id_to_split")
 
     # Split and sort the dataset
     train_entities_lst = []
