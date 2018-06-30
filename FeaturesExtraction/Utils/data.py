@@ -17,7 +17,8 @@ from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, DATA_PATH, CLASSES_MAP
     MINI_VG_DATASET_PATH, MINI_IMDB, get_time_and_date, VG_PICKLES_FOLDER_PATH, VisualGenome_DATASETS_PICKLES_PATH, \
     get_img, POSITIVE_NEGATIVE_RATIO, OBJECTS_ALIAS, PREDICATES_ALIAS, PREDICATES_LIST, OBJECTS_LIST, \
     DATA, VISUAL_GENOME, OUTPUTS_PATH, get_bad_urls, OBJECTS_REFERRING_LIST, PREDICATES_REFERRING_LIST, \
-    ANNOTATIONS_REFERRING_TRAIN, ANNOTATIONS_REFERRING_TEST
+    ANNOTATIONS_REFERRING_TRAIN, ANNOTATIONS_REFERRING_TEST, rescale_bbox_coordinates, METADATA_REFERRING_TRAIN, \
+    METADATA_REFERRING_TEST
 from DesignPatterns.Detections import Detections
 from FeaturesExtraction.Utils.Visualizer import VisualizerDrawer, CvColor
 import cv2
@@ -570,7 +571,7 @@ def preprocess_entities_by_mapping(entities, objects_alias_mapping, predicates_a
                 relation.predicate = candidate_predicate
 
 
-def match_candidate_relation(relation, candidates, threshold=0.9):
+def match_candidate_relation(relation, candidates, metadata, threshold=0.9):
     """
     This function find match between the candidate and relation by compare overlap greater than threshold
     :param threshold: threshold of the overlap
@@ -588,12 +589,18 @@ def match_candidate_relation(relation, candidates, threshold=0.9):
         y2_sub_cand = candidate['subject']['bbox'][1]
         sub_cand_mask = np.array([x1_sub_cand, y1_sub_cand, x2_sub_cand, y2_sub_cand])
 
+        # sub_cand_mask = rescale_bbox_coordinates(candidate['subject']['bbox'], metadata['height'], metadata['width'],
+        #                                          output_dim=1024)
+
         # Get Object mask from candidate
         x1_obj_cand = candidate['object']['bbox'][2]
         y1_obj_cand = candidate['object']['bbox'][0]
         x2_obj_cand = candidate['object']['bbox'][3]
         y2_obj_cand = candidate['object']['bbox'][1]
         obj_cand_mask = np.array([x1_obj_cand, y1_obj_cand, x2_obj_cand, y2_obj_cand])
+
+        # obj_cand_mask = rescale_bbox_coordinates(candidate['object']['bbox'], metadata['height'], metadata['width'],
+        #                                          output_dim=1024)
 
         # Get Subject mask from relation
         subject_mask = get_mask_from_object(relation.subject)
@@ -652,8 +659,10 @@ def get_module_filter_data_referring(entities_file_name="full_entities.p", creat
     predicates_to_be_used = set(predicates_to_be_used_aliased)
 
     # Load entities
+    # @todo: for debugging
     entities = np.array(filemanager.load_file(
         "{0}.{1}.{2}".format(DATA, VISUAL_GENOME, get_name_from_file(entities_file_name))))
+    # entities = cPickle.load(open("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/Data/VisualGenome/Referring/data_test_problems.p"))
 
     # Load annotations
     annotations_train = filemanager.load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, ANNOTATIONS_REFERRING_TRAIN))
@@ -663,8 +672,27 @@ def get_module_filter_data_referring(entities_file_name="full_entities.p", creat
     annotations = annotations_train.copy()
     annotations.update(annotations_test)
 
+    # Load Image MetaData
+    metadata_train = filemanager.load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, METADATA_REFERRING_TRAIN))
+    metadata_test = filemanager.load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, METADATA_REFERRING_TEST))
+
+    # Merge between the train and test
+    metadata = metadata_train.copy()
+    metadata.update(metadata_test)
+
     # @todo: for debbuging
-    entities = entities[:1000]
+    # entities = entities[:1000]
+
+    # tt = []
+    # qq = [35, 347, 1058, 1075, 1516, 2216, 2464, 2487, 2884, 3266, 3519, 3864, 4232, 4562, 4571, 4690, 2415139, 61567, 107909, 285686, 1160136, 1592011, 1592839, 1593182, 2413061, 2410876, 2410708, 2409782, 2409647, 2409186, 2409171, 2408785, 2408876, 2408576, 2408219, 2408135, 2407382, 2407020, 2406900, 2406511, 2406340, 2405558, 2404813, 2404071, 2403723, 2403183, 2402936, 2402859, 2402620, 2402527, 2401260, 2400223, 2399484, 2399452, 2399018, 2397985, 2397659, 2397610, 2397545, 2397518, 2397482, 2396281, 2395464, 2393688, 2393624, 2393425, 2392629, 2392571, 2392320, 2392162, 2391561, 2390850, 2389104, 2388678, 2387288, 2384040, 2383457, 2380841, 2379335, 2378922, 2378652, 2378348, 2377859, 2377482, 2377416, 2377247, 2377067, 2377063, 2376877, 2375905, 2375408, 2374284, 2373778, 2373613, 2373417, 2373148, 2372716, 2372583, 2372501, 2372051, 2370610, 2370289, 2370247, 2369206, 2368328, 2368178, 2367356, 2367174, 2365716, 2365120, 2364671, 2364532, 2363510, 2363489, 2363192, 2362344, 2361949, 2361461, 2361239, 2360875, 2360075, 2359667, 2358694, 2356441, 2356028, 2354419, 2354183, 2353390, 2352838, 2352673, 2352133, 2350368, 2350189, 2349355, 2349332, 2347462, 2346704, 2346470, 2345232, 2344766, 2344625, 2344236, 2343637, 2343208, 2342395, 2341053, 2340532, 2340407, 2339807, 2338962, 2338700, 2338464, 2338388, 2338357, 2338276, 2338122, 2337731, 2336941, 2336900, 2336632, 2336156, 2335942, 2335180, 2334318, 2333909, 2333294, 2332384, 2332005, 2331936, 2331721, 2331674, 2331287, 2330543, 2329968, 2329892, 2329256, 2329052, 2328732, 2328711, 2328545, 2328506, 2328473, 2327938, 2327760, 2327327, 2326114, 2325829, 2324988, 2324886, 2324605, 2324369, 2324064, 2323210, 2322917, 2322916, 2322749, 2322492, 2322167, 2322011, 2321966, 2320591, 2319724, 2319615, 2319449, 2319175, 2319027, 2317958, 2317450, 2317387, 2317137, 2317070, 2315808, 2315587, 2315483, 2413331, 2413190, 2411965, 2411564, 2416047, 2416359, 2417427, 2417804, 2417922, 2417941]
+    # for entity in entities:
+    #     if entity.image.id in qq:
+    #         tt.append(entity)
+
+    # fl = open("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/Data/VisualGenome/Referring/data_test_problems.p")
+    # cPickle.dump(tt, fl)
+    # fl.close()
+
 
     # endregion
 
@@ -769,7 +797,8 @@ def get_module_filter_data_referring(entities_file_name="full_entities.p", creat
             print("Number of (negatives, positive) relations ({0}, {1}) in Entity number: {2}".format(
                 len(negative_relations), len(relationship_filtered), entity_curr))
         else:
-            print("Warning: No relations in Entity: {}".format(entity_curr))
+            print("Warning: No relations in Entity: {0} and ImageID: {1}".format(entity_curr, entity.image.id))
+            continue
 
         ## Add GT to entities
         # Queries GT labeling - [num queries, num_objects, 3]
@@ -783,6 +812,16 @@ def get_module_filter_data_referring(entities_file_name="full_entities.p", creat
         relations_dict = {}
 
         for relation in entity.relationships:
+            if (relation.subject.id, relation.object.id) in relations_dict:
+                print("**Error in entity image {0} in relations_dict the tuple ({1}, {2}) is already in!**"
+                             .format(entity.image.id, relation.subject.id, relation.object.id))
+            relations_dict[(relation.subject.id, relation.object.id)] = relation.predicate
+
+        for relation in entity.relationships:
+
+            # Take only relations from relations dict (not duplicates are allowed in queries_gt)
+            if not (relation.subject.id, relation.object.id) in relations_dict:
+                continue
 
             ## Queries GT
             # Mark every objects as negative
@@ -825,11 +864,6 @@ def get_module_filter_data_referring(entities_file_name="full_entities.p", creat
             # Concatenate hot vectors
             one_hot_relation = np.hstack([sub_one_hot_vector, obj_one_hot_vector, pred_one_hot_vector])
             one_hot_relations_gt.append(one_hot_relation)
-
-            if (relation.subject.id, relation.object.id) in relations_dict:
-                print("**Error in entity image {0} in relations_dict the tuple ({1}, {2}) is already in!**"
-                             .format(entity.image.id, relation.subject.id, relation.object.id))
-            relations_dict[(relation.subject.id, relation.object.id)] = relation.predicate
 
         # Save queries_gt - [num queries, num_objects, 3]
         entity.queries_gt = np.array(queries_gt)

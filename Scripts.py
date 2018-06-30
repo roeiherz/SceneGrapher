@@ -1,3 +1,4 @@
+import json
 import traceback
 import scipy.io
 import matplotlib
@@ -23,7 +24,9 @@ from FeaturesExtraction.Utils.Utils import VG_PATCH_PATH, PREDICATES_COUNT_FILE,
     HIERARCHY_MAPPING, plot_graph, POSITIVE_NEGATIVE_RATIO, DATA_PATH, CLASSES_COUNT_FILE, RELATIONS_COUNT_FILE, \
     VisualGenome_PICKLES_PATH, TRAINING_OBJECTS_CNN_PATH, WEIGHTS_NAME, TRAINING_PREDICATE_CNN_PATH, \
     PREDICATED_FEATURES_PATH, get_time_and_date, get_img, FILTERED_DATA_SPLIT_PATH, PROJECT_ROOT, \
-    EXTRACTED_DATA_SPLIT_PATH, DATA, VISUAL_GENOME, VG_DATA_PATH, PREPROCESSED_FILTERED_DATA_SPLIT_PATH
+    EXTRACTED_DATA_SPLIT_PATH, DATA, VISUAL_GENOME, VG_DATA_PATH, PREPROCESSED_FILTERED_DATA_SPLIT_PATH, \
+    ANNOTATIONS_REFERRING_TRAIN, ANNOTATIONS_REFERRING_TEST, rescale_bbox_coordinates, METADATA_REFERRING_TRAIN, \
+    METADATA_REFERRING_TEST
 from TrainCNN import preprocessing_objects
 from Utils.Utils import create_folder
 from FeaturesExtraction.Utils.data import create_mini_data_visual_genome, get_module_filter_data, get_filtered_data, \
@@ -1330,6 +1333,72 @@ def load_NYU_dataset(file_path):
     mat = scipy.io.loadmat(path)
 
 
+def check_referring_data():
+    # Load annotations
+    annotations_train = file_manager.load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, ANNOTATIONS_REFERRING_TRAIN))
+    annotations_test = file_manager.load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, ANNOTATIONS_REFERRING_TEST))
+
+    # Merge between the train and test
+    annotations = annotations_train.copy()
+    annotations.update(annotations_test)
+
+    # Load Image MetaData
+    metadata_train = file_manager.load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, METADATA_REFERRING_TRAIN))
+    metadata_test = file_manager.load_file("{0}.{1}.{2}".format(DATA, VISUAL_GENOME, METADATA_REFERRING_TEST))
+
+    # Merge between the train and test
+    metadata = metadata_train.copy()
+    metadata.update(metadata_test)
+
+    objs_cand = json.load(
+        open("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/Data/VisualGenome/Referring/objects.json"))
+    predicates_cand = json.load(open(
+        "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/Data/VisualGenome/Referring/predicates.json"))
+    entities = cPickle.load(open(
+        "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/Data/VisualGenome/Referring/data_test_problems.p"))
+
+    for entity in entities:
+        img = get_img(entity.image.url, original=False)
+        img_id = entity.image.id
+        candidates = annotations['{}.jpg'.format(entity.image.id)]
+        for candidate in candidates:
+            # Get Subject mask from candidate
+            # x1_sub_cand = candidate['subject']['bbox'][2]
+            # y1_sub_cand = candidate['subject']['bbox'][0]
+            # x2_sub_cand = candidate['subject']['bbox'][3]
+            # y2_sub_cand = candidate['subject']['bbox'][1]
+            # sub_cand_mask = np.array([x1_sub_cand, y1_sub_cand, x2_sub_cand, y2_sub_cand])
+            sub_cand_mask = rescale_bbox_coordinates(candidate['subject']['bbox'],
+                                                     metadata['{}.jpg'.format(img_id)]['height'],
+                                                     metadata['{}.jpg'.format(img_id)]['width'], output_dim_h=800,
+                                                     output_dim_w=1024)
+
+            # Get Object mask from candidate
+            # x1_obj_cand = candidate['object']['bbox'][2]
+            # y1_obj_cand = candidate['object']['bbox'][0]
+            # x2_obj_cand = candidate['object']['bbox'][3]
+            # y2_obj_cand = candidate['object']['bbox'][1]
+            # obj_cand_mask = np.array([x1_obj_cand, y1_obj_cand, x2_obj_cand, y2_obj_cand])
+            obj_cand_mask = rescale_bbox_coordinates(candidate['object']['bbox'],
+                                                     metadata['{}.jpg'.format(img_id)]['height'],
+                                                     metadata['{}.jpg'.format(img_id)]['width'], output_dim_h=800,
+                                                     output_dim_w=1024)
+
+            VisualizerDrawer.draw_labeled_box(img, sub_cand_mask,
+                                              label="{0}_{1}".format(objs_cand[candidate['subject']['category']],
+                                                                     predicates_cand[candidate['predicate']]),
+                                              rect_color=CvColor.GREEN,
+                                              scale=2000)
+
+            VisualizerDrawer.draw_labeled_box(img, obj_cand_mask,
+                                              label=objs_cand[candidate['object']['category']],
+                                              rect_color=CvColor.BLUE,
+                                              scale=2000)
+
+        cv2.imwrite("/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/debug_referring/{}_original2.jpg".format(entity.image.id), img)
+
+        print("debug")
+
 if __name__ == '__main__':
     # Create mini data-set
     # create_data_object_and_predicates_by_img_id()
@@ -1338,9 +1407,51 @@ if __name__ == '__main__':
     logger = Logger()
 
     # # Referring Relationships
+
+    check_referring_data()
+    exit()
+
     # Filter the data
-    get_module_filter_data_referring(entities_file_name="full_entities.p", create_negative=True,
-                                     positive_negative_ratio=POSITIVE_NEGATIVE_RATIO)
+    # get_module_filter_data_referring(entities_file_name="full_entities.p", create_negative=True,
+    #                                  positive_negative_ratio=POSITIVE_NEGATIVE_RATIO)
+    # exit()
+    images = cPickle.load(open(
+        "/specific/netapp5_2/gamir/DER-Roei/SceneGrapher/FilesManager/Data/VisualGenome/Referring/filtered_data_referring_test.p"))
+
+    for image in images:
+
+        if len(image.relationships) == 0:
+            print("No relationships have been found in {0}".format(image.image.id))
+            continue
+
+        for query_index in range(image.queries_gt.shape[0]):
+            if image.one_hot_relations_gt[query_index][-1] == 1:
+                print "negative triplet"
+                continue
+            sub = image.one_hot_relations_gt[query_index][:96]
+            obj = image.one_hot_relations_gt[query_index][96:96 * 2]
+            rel = image.one_hot_relations_gt[query_index][96 * 2:]
+            count = 0
+            for i in range(image.objects_labels.shape[0]):
+                if not np.array_equal(image.objects_labels[i], sub):
+                    continue
+                for j in range(image.objects_labels.shape[0]):
+                    if not np.array_equal(image.objects_labels[j], obj):
+                        continue
+                    if np.array_equal(rel, image.predicates_labels[i, j]):
+                        print('new')
+                        print("{0}, {1}".format(i,j))
+                        # count += 1
+                        # if count > 1:
+                        #     break
+            #     if count > 1:
+            #         break
+            # if count > 1:
+            #     print "two triplets for the same query"
+            #     continue
+            # if count == 0:
+            #     print "no triplet found"
+            #     continue
     exit()
 
     # # load_NYU_dataset(file_path="splits.mat")

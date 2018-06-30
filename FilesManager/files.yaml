@@ -36,6 +36,16 @@ data:
             type: "json"
             doc: "dictionary mapping img ids to testing annotations of Referring"
 
+        train_image_metadata:
+            name: "Data/VisualGenome/Referring/train_image_metadata.json"
+            type: "json"
+            doc: "dictionary mapping img ids to training metadata of Referring"
+
+        test_image_metadata:
+            name: "Data/VisualGenome/Referring/test_image_metadata.json"
+            type: "json"
+            doc: "dictionary mapping img ids to testing metadata of Referring"
+
         filtered_data_referring_train:
             name: "Data/VisualGenome/Referring/filtered_data_referring_train.p"
             type: "pickle"

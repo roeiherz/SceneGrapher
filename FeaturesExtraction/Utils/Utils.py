@@ -57,6 +57,8 @@ OBJECTS_REFERRING_LIST = "object_referring_list"
 PREDICATES_REFERRING_LIST = "predicate_referring_list"
 ANNOTATIONS_REFERRING_TRAIN = "annotaions_train"
 ANNOTATIONS_REFERRING_TEST = "annotaions_test"
+METADATA_REFERRING_TRAIN = "train_image_metadata"
+METADATA_REFERRING_TEST = "test_image_metadata"
 POSITIVE_NEGATIVE_RATIO = 3
 
 
@@ -295,6 +297,28 @@ def replace_top_layer(model, num_of_classes):
     # Define the new model
     model = Model(inputs=model.input, outputs=new_output_layer, name='resnet50')
     return model
+
+
+def rescale_bbox_coordinates(bbox, height, width, output_dim_h=1024, output_dim_w=1024):
+    """
+    Rescales the bbox coords according to the `output_dim`.
+    :param output_dim: The size of predictions.
+    :param bbox: A tuple of (top, bottom, left, right) coordinates of the object of interest
+    :param height: original image height.
+    :param width: original image width.
+    :return: A tuple containing the rescaled bbox coordinates.
+    """
+    h_ratio = output_dim_h * 1. / height
+    w_ratio = output_dim_w * 1. / width
+    y_min, y_max, x_min, x_max = bbox
+    y0 = max(int(y_min * h_ratio), 0)
+    x0 = max(int(x_min * w_ratio), 0)
+    y1 = min(int(y_max * h_ratio), output_dim_h - 1)
+    x1 = min(int(x_max * w_ratio), output_dim_w - 1)
+    if y_min < height and y_max < height and x_min < width and x_max < width:
+        assert (y0 <= y1)
+        assert (x0 <= x1)
+    return numpy.array([x0, y0, x1, y1])
 
 
 def get_img(url, download=False, original=False):
